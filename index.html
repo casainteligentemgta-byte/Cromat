@@ -2546,31 +2546,27 @@ function calcDTFUnit(){
   var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
   return numEl('d-tinta',8)*area+numEl('d-film',3)*area+numEl('d-polvo-kg',12)/1000*numEl('d-polvo-m2',50)*area+numEl('d-mano',1)+numEl('d-luz',0.3);
 }
-function txMetrosTela(){return numEl('tx-tela-m',1)}
-function txAnchoRollo(){return numEl('i-ancho',1.60)}
-function txCostoPass(n){
-  var r=calcImpresion(n);
-  return r.costo_m2*txMetrosTela()*txAnchoRollo();
+function txPrecioPass(n){
+  return calcImpresion(n).total_trabajo;
 }
-function txCostoGuardado(c){
+function txPrecioGuardado(c){
   if(!c)return 0;
-  if(c.tipo==='Impresion'){
-    var m2=c.costo_m2||(c.area?c.costo/c.area:0);
-    if(m2)return m2*txMetrosTela()*txAnchoRollo();
-  }
-  return c.costo||0;
+  return c.precio||0;
 }
-function txGetImpCosto(val){
+function txPrecioDTF(){
+  return calcDTFUnit()*(1+numEl('d-mg',50)/100);
+}
+function txGetImpPrecio(val){
   if(!val)return null;
-  if(val.indexOf('pass:')===0)return txCostoPass(+val.split(':')[1]);
-  if(val==='dtf')return calcDTFUnit();
+  if(val.indexOf('pass:')===0)return txPrecioPass(+val.split(':')[1]);
+  if(val==='dtf')return txPrecioDTF();
   if(val.indexOf('c:')===0){
     var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===val.slice(2)});
-    return c?txCostoGuardado(c):null;
+    return c?txPrecioGuardado(c):null;
   }
   if(val.indexOf('p:')===0){
     var p=(LS.g('crm_catalogo')||[]).find(function(x){return x.id===val.slice(2)});
-    return p?(p.costo||p.precio||0):null;
+    return p?(p.precio||0):null;
   }
   return null;
 }
@@ -2580,19 +2576,19 @@ function fillTxImpSelect(){
   var prev=sel.value;
   var html='<option value="">Manual</option><optgroup label="Sublimacion (passes)">';
   [4,6,8,12].forEach(function(n){
-    html+='<option value="pass:'+n+'">'+PASS_MODES[n].label+' — '+usd(txCostoPass(n))+'</option>';
+    html+='<option value="pass:'+n+'">'+PASS_MODES[n].label+' — '+usd(txPrecioPass(n))+'</option>';
   });
-  html+='</optgroup><optgroup label="DTF"><option value="dtf">DTF (calculadora) — '+usd(calcDTFUnit())+'</option></optgroup>';
+  html+='</optgroup><optgroup label="DTF"><option value="dtf">DTF (calculadora) — '+usd(txPrecioDTF())+'</option></optgroup>';
   var costos=(LS.g('crm_costos')||[]).filter(function(c){return c.tipo==='Impresion'||c.tipo==='DTF'});
   if(costos.length){
     html+='<optgroup label="Analisis guardados">';
-    costos.forEach(function(c){html+='<option value="c:'+c.id+'">'+escHtml(c.nombre)+' — '+usd(txCostoGuardado(c))+'</option>'});
+    costos.forEach(function(c){html+='<option value="c:'+c.id+'">'+escHtml(c.nombre)+' — '+usd(txPrecioGuardado(c))+'</option>'});
     html+='</optgroup>';
   }
   var cat=(LS.g('crm_catalogo')||[]).filter(function(p){return p.activo&&(p.tipo==='Impresion'||p.tipo==='DTF')});
   if(cat.length){
     html+='<optgroup label="Catalogo">';
-    cat.forEach(function(p){html+='<option value="p:'+p.id+'">'+escHtml(p.nombre)+' — '+usd(p.costo||p.precio||0)+'</option>'});
+    cat.forEach(function(p){html+='<option value="p:'+p.id+'">'+escHtml(p.nombre)+' — '+usd(p.precio||0)+'</option>'});
     html+='</optgroup>';
   }
   sel.innerHTML=html;
@@ -2605,11 +2601,11 @@ function txImpHint(val){
   if(!val){el.textContent='';return}
   if(val.indexOf('pass:')===0){
     var n=+val.split(':')[1];
-    el.textContent='Costo auto: '+PASS_MODES[n].label+' × '+txMetrosTela().toFixed(1)+' m de tela';
+    el.textContent='Precio total del trabajo · '+PASS_MODES[n].label;
     return;
   }
-  if(val==='dtf'){el.textContent='Costo unitario de la calculadora DTF';return}
-  el.textContent='Precio cargado automaticamente';
+  if(val==='dtf'){el.textContent='Precio unitario de la calculadora DTF';return}
+  el.textContent='Precio total del trabajo';
 }
 function txApplyImpPrecio(){
   var sel=document.getElementById('tx-imp-select');
@@ -2618,9 +2614,9 @@ function txApplyImpPrecio(){
   var val=sel.value;
   txImpHint(val);
   if(!val){inp.readOnly=false;inp.style.opacity='1';return}
-  var costo=txGetImpCosto(val);
-  if(costo==null)return;
-  inp.value=(Math.round(costo*100)/100).toFixed(2);
+  var precio=txGetImpPrecio(val);
+  if(precio==null)return;
+  inp.value=(Math.round(precio*100)/100).toFixed(2);
   inp.readOnly=true;
   inp.style.opacity='0.9';
 }
