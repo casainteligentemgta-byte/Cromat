@@ -1020,24 +1020,25 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
 </div>
 
-<!-- MODAL GUARDAR ANALISIS -->
+<!-- MODAL GUARDAR / EDITAR ANALISIS -->
 <div class="modal-bg" id="modal-guardar-calc">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Guardar analisis</span><button class="close-btn" onclick="closeModal('modal-guardar-calc')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="gc-title">Guardar analisis</span><button class="close-btn" onclick="closeModal('modal-guardar-calc')">&#x2715;</button></div>
+    <input type="hidden" id="gc-id">
     <input type="hidden" id="gc-tipo">
     <div class="fg"><label class="fl">Nombre del analisis</label><input class="fi" type="text" id="gc-nombre" placeholder="Ej: Toalla grande 50x100..."></div>
     <div class="fg"><label class="fl">Material / descripcion</label><input class="fi" type="text" id="gc-material" placeholder="Ej: Polyester 200g..."></div>
     <div id="gc-preview-items" style="font-size:11px;color:var(--tm);margin-bottom:10px"></div>
     <div class="row2">
-      <div><label class="fl">Costo total</label><div id="gc-costo" style="font-size:16px;font-weight:700;color:var(--dt)">$0</div></div>
-      <div><label class="fl">Precio venta</label><div id="gc-precio" style="font-size:16px;font-weight:700;color:var(--gt)">$0</div></div>
+      <div class="fg"><label class="fl">Costo total ($)</label><input class="fi" type="number" id="gc-costo" min="0" step="0.01"></div>
+      <div class="fg"><label class="fl">Precio venta ($)</label><input class="fi" type="number" id="gc-precio" min="0" step="0.01"></div>
     </div>
-    <div class="fg" style="margin-top:10px">
+    <div class="fg" style="margin-top:10px" id="gc-catalogo-wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px">
         <input type="checkbox" id="gc-activo" checked> Agregar al catalogo automaticamente
       </label>
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="confirmarGuardarAnalisis()">Guardar</button>
+    <button class="btn btn-primary" id="gc-btn" style="width:100%;margin-top:10px" onclick="confirmarGuardarAnalisis()">Guardar</button>
   </div>
 </div>
 
@@ -2994,35 +2995,90 @@ function cDs(){
 }
 // GUARDAR ANALISIS
 function guardarAnalisis(tipo){
-  document.getElementById('gc-tipo').value=tipo;
   var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
   if(!res){alert('Calcula primero');return}
+  document.getElementById('gc-id').value='';
+  document.getElementById('gc-tipo').value=tipo;
+  document.getElementById('gc-title').textContent='Guardar analisis';
+  document.getElementById('gc-btn').textContent='Guardar';
   document.getElementById('gc-nombre').value='';
   document.getElementById('gc-material').value='';
-  document.getElementById('gc-costo').textContent=usd(res.costo);
-  document.getElementById('gc-precio').textContent=usd(res.precio);
-  document.getElementById('gc-preview-items').textContent='Costo: '+usd(res.costo)+' | Precio: '+usd(res.precio);
+  document.getElementById('gc-costo').value=(+res.costo||0).toFixed(2);
+  document.getElementById('gc-precio').value=(+res.precio||0).toFixed(2);
+  document.getElementById('gc-preview-items').textContent='Tipo: '+tipo;
+  document.getElementById('gc-activo').checked=true;
+  document.getElementById('gc-catalogo-wrap').style.display='';
   openModal('modal-guardar-calc');
+}
+function abrirCosto(id){
+  var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  document.getElementById('gc-id').value=c.id;
+  document.getElementById('gc-tipo').value=c.tipo||'';
+  document.getElementById('gc-title').textContent='Editar analisis';
+  document.getElementById('gc-btn').textContent='Guardar cambios';
+  document.getElementById('gc-nombre').value=c.nombre||'';
+  document.getElementById('gc-material').value=c.material||'';
+  document.getElementById('gc-costo').value=(+c.costo||0).toFixed(2);
+  document.getElementById('gc-precio').value=(+c.precio||0).toFixed(2);
+  document.getElementById('gc-preview-items').textContent='Tipo: '+(c.tipo||'')+(c.fecha?' · '+fch(c.fecha):'');
+  document.getElementById('gc-activo').checked=false;
+  document.getElementById('gc-catalogo-wrap').style.display='none';
+  openModal('modal-guardar-calc');
+}
+function syncCostoCatalogo(c,prevNombre){
+  var cat=LS.g('crm_catalogo')||[];
+  var i=-1;
+  if(c.catalogId)i=cat.findIndex(function(p){return p.id===c.catalogId});
+  if(i<0)i=cat.findIndex(function(p){return p.tipo===c.tipo&&p.nombre===(prevNombre||c.nombre)});
+  if(i<0)return;
+  cat[i].nombre=c.nombre;
+  cat[i].material=c.material;
+  cat[i].desc=c.material||cat[i].desc;
+  cat[i].precio=c.precio;
+  cat[i].costo=c.costo;
+  LS.s('crm_catalogo',cat);
 }
 function confirmarGuardarAnalisis(){
   var lista=LS.g('crm_costos')||[];
+  var id=document.getElementById('gc-id').value;
   var tipo=document.getElementById('gc-tipo').value;
-  var nombre=document.getElementById('gc-nombre').value||tipo;
+  var nombre=(document.getElementById('gc-nombre').value||'').trim()||tipo;
   var material=document.getElementById('gc-material').value;
+  var costo=parseFloat(document.getElementById('gc-costo').value)||0;
+  var precio=parseFloat(document.getElementById('gc-precio').value)||0;
   var activo=document.getElementById('gc-activo').checked;
+  if(id){
+    var i=lista.findIndex(function(x){return x.id===id});
+    if(i<0){alert('Analisis no encontrado');return}
+    var prevNombre=lista[i].nombre;
+    lista[i].nombre=nombre;
+    lista[i].material=material;
+    lista[i].costo=costo;
+    lista[i].precio=precio;
+    LS.s('crm_costos',lista);
+    syncCostoCatalogo(lista[i],prevNombre);
+    closeModal('modal-guardar-calc');
+    fillTxImpSelect();
+    renderCostos();
+    return;
+  }
   var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
-  var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:res.costo,precio:res.precio,fecha:hoy(),activo:activo};
+  if(!res){alert('Calcula primero');return}
+  var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:costo,precio:precio,fecha:hoy(),activo:activo};
   if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0}
-  lista.push(obj);
-  LS.s('crm_costos',lista);
   if(activo){
     var cat=LS.g('crm_catalogo')||[];
-    var catObj={id:uid(),nombre:nombre,tipo:tipo,material:material,precio:res.precio,costo:res.costo,activo:true,foto:'',desc:material,dias:1,horas:0};
+    var catObj={id:uid(),nombre:nombre,tipo:tipo,material:material,precio:precio,costo:costo,activo:true,foto:'',desc:material,dias:1,horas:0};
     cat.push(catObj);
     LS.s('crm_catalogo',cat);
+    obj.catalogId=catObj.id;
   }
+  lista.push(obj);
+  LS.s('crm_costos',lista);
   closeModal('modal-guardar-calc');
   fillTxImpSelect();
+  renderCostos();
   alert('Analisis guardado!');
 }
 function renderCostos(){
@@ -3038,10 +3094,15 @@ function renderCostos(){
       +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarCosto(\''+c.id+'\')">'
       +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
       +'</button>'
-      +'<div class="list-item swipe-front"><div class="li-top"><span class="li-name">'+escHtml(c.nombre)+'</span><span class="tag tag-teal">'+c.tipo+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(c.fecha)+(c.material?' &bull; '+c.material:'')+'</span><span style="font-weight:700;color:var(--coral)">'+usd(c.precio)+'</span></div></div>'
+      +'<div class="list-item swipe-front" onclick="abrirCostoTap(event,\''+c.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(c.nombre)+'</span><span class="tag tag-teal">'+c.tipo+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(c.fecha)+(c.material?' &bull; '+c.material:'')+'</span><span style="font-weight:700;color:var(--coral)">'+usd(c.precio)+'</span></div></div>'
       +'</div>'
   }).join('');
   bindSwipeDelete(el);
+}
+function abrirCostoTap(ev,id){
+  var w=ev.currentTarget.closest('.swipe-wrap');
+  if(!w||w.classList.contains('open')||w._swiped)return;
+  abrirCosto(id);
 }
 function eliminarCosto(id){
   LS.s('crm_costos',(LS.g('crm_costos')||[]).filter(function(x){return x.id!==id}));
@@ -3228,6 +3289,7 @@ function bindSwipeDelete(root){
     if(e.target.closest('.swipe-del'))return;
     closeAll(w);
     row=w;axis=null;active=true;
+    w._swiped=false;
     var p=e.touches?e.touches[0]:e;
     startX=p.clientX;startY=p.clientY;
     base=w.classList.contains('open')?-W:0;
@@ -3243,6 +3305,7 @@ function bindSwipeDelete(root){
       if(axis==='y'){active=false;row=null;return}
     }
     if(axis!=='x')return;
+    row._swiped=true;
     if(e.cancelable)e.preventDefault();
     var x=Math.max(-W,Math.min(0,base+dx));
     var f=frontOf(row);if(f)f.style.transform='translateX('+x+'px)';
@@ -3255,6 +3318,7 @@ function bindSwipeDelete(root){
       var m=/translateX\((-?[\d.]+)px\)/.exec(f.style.transform);
       if(m)now=parseFloat(m[1]);
     }
+    if(axis==='x'||base===-W)row._swiped=true;
     if(Math.abs(now-base)<8&&base===-W)snap(row,false);
     else snap(row,now<-W*0.35);
     active=false;row=null;axis=null;
