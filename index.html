@@ -1228,15 +1228,22 @@ function authMsg(txt,err){
 }
 function authShowLogin(){
   var setup=!authUsers().length;
-  document.getElementById('login-titulo').textContent=setup?'Crear administrador':'Iniciar sesión';
-  document.getElementById('login-sub').textContent=setup?'Primera vez: crea el usuario dueño para entrar y luego invita al equipo.':'Entra con tu usuario y clave.';
-  document.getElementById('login-nombre-wrap').style.display=setup?'':'none';
-  document.getElementById('login-btn').textContent=setup?'Crear y entrar':'Entrar';
-  document.getElementById('login-pass').autocomplete=setup?'new-password':'current-password';
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('btn-salir').style.display='none';
-  document.getElementById('btn-usuarios').style.display='none';
-  document.getElementById('auth-chip').style.display='none';
+  var titulo=document.getElementById('login-titulo');
+  var sub=document.getElementById('login-sub');
+  var nom=document.getElementById('login-nombre-wrap');
+  var btn=document.getElementById('login-btn');
+  var pass=document.getElementById('login-pass');
+  var scr=document.getElementById('login-screen');
+  if(!scr)return;
+  if(titulo)titulo.textContent=setup?'Crear administrador':'Iniciar sesión';
+  if(sub)sub.textContent=setup?'Primera vez: crea el usuario dueño para entrar y luego invita al equipo.':'Entra con tu usuario y clave.';
+  if(nom)nom.style.display=setup?'':'none';
+  if(btn)btn.textContent=setup?'Crear y entrar':'Entrar';
+  if(pass)pass.autocomplete=setup?'new-password':'current-password';
+  scr.style.display='flex';
+  var salir=document.getElementById('btn-salir');if(salir)salir.style.display='none';
+  var us=document.getElementById('btn-usuarios');if(us)us.style.display='none';
+  var chip=document.getElementById('auth-chip');if(chip)chip.style.display='none';
   document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
 }
 function authApplyUI(){
@@ -3223,7 +3230,6 @@ function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
   // Set mov-fecha default
   var mfEl=document.getElementById('mov-fecha');
   if(mfEl)mfEl.value=hoyStr;
-  authBoot();
 })();
 </script>
 
@@ -3382,6 +3388,7 @@ function cloudLogout(){
   window.addEventListener('online',function(){cloudFlush()});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')cloudFlush()});
 })();
+if(typeof authBoot==='function')authBoot();
 </script>
 
 </body>
