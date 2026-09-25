@@ -156,7 +156,12 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <span id="sync-status" title="" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
-    <button id="btn-salir" onclick="cloudLogout()" style="display:none;background:transparent;border:0.5px solid #444;color:#aaa;font-size:10px;padding:3px 8px;border-radius:12px;cursor:pointer">Salir</button>
+    <div id="auth-chip" style="display:none;text-align:right;line-height:1.2">
+      <div id="auth-nombre" style="font-size:11px;color:#eee;font-weight:600"></div>
+      <div id="auth-rol" style="font-size:9px;color:var(--coral)"></div>
+    </div>
+    <button id="btn-usuarios" onclick="abrirUsuarios()" style="display:none;background:transparent;border:0.5px solid #444;color:#aaa;font-size:10px;padding:3px 8px;border-radius:12px;cursor:pointer">Usuarios</button>
+    <button id="btn-salir" onclick="authLogout()" style="display:none;background:transparent;border:0.5px solid #444;color:#aaa;font-size:10px;padding:3px 8px;border-radius:12px;cursor:pointer">Salir</button>
     <span class="badge">v1.0</span>
   </div>
 </div>
@@ -177,7 +182,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div class="st" style="margin-top:14px">Stock bajo</div>
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div style="margin-top:16px">
-    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-backup')">&#128190; Exportar / Importar datos</button>
+    <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="openModal('modal-backup')">&#128190; Exportar / Importar datos</button>
   </div>
 </div>
 
@@ -1090,6 +1095,28 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
 </div>
 
+<!-- MODAL USUARIOS -->
+<div class="modal-bg" id="modal-usuarios">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Usuarios y roles</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
+    <div id="lista-usuarios"></div>
+    <div class="st" style="margin-top:14px">Nuevo usuario</div>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
+    <div class="fg"><label class="fl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
+    <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 4 caracteres" autocomplete="new-password"></div>
+    <div class="fg"><label class="fl">Rol</label>
+      <select class="fi" id="nu-rol">
+        <option value="ventas">Ventas</option>
+        <option value="operadora">Produccion</option>
+        <option value="conta">Contabilidad</option>
+        <option value="diseno">Diseno</option>
+        <option value="admin">Dueño / Admin</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="crearUsuario()">Crear usuario</button>
+  </div>
+</div>
+
 <!-- MODAL BACKUP -->
 <div class="modal-bg" id="modal-backup">
   <div class="modal">
@@ -1166,8 +1193,192 @@ function calcFechaEntrega(servicio,desde){
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 
+// ===== AUTH Y ROLES =====
+var AUTH=null;
+var ROLES={
+  admin:{l:'Dueño / Admin',tabs:['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'],users:true,backup:true},
+  ventas:{l:'Ventas',tabs:['dash','clientes','presupuestos','ordenes','catalogo']},
+  operadora:{l:'Produccion',tabs:['dash','ordenes','inventario','costos']},
+  conta:{l:'Contabilidad',tabs:['dash','conta','fondos']},
+  diseno:{l:'Diseno',tabs:['dash','presupuestos','costos','catalogo']}
+};
+function authUsers(){return LS.g('crm_usuarios')||[]}
+function authSaveUsers(lista){LS.s('crm_usuarios',lista)}
+function authRol(r){return ROLES[r]||ROLES.ventas}
+function authCan(tab){return !!(AUTH&&authRol(AUTH.rol).tabs.indexOf(tab)>=0)}
+function authCanUsers(){return !!(AUTH&&authRol(AUTH.rol).users)}
+function authCanBackup(){return !!(AUTH&&authRol(AUTH.rol).backup)}
+function authFirstTab(){return AUTH?((authRol(AUTH.rol).tabs[0])||'dash'):'dash'}
+function hashClave(s){
+  var txt='cromat|'+(s||'');
+  if(window.crypto&&crypto.subtle){
+    return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+    });
+  }
+  var h=5381;
+  for(var i=0;i<txt.length;i++)h=((h<<5)+h)+txt.charCodeAt(i);
+  return Promise.resolve('x'+(h>>>0).toString(16));
+}
+function authMsg(txt,err){
+  var m=document.getElementById('login-msg');
+  if(!m)return;
+  m.style.display=txt?'block':'none';m.textContent=txt||'';
+  m.style.color=err?'var(--dt)':'var(--gt)';
+}
+function authShowLogin(){
+  var setup=!authUsers().length;
+  document.getElementById('login-titulo').textContent=setup?'Crear administrador':'Iniciar sesión';
+  document.getElementById('login-sub').textContent=setup?'Primera vez: crea el usuario dueño para entrar y luego invita al equipo.':'Entra con tu usuario y clave.';
+  document.getElementById('login-nombre-wrap').style.display=setup?'':'none';
+  document.getElementById('login-btn').textContent=setup?'Crear y entrar':'Entrar';
+  document.getElementById('login-pass').autocomplete=setup?'new-password':'current-password';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('btn-salir').style.display='none';
+  document.getElementById('btn-usuarios').style.display='none';
+  document.getElementById('auth-chip').style.display='none';
+  document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
+}
+function authApplyUI(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('btn-salir').style.display='';
+  document.getElementById('auth-chip').style.display='';
+  document.getElementById('auth-nombre').textContent=AUTH.nombre||AUTH.usuario;
+  document.getElementById('auth-rol').textContent=authRol(AUTH.rol).l;
+  document.getElementById('btn-usuarios').style.display=authCanUsers()?'':'none';
+  var bak=document.getElementById('btn-backup');
+  if(bak)bak.style.display=authCanBackup()?'':'none';
+  ['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'].forEach(function(id){
+    var b=document.getElementById('nb-'+id);
+    if(b)b.style.display=authCan(id)?'':'none';
+  });
+}
+function authSetSession(u){
+  AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol};
+  localStorage.setItem('cromat_session',JSON.stringify(AUTH));
+  authApplyUI();
+  goTab(authFirstTab());
+}
+function authLogin(){
+  var usuario=(document.getElementById('login-email').value||'').trim().toLowerCase();
+  var pass=document.getElementById('login-pass').value||'';
+  var btn=document.getElementById('login-btn');
+  if(!usuario||!pass){authMsg('Escribe usuario y clave.',true);return}
+  if(pass.length<4){authMsg('La clave debe tener al menos 4 caracteres.',true);return}
+  btn.disabled=true;btn.style.opacity='0.6';
+  var fin=function(){btn.disabled=false;btn.style.opacity='1'};
+  var lista=authUsers();
+  hashClave(pass).then(function(h){
+    if(!lista.length){
+      var nombre=(document.getElementById('login-nombre').value||'').trim()||usuario;
+      var admin={id:uid(),nombre:nombre,usuario:usuario,pass:h,rol:'admin',activo:true};
+      authSaveUsers([admin]);
+      authMsg('');
+      authSetSession(admin);
+      fin();return;
+    }
+    var u=lista.find(function(x){return x.usuario===usuario&&x.activo!==false});
+    if(!u||u.pass!==h){authMsg('Usuario o clave incorrectos.',true);fin();return}
+    authMsg('');
+    authSetSession(u);
+    fin();
+  });
+}
+function authLogout(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof sb!=='undefined'&&sb){
+    try{sb.auth.signOut()}catch(e){}
+  }
+  AUTH=null;
+  localStorage.removeItem('cromat_session');
+  document.getElementById('login-email').value='';
+  document.getElementById('login-pass').value='';
+  authMsg('');
+  authShowLogin();
+}
+function authBoot(){
+  var raw=localStorage.getItem('cromat_session');
+  var ses=null;
+  try{ses=raw?JSON.parse(raw):null}catch(e){ses=null}
+  if(ses&&ses.id){
+    var u=authUsers().find(function(x){return x.id===ses.id&&x.activo!==false});
+    if(u){AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol};authApplyUI();return}
+  }
+  AUTH=null;
+  authShowLogin();
+}
+function abrirUsuarios(){
+  if(!authCanUsers())return;
+  document.getElementById('nu-nombre').value='';
+  document.getElementById('nu-usuario').value='';
+  document.getElementById('nu-clave').value='';
+  document.getElementById('nu-rol').value='ventas';
+  renderUsuarios();
+  openModal('modal-usuarios');
+}
+function renderUsuarios(){
+  var el=document.getElementById('lista-usuarios');
+  if(!el)return;
+  var lista=authUsers();
+  el.innerHTML=lista.map(function(u){
+    var yo=AUTH&&u.id===AUTH.id;
+    var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
+    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
+      +'<div class="li-sub">@'+escHtml(u.usuario)+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+      +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.id+'\',this.value)">'+opts+'</select>'
+      +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.id+'\')">X</button>')
+      +'</div></div>';
+  }).join('');
+}
+function crearUsuario(){
+  if(!authCanUsers())return;
+  var nombre=(document.getElementById('nu-nombre').value||'').trim();
+  var usuario=(document.getElementById('nu-usuario').value||'').trim().toLowerCase();
+  var pass=document.getElementById('nu-clave').value||'';
+  var rol=document.getElementById('nu-rol').value||'ventas';
+  if(!nombre||!usuario||!pass){alert('Completa nombre, usuario y clave');return}
+  if(pass.length<4){alert('La clave debe tener al menos 4 caracteres');return}
+  if(!ROLES[rol])rol='ventas';
+  var lista=authUsers();
+  if(lista.some(function(x){return x.usuario===usuario})){alert('Ese usuario ya existe');return}
+  hashClave(pass).then(function(h){
+    lista.push({id:uid(),nombre:nombre,usuario:usuario,pass:h,rol:rol,activo:true});
+    authSaveUsers(lista);
+    document.getElementById('nu-nombre').value='';
+    document.getElementById('nu-usuario').value='';
+    document.getElementById('nu-clave').value='';
+    renderUsuarios();
+  });
+}
+function cambiarRolUsuario(id,rol){
+  if(!authCanUsers()||!ROLES[rol])return;
+  var lista=authUsers();
+  var i=lista.findIndex(function(x){return x.id===id});
+  if(i<0)return;
+  if(lista[i].rol==='admin'&&rol!=='admin'){
+    var admins=lista.filter(function(x){return x.rol==='admin'&&x.id!==id});
+    if(!admins.length){alert('Debe quedar al menos un administrador');renderUsuarios();return}
+  }
+  lista[i].rol=rol;
+  authSaveUsers(lista);
+  if(AUTH&&AUTH.id===id){AUTH.rol=rol;localStorage.setItem('cromat_session',JSON.stringify(AUTH));authApplyUI()}
+  renderUsuarios();
+}
+function eliminarUsuario(id){
+  if(!authCanUsers())return;
+  var lista=authUsers();
+  var u=lista.find(function(x){return x.id===id});
+  if(!u)return;
+  if(AUTH&&u.id===AUTH.id){alert('No puedes borrar tu propio usuario');return}
+  if(u.rol==='admin'&&!lista.some(function(x){return x.rol==='admin'&&x.id!==id})){alert('Debe quedar al menos un administrador');return}
+  if(!confirm('Eliminar a '+u.nombre+'?'))return;
+  authSaveUsers(lista.filter(function(x){return x.id!==id}));
+  renderUsuarios();
+}
+
 // ===== NAV =====
 function goTab(id){
+  if(!authCan(id)){id=authFirstTab();if(!authCan(id))return}
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('on')});
   document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('on')});
   var s=document.getElementById('s-'+id); if(s)s.classList.add('on');
@@ -2952,7 +3163,7 @@ function eliminarInsumo(id){
 }
 
 // ===== BACKUP =====
-var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals'];
+var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals','crm_usuarios'];
 function generarExport(){
   var data={};
   CRM_KEYS.forEach(function(k){var v=localStorage.getItem(k);if(v)data[k]=v});
@@ -3012,12 +3223,13 @@ function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
   // Set mov-fecha default
   var mfEl=document.getElementById('mov-fecha');
   if(mfEl)mfEl.value=hoyStr;
+  authBoot();
 })();
 </script>
 
 <!-- MODAL SELECTOR PRODUCTO PRESUPUESTO -->
 
-<!-- LOGIN (Supabase) -->
+<!-- LOGIN / PRIMER ADMIN -->
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--negro);z-index:2000;align-items:center;justify-content:center;padding:24px">
   <div style="width:100%;max-width:340px">
     <div style="text-align:center;margin-bottom:24px">
@@ -3025,15 +3237,13 @@ function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
       <div class="tagline" style="display:inline-block;margin-top:6px">GESTION EMPRESARIAL</div>
     </div>
     <div style="background:var(--s2);border-radius:12px;padding:18px">
-      <div id="login-titulo" style="font-weight:700;font-size:16px;margin-bottom:12px;color:var(--tp)">Iniciar sesión</div>
-      <div class="fg"><label class="fl">Correo</label><input class="fi" type="email" id="login-email" autocomplete="username" inputmode="email"></div>
-      <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="login-pass" autocomplete="current-password"></div>
+      <div id="login-titulo" style="font-weight:700;font-size:16px;margin-bottom:8px;color:var(--tp)">Iniciar sesión</div>
+      <div id="login-sub" style="font-size:12px;color:var(--ts);margin-bottom:12px"></div>
+      <div class="fg" id="login-nombre-wrap" style="display:none"><label class="fl">Tu nombre</label><input class="fi" type="text" id="login-nombre" placeholder="Ej: Luis Mata" autocomplete="name"></div>
+      <div class="fg"><label class="fl">Usuario</label><input class="fi" type="text" id="login-email" autocomplete="username"></div>
+      <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()"></div>
       <div id="login-msg" style="font-size:12px;margin-bottom:10px;display:none"></div>
-      <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:12px" onclick="cloudLogin()">Entrar</button>
-      <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--ts)">
-        <span id="login-alt-txt">¿No tienes cuenta?</span>
-        <a href="#" id="login-alt" onclick="cloudToggleModo();return false" style="color:var(--teal);font-weight:600">Crear cuenta</a>
-      </div>
+      <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:12px" onclick="authLogin()">Entrar</button>
     </div>
   </div>
 </div>
@@ -3117,24 +3327,16 @@ function cloudPull(){
   },function(){_sbReady=true;syncEstado('err','Sin conexión')});
 }
 function cloudMostrarLogin(on){
-  document.getElementById('login-screen').style.display=on?'flex':'none';
-  document.getElementById('btn-salir').style.display=on?'none':'';
+  // El acceso lo controla el login local + roles
+  if(on)return;
+  if(AUTH)document.getElementById('login-screen').style.display='none';
 }
 function cloudMsg(txt,err){
   var m=document.getElementById('login-msg');
   m.style.display=txt?'block':'none';m.textContent=txt||'';
   m.style.color=err?'var(--dt)':'var(--gt)';
 }
-function cloudToggleModo(){
-  _sbModo=_sbModo==='login'?'signup':'login';
-  var su=_sbModo==='signup';
-  document.getElementById('login-titulo').textContent=su?'Crear cuenta':'Iniciar sesión';
-  document.getElementById('login-btn').textContent=su?'Crear cuenta':'Entrar';
-  document.getElementById('login-alt-txt').textContent=su?'¿Ya tienes cuenta?':'¿No tienes cuenta?';
-  document.getElementById('login-alt').textContent=su?'Iniciar sesión':'Crear cuenta';
-  document.getElementById('login-pass').autocomplete=su?'new-password':'current-password';
-  cloudMsg('');
-}
+function cloudToggleModo(){ /* el alta de usuarios la hace el admin en Usuarios */ }
 function cloudLogin(){
   var email=(document.getElementById('login-email').value||'').trim();
   var pass=document.getElementById('login-pass').value||'';
