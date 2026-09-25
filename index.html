@@ -508,14 +508,17 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <div class="field-row"><span class="field-label">Costo tela ($)</span><input class="field-input" type="number" id="tx-tela-pm" value="12" min="0" step="0.5" oninput="cTx()"></div>
         <div class="field-row"><span class="field-label">Metros de tela</span><input class="field-input" type="number" id="tx-tela-m" value="1" min="0" step="0.1" oninput="cTx()"></div>
         <div class="field-row"><span class="result-label">Costo tela total</span><span class="result-val" id="tx-tela-sub">$0.00</span></div>
-        <div class="field-row"><span class="field-label">Costo impresion ($)</span>
-          <div style="display:flex;align-items:center;gap:4px">
-            <select id="tx-imp-select" onchange="cTx()" style="font-size:11px;border:none;background:transparent;color:var(--teal);font-weight:600;outline:none;max-width:100px">
-              <option value="">Manual</option>
-            </select>
-            <input class="field-input" type="number" id="tx-pr" value="7" min="0" step="0.5" oninput="cTx()" style="width:60px">
-          </div>
+        <div class="field-row">
+          <span class="field-label">Tipo de impresion</span>
+          <select class="field-input" id="tx-imp-select" onchange="txOnImpSelect()" style="width:auto;min-width:170px;max-width:62%;color:var(--tp);background:var(--s2);border:none;text-align:right">
+            <option value="">Manual</option>
+          </select>
         </div>
+        <div class="field-row">
+          <span class="field-label">Costo impresion ($)</span>
+          <input class="field-input" type="number" id="tx-pr" value="7" min="0" step="0.5" oninput="txImpManualEdit()">
+        </div>
+        <div id="tx-imp-hint" style="font-size:10px;color:var(--tm);text-align:right;padding:2px 0 8px"></div>
         <div class="field-row"><span class="field-label">Costo costura ($)</span><input class="field-input" type="number" id="tx-co" value="3" min="0" step="0.5" oninput="cTx()"></div>
         <div class="field-row"><span class="field-label">Ganancia ($)</span><input class="field-input" type="number" id="tx-gan" value="10" min="0" step="0.5" oninput="cTx()"></div>
       </div>
@@ -2490,6 +2493,7 @@ function showCalc(id,btn){
   document.querySelectorAll('#calc-tabs-inner .ctab').forEach(function(t){t.classList.remove('on')});
   document.getElementById('cp-'+id).classList.add('on');
   if(btn)btn.classList.add('on');
+  if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();}
 }
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
@@ -2497,120 +2501,178 @@ function setVistaCostos(v){
   if(v==='saved')renderCostos();
 }
 // IMPRESION
+function numEl(id,def){
+  var el=document.getElementById(id);
+  if(!el)return def;
+  var n=parseFloat(el.value);
+  return isNaN(n)?def:n;
+}
+function calcImpresion(passN){
+  var pass=(passN&&PASS_MODES[passN])?PASS_MODES[passN]:null;
+  var largo=numEl('i-largo',1);
+  var ancho=numEl('i-ancho',1.60);
+  var area=largo*ancho;
+  var tkC=numEl('i-tk-c',22),tkM=numEl('i-tk-m',22),tkY=numEl('i-tk-y',22),tkK=numEl('i-tk-k',22);
+  var tkProm=(tkC+tkM+tkY+tkK)/4;
+  var mlm2=pass?pass.ml:numEl('i-tm',6);
+  var purga=numEl('i-purga',0);
+  var tinta_m2=tkProm/1000*mlm2*(1+purga/100);
+  var rp=numEl('i-rollo',60),rl=numEl('i-rlargo',100);
+  var papel_m2=rp/(rl*ancho);
+  var kwImp=numEl('i-kwhc',2.5),kwCal=numEl('i-kw-cal',8),kwh=numEl('i-kwhi',0.04);
+  var tImp=pass?pass.tImp:numEl('i-t-imp',3.3);
+  var tCal=numEl('i-t-cal',3);
+  var luz_m2=(kwImp*tImp/60+kwCal*tCal/60)*kwh;
+  var vimp=numEl('i-vimp',12000),metrosVida=numEl('i-metros-vida',8000);
+  var dep_ml=vimp/metrosVida;
+  var dep_m2=ancho>0?dep_ml/ancho:0;
+  var sal=numEl('i-sal-sem',200),gf=numEl('i-gf',250),otros=numEl('i-otros',0),m2mes=numEl('i-m2mes',400);
+  var mano_m2=sal/m2mes,prorr_m2=gf/m2mes;
+  var costo_m2=tinta_m2+papel_m2+luz_m2+dep_m2+mano_m2+prorr_m2+otros;
+  var mgPct=numEl('i-mg',89),ceoPct=numEl('i-pct-ceo',15),operPct=numEl('i-pct-oper',5);
+  var negPct=Math.max(0,100-ceoPct-operPct);
+  var impPct=numEl('i-imp',10);
+  var gan_m2=costo_m2*mgPct/100;
+  var precio_m2=costo_m2+gan_m2;
+  var comis_m2=precio_m2*(ceoPct+operPct)/100;
+  var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100;
+  var precio_ml=precio_m2*ancho;
+  var total_trabajo=precio_ml*largo;
+  var sin_fijos=precio_m2-prorr_m2;
+  var margen=precio_m2>0?gan_m2/precio_m2*100:0;
+  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
+}
+function calcDTFUnit(){
+  var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
+  return numEl('d-tinta',8)*area+numEl('d-film',3)*area+numEl('d-polvo-kg',12)/1000*numEl('d-polvo-m2',50)*area+numEl('d-mano',1)+numEl('d-luz',0.3);
+}
+function txMetrosTela(){return numEl('tx-tela-m',1)}
+function txAnchoRollo(){return numEl('i-ancho',1.60)}
+function txCostoPass(n){
+  var r=calcImpresion(n);
+  return r.costo_m2*txMetrosTela()*txAnchoRollo();
+}
+function txCostoGuardado(c){
+  if(!c)return 0;
+  if(c.tipo==='Impresion'){
+    var m2=c.costo_m2||(c.area?c.costo/c.area:0);
+    if(m2)return m2*txMetrosTela()*txAnchoRollo();
+  }
+  return c.costo||0;
+}
+function txGetImpCosto(val){
+  if(!val)return null;
+  if(val.indexOf('pass:')===0)return txCostoPass(+val.split(':')[1]);
+  if(val==='dtf')return calcDTFUnit();
+  if(val.indexOf('c:')===0){
+    var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===val.slice(2)});
+    return c?txCostoGuardado(c):null;
+  }
+  if(val.indexOf('p:')===0){
+    var p=(LS.g('crm_catalogo')||[]).find(function(x){return x.id===val.slice(2)});
+    return p?(p.costo||p.precio||0):null;
+  }
+  return null;
+}
+function fillTxImpSelect(){
+  var sel=document.getElementById('tx-imp-select');
+  if(!sel)return;
+  var prev=sel.value;
+  var html='<option value="">Manual</option><optgroup label="Sublimacion (passes)">';
+  [4,6,8,12].forEach(function(n){
+    html+='<option value="pass:'+n+'">'+PASS_MODES[n].label+' — '+usd(txCostoPass(n))+'</option>';
+  });
+  html+='</optgroup><optgroup label="DTF"><option value="dtf">DTF (calculadora) — '+usd(calcDTFUnit())+'</option></optgroup>';
+  var costos=(LS.g('crm_costos')||[]).filter(function(c){return c.tipo==='Impresion'||c.tipo==='DTF'});
+  if(costos.length){
+    html+='<optgroup label="Analisis guardados">';
+    costos.forEach(function(c){html+='<option value="c:'+c.id+'">'+escHtml(c.nombre)+' — '+usd(txCostoGuardado(c))+'</option>'});
+    html+='</optgroup>';
+  }
+  var cat=(LS.g('crm_catalogo')||[]).filter(function(p){return p.activo&&(p.tipo==='Impresion'||p.tipo==='DTF')});
+  if(cat.length){
+    html+='<optgroup label="Catalogo">';
+    cat.forEach(function(p){html+='<option value="p:'+p.id+'">'+escHtml(p.nombre)+' — '+usd(p.costo||p.precio||0)+'</option>'});
+    html+='</optgroup>';
+  }
+  sel.innerHTML=html;
+  if(Array.prototype.some.call(sel.options,function(o){return o.value===prev}))sel.value=prev;
+  else sel.value='';
+}
+function txImpHint(val){
+  var el=document.getElementById('tx-imp-hint');
+  if(!el)return;
+  if(!val){el.textContent='';return}
+  if(val.indexOf('pass:')===0){
+    var n=+val.split(':')[1];
+    el.textContent='Costo auto: '+PASS_MODES[n].label+' × '+txMetrosTela().toFixed(1)+' m de tela';
+    return;
+  }
+  if(val==='dtf'){el.textContent='Costo unitario de la calculadora DTF';return}
+  el.textContent='Precio cargado automaticamente';
+}
+function txApplyImpPrecio(){
+  var sel=document.getElementById('tx-imp-select');
+  var inp=document.getElementById('tx-pr');
+  if(!sel||!inp)return;
+  var val=sel.value;
+  txImpHint(val);
+  if(!val){inp.readOnly=false;inp.style.opacity='1';return}
+  var costo=txGetImpCosto(val);
+  if(costo==null)return;
+  inp.value=(Math.round(costo*100)/100).toFixed(2);
+  inp.readOnly=true;
+  inp.style.opacity='0.9';
+}
+function txOnImpSelect(){
+  txApplyImpPrecio();
+  cTx();
+}
+function txImpManualEdit(){
+  var sel=document.getElementById('tx-imp-select');
+  if(sel)sel.value='';
+  var inp=document.getElementById('tx-pr');
+  if(inp){inp.readOnly=false;inp.style.opacity='1'}
+  var hint=document.getElementById('tx-imp-hint');
+  if(hint)hint.textContent='';
+  cTx();
+}
 function cImp(){
-  var largo   = parseFloat(document.getElementById('i-largo').value)  || 1;
-  var ancho   = parseFloat(document.getElementById('i-ancho').value)  || 1.60;
-  var area    = largo * ancho;  // m²
-
-  // Tintas
-  var tkC = parseFloat(document.getElementById('i-tk-c').value) || 22;
-  var tkM = parseFloat(document.getElementById('i-tk-m').value) || 22;
-  var tkY = parseFloat(document.getElementById('i-tk-y').value) || 22;
-  var tkK = parseFloat(document.getElementById('i-tk-k').value) || 22;
-  var tkProm = (tkC + tkM + tkY + tkK) / 4;  // $/L promedio
-  var mlm2   = parseFloat(document.getElementById('i-tm').value)    || 6;   // ml/m²
-  var purga  = parseFloat(document.getElementById('i-purga').value) || 0;   // %
-  var mlm2t  = mlm2 * (1 + purga/100);
-  var tinta_m2 = tkProm / 1000 * mlm2t;  // $/m²
-
-  // Papel
-  var rp   = parseFloat(document.getElementById('i-rollo').value)  || 60;
-  var rl   = parseFloat(document.getElementById('i-rlargo').value) || 100;
-  var papel_m2 = rp / (rl * ancho);  // $/m²
-
-  // Electricidad
-  var kwImp  = parseFloat(document.getElementById('i-kwhc').value)  || 2.5;
-  var kwCal  = parseFloat(document.getElementById('i-kw-cal').value)|| 8.0;
-  var kwh    = parseFloat(document.getElementById('i-kwhi').value)  || 0.04;
-  var tImp   = parseFloat(document.getElementById('i-t-imp').value) || 3.3;  // min/m²
-  var tCal   = parseFloat(document.getElementById('i-t-cal').value) || 3.0;
-  var luz_m2 = (kwImp * tImp/60 + kwCal * tCal/60) * kwh;  // $/m²
-
-  // Depreciación
-  var vimp        = parseFloat(document.getElementById('i-vimp').value)        || 12000;
-  var metrosVida  = parseFloat(document.getElementById('i-metros-vida').value) || 8000;
-  var dep_ml = vimp / metrosVida;   // $/metro lineal
-  var dep_m2 = ancho > 0 ? dep_ml / ancho : 0;  // $/m²
-
-  // Mano de obra
-  var sal    = parseFloat(document.getElementById('i-sal-sem').value)|| 200;
-  var gf     = parseFloat(document.getElementById('i-gf').value)    || 250;
-  var otros  = parseFloat(document.getElementById('i-otros').value) || 0;
-  var m2mes  = parseFloat(document.getElementById('i-m2mes').value) || 400;
-  var mano_m2  = sal / m2mes;
-  var prorr_m2 = gf  / m2mes;
-
-  // Costo total / m²
-  var costo_m2 = tinta_m2 + papel_m2 + luz_m2 + dep_m2 + mano_m2 + prorr_m2 + otros;
-
-  // Margen y comisiones
-  var mgPct   = parseFloat(document.getElementById('i-mg').value)     || 89;
-  var ceoPct  = parseFloat(document.getElementById('i-pct-ceo').value)|| 15;
-  var operPct = parseFloat(document.getElementById('i-pct-oper').value)|| 5;
-  var negPct  = Math.max(0, 100 - ceoPct - operPct);
-  var impPct  = parseFloat(document.getElementById('i-imp').value)    || 10;
-
-  var gan_m2   = costo_m2 * mgPct / 100;
-  var precio_m2 = costo_m2 + gan_m2;
-  var comis_m2  = precio_m2 * (ceoPct + operPct) / 100;
-  var ceo_m2    = precio_m2 * ceoPct / 100;
-  var oper_m2   = precio_m2 * operPct / 100;
-  var precio_ml = precio_m2 * ancho;    // por metro lineal
-  var total_trabajo = precio_ml * largo;
-  var sin_fijos = precio_m2 - prorr_m2;
-
-  // Margen real
-  var margen = precio_m2 > 0 ? (gan_m2 / precio_m2 * 100) : 0;
-
-  // ---- UI ----
-  // Dimensiones
-  document.getElementById('ir-area').textContent     = area.toFixed(2) + ' m²';
-  document.getElementById('ir-ancho-lbl').textContent = ancho.toFixed(2);
-
-  // Subtotales sección
-  document.getElementById('ir-tinta').textContent = usd(tinta_m2)+'/m²';
-  document.getElementById('ir-pap').textContent   = usd(papel_m2)+'/m² (rollo '+( rl*ancho ).toFixed(0)+' m²)';
-  document.getElementById('ir-luz').textContent   = usd(luz_m2)+'/m²';
-  document.getElementById('ir-dep').textContent   = usd(dep_ml)+'/ml ('+usd(dep_m2)+'/m²)';
-  document.getElementById('ir-mano').textContent  = usd(mano_m2)+'/m²';
-
-  // Desglose
-  document.getElementById('ir-tinta-res').textContent = usd(tinta_m2)+'/m²';
-  document.getElementById('ir-pap-res').textContent   = usd(papel_m2)+'/m²';
-  document.getElementById('ir-luz-res').textContent   = usd(luz_m2)+'/m²';
-  document.getElementById('ir-dep-res').textContent   = usd(dep_m2)+'/m²';
-  document.getElementById('ir-mano-res').textContent  = usd(mano_m2)+'/m²';
-  document.getElementById('ir-prorr').textContent     = usd(prorr_m2)+'/m²';
-  document.getElementById('ir-otros-res').textContent = usd(otros)+'/m²';
-  document.getElementById('ir-costo').textContent     = usd(costo_m2)+'/m²';
-  document.getElementById('ir-gan').textContent       = usd(gan_m2)+'/m²';
-  document.getElementById('ir-comis').textContent     = usd(comis_m2)+'/m² (CEO '+usd(ceo_m2)+' + Oper. '+usd(oper_m2)+')';
-  document.getElementById('ir-pct-neg').textContent   = negPct.toFixed(0)+'%';
-
-  // Resultado final
-  document.getElementById('ir-sin-fijos').textContent = usd(sin_fijos)+'/m²';
-  document.getElementById('ir-pm2').textContent       = usd(precio_m2)+'/m²';
-  document.getElementById('ir-precio').textContent    = usd(precio_ml)+'/ml';
-  document.getElementById('ir-total').textContent     = usd(total_trabajo);
-
-  // Semaforo
-  var sem = margen>=30
-    ? '<span class="semaforo ok">&#10003; Margen saludable ('+margen.toFixed(1)+'%)</span>'
-    : margen>=20
-    ? '<span class="semaforo warn">&#9888; Margen ajustado ('+margen.toFixed(1)+'%)</span>'
-    : '<span class="semaforo bad">&#x2717; Margen bajo ('+margen.toFixed(1)+'%)</span>';
-  document.getElementById('ir-sem').innerHTML = sem;
-  // Mostrar modo activo
+  var r=calcImpresion();
+  document.getElementById('ir-area').textContent=r.area.toFixed(2)+' m²';
+  document.getElementById('ir-ancho-lbl').textContent=r.ancho.toFixed(2);
+  document.getElementById('ir-tinta').textContent=usd(r.tinta_m2)+'/m²';
+  document.getElementById('ir-pap').textContent=usd(r.papel_m2)+'/m² (rollo '+(r.rl*r.ancho).toFixed(0)+' m²)';
+  document.getElementById('ir-luz').textContent=usd(r.luz_m2)+'/m²';
+  document.getElementById('ir-dep').textContent=usd(r.dep_ml)+'/ml ('+usd(r.dep_m2)+'/m²)';
+  document.getElementById('ir-mano').textContent=usd(r.mano_m2)+'/m²';
+  document.getElementById('ir-tinta-res').textContent=usd(r.tinta_m2)+'/m²';
+  document.getElementById('ir-pap-res').textContent=usd(r.papel_m2)+'/m²';
+  document.getElementById('ir-luz-res').textContent=usd(r.luz_m2)+'/m²';
+  document.getElementById('ir-dep-res').textContent=usd(r.dep_m2)+'/m²';
+  document.getElementById('ir-mano-res').textContent=usd(r.mano_m2)+'/m²';
+  document.getElementById('ir-prorr').textContent=usd(r.prorr_m2)+'/m²';
+  document.getElementById('ir-otros-res').textContent=usd(r.otros)+'/m²';
+  document.getElementById('ir-costo').textContent=usd(r.costo_m2)+'/m²';
+  document.getElementById('ir-gan').textContent=usd(r.gan_m2)+'/m²';
+  document.getElementById('ir-comis').textContent=usd(r.comis_m2)+'/m² (CEO '+usd(r.ceo_m2)+' + Oper. '+usd(r.oper_m2)+')';
+  document.getElementById('ir-pct-neg').textContent=r.negPct.toFixed(0)+'%';
+  document.getElementById('ir-sin-fijos').textContent=usd(r.sin_fijos)+'/m²';
+  document.getElementById('ir-pm2').textContent=usd(r.precio_m2)+'/m²';
+  document.getElementById('ir-precio').textContent=usd(r.precio_ml)+'/ml';
+  document.getElementById('ir-total').textContent=usd(r.total_trabajo);
+  var sem=r.margen>=30
+    ? '<span class="semaforo ok">&#10003; Margen saludable ('+r.margen.toFixed(1)+'%)</span>'
+    : r.margen>=20
+    ? '<span class="semaforo warn">&#9888; Margen ajustado ('+r.margen.toFixed(1)+'%)</span>'
+    : '<span class="semaforo bad">&#x2717; Margen bajo ('+r.margen.toFixed(1)+'%)</span>';
+  document.getElementById('ir-sem').innerHTML=sem;
   var modeEl=document.getElementById('ir-modo');
   if(modeEl&&PASS_MODES[_activePass]) modeEl.textContent=PASS_MODES[_activePass].label;
-
-  // Persist
-  window._impResult = {costo: costo_m2*area, precio: total_trabajo, gan: gan_m2*area,
-    costo_m2: costo_m2, precio_m2: precio_m2, precio_ml: precio_ml, area: area};
-  LS.s('imp_vals',{largo:largo,ancho:ancho,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,
-    mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,
-    tImp:tImp,tCal:tCal,vimp:vimp,vidaM:metrosVida,m2mes:m2mes,sal:sal,gf:gf,
-    otros:otros,mg:mgPct,imp:impPct,ceo:ceoPct,oper:operPct});
+  window._impResult={costo:r.costo_m2*r.area,precio:r.total_trabajo,gan:r.gan_m2*r.area,costo_m2:r.costo_m2,precio_m2:r.precio_m2,precio_ml:r.precio_ml,area:r.area};
+  LS.s('imp_vals',{largo:r.largo,ancho:r.ancho,tkC:r.tkC,tkM:r.tkM,tkY:r.tkY,tkK:r.tkK,mlm2:r.mlm2,purga:r.purga,rp:r.rp,rl:r.rl,kwImp:r.kwImp,kwCal:r.kwCal,kwh:r.kwh,tImp:r.tImp,tCal:r.tCal,vimp:r.vimp,vidaM:r.metrosVida,m2mes:r.m2mes,sal:r.sal,gf:r.gf,otros:r.otros,mg:r.mgPct,imp:r.impPct,ceo:r.ceoPct,oper:r.operPct});
+  var txSel=document.getElementById('tx-imp-select');
+  if(txSel&&txSel.value){fillTxImpSelect();txApplyImpPrecio();_cTxTotals()}
 }
 function iMgFromPct(){ cImp(); }
 function iMgFromUsd(){
@@ -2623,7 +2685,7 @@ function iMgFromUsd(){
   cImp();
 }
 
-function cTx(){
+function _cTxTotals(){
   var tpm=parseFloat(document.getElementById('tx-tela-pm').value)||0;
   var tm=parseFloat(document.getElementById('tx-tela-m').value)||1;
   var tela=tpm*tm;
@@ -2639,6 +2701,11 @@ function cTx(){
   var margen=precio>0?gan/precio*100:0;
   document.getElementById('tr-sem').innerHTML=margen>=30?'<span class="semaforo ok">&#10003; '+margen.toFixed(1)+'%</span>':margen>=20?'<span class="semaforo warn">&#9888; '+margen.toFixed(1)+'%</span>':'<span class="semaforo bad">&#x2717; '+margen.toFixed(1)+'%</span>';
   window._txResult={costo:costo,precio:precio};
+}
+function cTx(){
+  fillTxImpSelect();
+  txApplyImpPrecio();
+  _cTxTotals();
 }
 // DTF
 function cDTF(){
@@ -2666,6 +2733,8 @@ function cDTF(){
   document.getElementById('dr-3').textContent=cant;
   document.getElementById('dr-tot').textContent=usd(precio*cant);
   window._dtfResult={costo:cUnit,precio:precio};
+  var txSel=document.getElementById('tx-imp-select');
+  if(txSel&&txSel.value==='dtf'){fillTxImpSelect();txApplyImpPrecio();_cTxTotals()}
 }
 // 3D
 function c3D(){
@@ -2725,6 +2794,7 @@ function confirmarGuardarAnalisis(){
   var activo=document.getElementById('gc-activo').checked;
   var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
   var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:res.costo,precio:res.precio,fecha:hoy(),activo:activo};
+  if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0}
   lista.push(obj);
   LS.s('crm_costos',lista);
   if(activo){
@@ -2734,6 +2804,7 @@ function confirmarGuardarAnalisis(){
     LS.s('crm_catalogo',cat);
   }
   closeModal('modal-guardar-calc');
+  fillTxImpSelect();
   alert('Analisis guardado!');
 }
 function renderCostos(){
@@ -2751,6 +2822,7 @@ function renderCostos(){
 function eliminarCosto(id){
   LS.s('crm_costos',(LS.g('crm_costos')||[]).filter(function(x){return x.id!==id}));
   renderCostos();
+  fillTxImpSelect();
 }
 
 // ===== CATALOGO =====
@@ -2814,6 +2886,7 @@ function guardarProdDet(){
   LS.s('crm_catalogo',lista);
   closeModal('modal-producto-det');
   renderCatalogo();
+  fillTxImpSelect();
 }
 
 // ===== INVENTARIO =====
@@ -2930,6 +3003,7 @@ function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
   }
   // Run calcs
   setPass(4);  // default 4 pass
+  fillTxImpSelect();
   cTx();cDTF();c3D();cDs();
   // Marcar edición manual del anticipo
   var antEl=document.getElementById('p-anticipo');
