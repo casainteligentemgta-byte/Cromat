@@ -1440,7 +1440,7 @@ function renderDash(){
   var rEl=document.getElementById('dash-recent');
   if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aun</div>'}
   else{rEl.innerHTML=rec.map(function(p){return'<div class="list-item" onclick="verPresupuesto(\''+p.id+'\')"><div class="li-top"><span class="li-name">'+p.clienteNombre+'</span><span>'+usd(p.total)+'</span></div><div class="li-sub">'+fch(p.fecha)+'</div></div>'}).join('')}
-  var bajo=inv.filter(function(i){return parseFloat(i.stock)<=parseFloat(i.min)});
+  var bajo=inv.filter(function(i){var min=parseFloat(i.min)||0;return min>0&&(parseFloat(i.stock)||0)<=min});
   var sEl=document.getElementById('dash-stock');
   if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
   else{sEl.innerHTML=bajo.map(function(i){return'<div class="list-item"><div class="li-top"><span class="li-name">'+i.nombre+'</span><span class="tag tag-red">BAJO</span></div><div class="li-sub">Stock: '+i.stock+' '+i.unidad+' (min: '+i.min+')</div></div>'}).join('')}
