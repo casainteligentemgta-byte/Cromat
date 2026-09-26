@@ -514,7 +514,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
             <option value="otro">Otro</option><option value="toalla-mano">Toalla mano</option><option value="toalla-dep">Toalla deportiva</option><option value="toalla-std">Toalla playa std</option><option value="toalla-xl">Toalla playa XL</option><option value="camiseta">Camiseta</option><option value="polo">Polo/Camisa</option><option value="gorra">Gorra</option>
           </select>
         </div>
-        <div class="field-row"><span class="field-label">Costo tela ($)</span><input class="field-input" type="number" id="tx-tela-pm" value="12" min="0" step="0.5" oninput="cTx()"></div>
+        <div class="field-row">
+          <span class="field-label">Tipo de tela</span>
+          <select class="field-input" id="tx-tela-select" onchange="txOnTelaSelect()" style="width:auto;min-width:170px;max-width:62%;color:var(--tp);background:var(--s2);border:none;text-align:right">
+            <option value="">Manual</option>
+          </select>
+        </div>
+        <div class="field-row"><span class="field-label">Costo tela ($/m)</span><input class="field-input" type="number" id="tx-tela-pm" value="12" min="0" step="0.01" oninput="txTelaManualEdit()"></div>
         <div class="field-row"><span class="field-label">Metros de tela</span><input class="field-input" type="number" id="tx-tela-m" value="1" min="0" step="0.1" oninput="cTx()"></div>
         <div class="field-row"><span class="result-label">Costo tela total</span><span class="result-val" id="tx-tela-sub">$0.00</span></div>
         <div class="field-row">
@@ -1434,7 +1440,7 @@ function renderDash(){
   var rEl=document.getElementById('dash-recent');
   if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aun</div>'}
   else{rEl.innerHTML=rec.map(function(p){return'<div class="list-item" onclick="verPresupuesto(\''+p.id+'\')"><div class="li-top"><span class="li-name">'+p.clienteNombre+'</span><span>'+usd(p.total)+'</span></div><div class="li-sub">'+fch(p.fecha)+'</div></div>'}).join('')}
-  var bajo=inv.filter(function(i){return parseFloat(i.stock)<=parseFloat(i.min)});
+  var bajo=inv.filter(function(i){var min=parseFloat(i.min)||0;return min>0&&(parseFloat(i.stock)||0)<=min});
   var sEl=document.getElementById('dash-stock');
   if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
   else{sEl.innerHTML=bajo.map(function(i){return'<div class="list-item"><div class="li-top"><span class="li-name">'+i.nombre+'</span><span class="tag tag-red">BAJO</span></div><div class="li-sub">Stock: '+i.stock+' '+i.unidad+' (min: '+i.min+')</div></div>'}).join('')}
@@ -2723,7 +2729,7 @@ function showCalc(id,btn){
   document.querySelectorAll('#calc-tabs-inner .ctab').forEach(function(t){t.classList.remove('on')});
   document.getElementById('cp-'+id).classList.add('on');
   if(btn)btn.classList.add('on');
-  if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();}
+  if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();fillTxTelaSelect();txApplyTelaPrecio();}
 }
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
@@ -2863,6 +2869,69 @@ function txImpManualEdit(){
   if(hint)hint.textContent='';
   cTx();
 }
+var TELAS_CATALOGO=[
+  {id:'tela-microacualite',nombre:'Microacualite',costo:3},
+  {id:'tela-licra-everlast',nombre:'Licra Everlast',costo:6},
+  {id:'tela-licra-carioca',nombre:'Licra Carioca',costo:5.40},
+  {id:'tela-atletica',nombre:'Atletica',costo:1.50},
+  {id:'tela-novac',nombre:'Novac',costo:2.70},
+  {id:'tela-muselina',nombre:'Muselina',costo:2},
+  {id:'tela-dry-fit',nombre:'Dry fit',costo:2.70},
+  {id:'tela-seda-bety',nombre:'Seda Bety',costo:3.80},
+  {id:'tela-micro-durazno',nombre:'Micro durazno',costo:1.95}
+];
+function normNom(s){
+  return(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function asegurarTelasInventario(){
+  var lista=LS.g('crm_inventario')||[];
+  var cambio=false;
+  TELAS_CATALOGO.forEach(function(t){
+    var hay=lista.some(function(x){return x.id===t.id||normNom(x.nombre)===normNom(t.nombre)});
+    if(hay)return;
+    lista.push({id:t.id,nombre:t.nombre,cat:'tela',unidad:'metros',stock:0,min:0,costo:t.costo,proveedor:''});
+    cambio=true;
+  });
+  if(cambio||!LS.g('crm_inventario'))LS.s('crm_inventario',lista);
+  return lista;
+}
+function telasInventario(){
+  return(LS.g('crm_inventario')||[]).filter(function(i){return i.cat==='tela'}).slice().sort(function(a,b){return(a.nombre||'').localeCompare(b.nombre||'')});
+}
+function fillTxTelaSelect(){
+  var sel=document.getElementById('tx-tela-select');
+  if(!sel)return;
+  var prev=sel.value;
+  var html='<option value="">Manual</option>';
+  telasInventario().forEach(function(t){
+    html+='<option value="'+t.id+'">'+escHtml(t.nombre)+' — '+usd(t.costo)+'/m</option>';
+  });
+  sel.innerHTML=html;
+  if(Array.prototype.some.call(sel.options,function(o){return o.value===prev}))sel.value=prev;
+  else sel.value='';
+}
+function txApplyTelaPrecio(){
+  var sel=document.getElementById('tx-tela-select');
+  var inp=document.getElementById('tx-tela-pm');
+  if(!sel||!inp)return;
+  if(!sel.value){inp.readOnly=false;inp.style.opacity='1';return}
+  var t=(LS.g('crm_inventario')||[]).find(function(x){return x.id===sel.value});
+  if(!t)return;
+  inp.value=(Math.round((+t.costo||0)*100)/100).toFixed(2);
+  inp.readOnly=true;
+  inp.style.opacity='0.9';
+}
+function txOnTelaSelect(){
+  txApplyTelaPrecio();
+  cTx();
+}
+function txTelaManualEdit(){
+  var sel=document.getElementById('tx-tela-select');
+  if(sel)sel.value='';
+  var inp=document.getElementById('tx-tela-pm');
+  if(inp){inp.readOnly=false;inp.style.opacity='1'}
+  cTx();
+}
 function cImp(){
   var r=calcImpresion();
   document.getElementById('ir-area').textContent=r.area.toFixed(2)+' m²';
@@ -2960,22 +3029,35 @@ function _cTxTotals(){
   }
   var prodEl=document.getElementById('tx-prod');
   var prodNom=prodEl&&prodEl.selectedIndex>=0?prodEl.options[prodEl.selectedIndex].text:'';
+  var telaSel=document.getElementById('tx-tela-select');
+  var telaNom='Tela';
+  if(telaSel&&telaSel.value&&telaSel.selectedIndex>=0){
+    var tt=telaSel.options[telaSel.selectedIndex];
+    if(tt&&tt.text)telaNom='Tela ('+tt.text.replace(/\s+—\s+\$[\d.]+\/m$/,'').trim()+')';
+  }
+  var notas=[];
+  if(prodNom)notas.push({label:'Producto',val:prodNom});
+  if(telaNom!=='Tela')notas.push({label:'Tela',val:telaNom.replace(/^Tela \(|\)$/g,'')});
+  notas.push({label:'Metros de tela',val:String(tm)});
+  notas.push({label:'Precio tela',val:usd(tpm)+'/m'});
   window._txResult={
     costo:costo,precio:precio,gan:gan,
     detalle:{
       gastos:[
-        {label:'Tela',monto:tela},
+        {label:telaNom,monto:tela},
         {label:impNom,monto:pr},
         {label:'Costura',monto:co}
       ],
       ganancia:gan,
-      notas:prodNom?[{label:'Producto',val:prodNom},{label:'Metros de tela',val:String(tm)}]:[]
+      notas:notas
     }
   };
 }
 function cTx(){
   fillTxImpSelect();
   txApplyImpPrecio();
+  fillTxTelaSelect();
+  txApplyTelaPrecio();
   _cTxTotals();
 }
 // DTF
@@ -3268,23 +3350,32 @@ function renderInventario(){
   if(!lista.length){el.innerHTML='<div class="empty">Sin insumos registrados</div>';return}
   // Agrupar tintas primero, luego resto
   var tintas=lista.filter(function(x){return x.cat==='tintas'});
-  var otros=lista.filter(function(x){return x.cat!=='tintas'});
-  var ordenada=tintas.concat(otros);
+  var telas=lista.filter(function(x){return x.cat==='tela'});
+  var otros=lista.filter(function(x){return x.cat!=='tintas'&&x.cat!=='tela'});
   var html='';
-  // Mostrar grupo tintas si hay
+  function invTag(i){
+    var min=parseFloat(i.min)||0,stock=parseFloat(i.stock)||0;
+    if(min>0&&stock<=min)return'<span class="tag tag-red">BAJO</span>';
+    if(stock<=0)return'<span class="tag tag-gray">SIN STOCK</span>';
+    return'<span class="tag tag-green">OK</span>';
+  }
   if(tintas.length){
     html+='<div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;padding:10px 4px 4px">TINTAS</div>';
     html+=tintas.map(function(i){
-      var bajo=parseFloat(i.stock)<=parseFloat(i.min);
       var dot=cmykDot(i.nombre);
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+dot+escHtml(i.nombre)+'</span>'+(bajo?'<span class="tag tag-red">BAJO</span>':'<span class="tag tag-green">OK</span>')+'</div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+i.stock+' '+i.unidad+' &bull; min: '+i.min+'</span><span style="font-size:11px;color:var(--coral)">'+usd(i.costo)+'/L</span></div><div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="abrirInsumo(\''+i.id+'\')">Editar</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarInsumo(\''+i.id+'\')">X</button></div></div>';
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+dot+escHtml(i.nombre)+'</span>'+invTag(i)+'</div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+i.stock+' '+i.unidad+' &bull; min: '+i.min+'</span><span style="font-size:11px;color:var(--coral)">'+usd(i.costo)+'/L</span></div><div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="abrirInsumo(\''+i.id+'\')">Editar</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarInsumo(\''+i.id+'\')">X</button></div></div>';
+    }).join('');
+  }
+  if(telas.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;padding:10px 4px 4px">TELAS</div>';
+    html+=telas.map(function(i){
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span>'+invTag(i)+'</div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+i.stock+' '+i.unidad+' &bull; min: '+i.min+'</span><span style="font-size:11px;color:var(--coral)">'+usd(i.costo)+'/m</span></div><div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="abrirInsumo(\''+i.id+'\')">Editar</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarInsumo(\''+i.id+'\')">X</button></div></div>';
     }).join('');
   }
   if(otros.length){
     html+='<div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.5px;padding:10px 4px 4px">OTROS INSUMOS</div>';
     html+=otros.map(function(i){
-      var bajo=parseFloat(i.stock)<=parseFloat(i.min);
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span>'+(bajo?'<span class="tag tag-red">BAJO</span>':'<span class="tag tag-green">OK</span>')+'</div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+i.cat+' &bull; '+i.stock+' '+i.unidad+' (min: '+i.min+')</span><span style="font-size:11px;color:var(--coral)">'+usd(i.costo)+'/u</span></div><div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="abrirInsumo(\''+i.id+'\')">Editar</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarInsumo(\''+i.id+'\')">X</button></div></div>';
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span>'+invTag(i)+'</div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+i.cat+' &bull; '+i.stock+' '+i.unidad+' (min: '+i.min+')</span><span style="font-size:11px;color:var(--coral)">'+usd(i.costo)+'/u</span></div><div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="abrirInsumo(\''+i.id+'\')">Editar</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarInsumo(\''+i.id+'\')">X</button></div></div>';
     }).join('');
   }
   el.innerHTML=html;
@@ -3309,10 +3400,15 @@ function guardarInsumo(){
   LS.s('crm_inventario',lista);
   closeModal('modal-insumo');
   renderInventario();
+  fillTxTelaSelect();
+  if(document.getElementById('tx-tela-select')&&document.getElementById('tx-tela-select').value){txApplyTelaPrecio();_cTxTotals()}
 }
 function eliminarInsumo(id){
   LS.s('crm_inventario',(LS.g('crm_inventario')||[]).filter(function(x){return x.id!==id}));
   renderInventario();
+  fillTxTelaSelect();
+  txApplyTelaPrecio();
+  _cTxTotals();
 }
 
 // ===== BACKUP =====
@@ -3438,9 +3534,11 @@ function bindSwipeDelete(root){
       {id:'inv6',nombre:'Papel sublimacion',cat:'papel',unidad:'rollos',stock:1,min:1,costo:60,proveedor:''},
     ]);
   }
+  asegurarTelasInventario();
   // Run calcs
   setPass(4);  // default 4 pass
   fillTxImpSelect();
+  fillTxTelaSelect();
   cTx();cDTF();c3D();cDs();
   // Marcar edición manual del anticipo
   var antEl=document.getElementById('p-anticipo');
