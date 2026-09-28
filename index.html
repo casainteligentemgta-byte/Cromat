@@ -161,7 +161,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="tagline">GESTION EMPRESARIAL</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <span id="sync-status" title="" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
+    <span id="sync-status" title="" onclick="cloudSyncTap()" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
     <div id="auth-chip" style="display:none;text-align:right;line-height:1.2">
       <div id="auth-nombre" style="font-size:11px;color:#eee;font-weight:600"></div>
       <div id="auth-rol" style="font-size:9px;color:var(--coral)"></div>
@@ -189,6 +189,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div style="margin-top:16px">
     <div id="dash-local-note" style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
+    <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin-bottom:8px;line-height:1.4"></div>
     <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="abrirBackup()">&#128190; Exportar / Importar datos</button>
     <button class="btn btn-teal btn-sm" id="btn-subir-nube" style="display:none;margin-top:8px" onclick="cloudSubirLocal()">Subir datos de este teléfono a la nube</button>
   </div>
@@ -4179,23 +4180,6 @@ function cloudCanKey(k){
 
 function _sbPend(){try{return JSON.parse(localStorage.getItem('cromat_pending'))||{}}catch(e){return{}}}
 function _sbSetPend(o){try{localStorage.setItem('cromat_pending',JSON.stringify(o))}catch(e){}}
-function syncEstado(tipo,txt){
-  var w=document.getElementById('sync-status');if(!w)return;
-  w.style.display='inline-flex';
-  document.getElementById('sync-dot').style.background={ok:'#2E7D32',pend:'#F57F17',err:'#C62828',off:'#888'}[tipo]||'#888';
-  document.getElementById('sync-txt').textContent=txt||'';
-  w.title=txt||'';
-}
-(function(){
-  var set=LS.s;
-  LS.s=function(k,v){
-    set(k,v);
-    if(!CLOUD_ON||!_sbReady||!cloudCanKey(k))return;
-    var p=_sbPend();p[k]=1;_sbSetPend(p);
-    syncEstado('pend','Guardando…');
-    clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},700);
-  };
-})();
 function cloudErr(e){
   var m=(e&&(e.message||e.details||e.code))||'';
   if(/invite_required/i.test(m))return 'Esta empresa ya existe. Pide un codigo de invitacion.';
@@ -4206,6 +4190,76 @@ function cloudErr(e){
   if(/Password should/i.test(m))return 'La clave debe tener al menos 6 caracteres (Supabase).';
   return m||'Error de nube';
 }
+function cloudErrNube(e){
+  var m=cloudErr(e);
+  if(/forbidden_key|permission denied|42501|row-level security/i.test(m))return 'La nube rechazó el permiso. En Supabase → SQL Editor pega otra vez schema.sql y córrelo.';
+  if(/Could not find the table|relation .* does not exist|PGRST205/i.test(m))return 'Falta la tabla de datos. En Supabase → SQL Editor pega schema.sql y córrelo.';
+  if(/no unique or exclusion constraint|ON CONFLICT/i.test(m))return 'El SQL de la nube está incompleto. Pega schema.sql otra vez en el SQL Editor.';
+  if(/Could not find the function|PGRST202/i.test(m))return m;
+  if(/no_org/i.test(m))return 'Tu usuario no tiene empresa. Sal y entra otra vez con el correo dueño.';
+  if(/not_authenticated/i.test(m))return 'La sesión de la nube se cerró. Entra otra vez.';
+  if(/payload|too large|413/i.test(m))return 'Un dato es demasiado grande para la nube (suele ser una foto).';
+  return m||'No se pudo guardar en la nube';
+}
+var _sbLastErr='';
+var _sbSaveRpc=true;
+function syncEstado(tipo,txt){
+  var w=document.getElementById('sync-status');if(!w)return;
+  w.style.display='inline-flex';
+  document.getElementById('sync-dot').style.background={ok:'#2E7D32',pend:'#F57F17',err:'#C62828',off:'#888'}[tipo]||'#888';
+  document.getElementById('sync-txt').textContent=txt||'';
+  w.title=tipo==='err'?(_sbLastErr||txt||''):(txt||'');
+  var er=document.getElementById('dash-sync-err');
+  if(er){
+    if(tipo==='err'&&CLOUD_ON){
+      er.style.display='';
+      er.textContent='La nube no está guardando' + (_sbLastErr?(': '+_sbLastErr):'.') + ' Toca «Sin sincronizar» arriba para ver el error y reintentar.';
+    } else {
+      er.style.display='none';
+      er.textContent='';
+    }
+  }
+}
+function cloudSyncTap(){
+  if(!CLOUD_ON)return;
+  if(_sbLastErr){
+    if(confirm('Nube: '+_sbLastErr+'\n\n¿Reintentar ahora?'))cloudFlush();
+    return;
+  }
+  cloudFlush();
+}
+function cloudWriteKey(k){
+  var val=LS.g(k);
+  var row={org_id:CLOUD_ORG,key:k,value:val,updated_at:new Date().toISOString(),updated_by:SB_USER&&SB_USER.id||null};
+  var viaTabla=function(){
+    return sb.from('cromat_data').upsert(row,{onConflict:'org_id,key'}).then(function(u){
+      if(!u.error)return u;
+      return sb.from('cromat_data').update({value:row.value,updated_at:row.updated_at,updated_by:row.updated_by}).eq('org_id',CLOUD_ORG).eq('key',k).select('key').then(function(up){
+        if(!up.error&&up.data&&up.data.length)return up;
+        return sb.from('cromat_data').insert(row);
+      });
+    });
+  };
+  if(!_sbSaveRpc)return viaTabla();
+  return sb.rpc('cromat_save_data',{p_key:k,p_value:val}).then(function(r){
+    if(r.error&&/Could not find the function|PGRST202/i.test(r.error.message||'')){
+      _sbSaveRpc=false;
+      return viaTabla();
+    }
+    return r;
+  });
+}
+(function(){
+  var set=LS.s;
+  LS.s=function(k,v){
+    set(k,v);
+    if(!CLOUD_ON||!cloudCanKey(k))return;
+    var p=_sbPend();p[k]=1;_sbSetPend(p);
+    if(!_sbReady)return;
+    syncEstado('pend','Guardando…');
+    clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},700);
+  };
+})();
 function cloudSubirLocal(){
   if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){alert('Entra primero con tu correo de la nube.');return}
   if(!authCanUsers())return;
@@ -4216,23 +4270,49 @@ function cloudSubirLocal(){
   syncEstado('pend','Subiendo…');
   cloudFlush(function(){
     var queda=_sbPend();
-    if(queda&&Object.keys(queda).length)alert('No se pudo subir. Revisa internet y que hayas corrido el SQL en Supabase.');
+    if(queda&&Object.keys(queda).length)alert('No se pudo subir' + (_sbLastErr?(': '+_sbLastErr):'.') + ' Revisa internet y pega schema.sql en Supabase.');
     else alert('Listo. Lo de este teléfono ya está en la nube. El equipo lo verá al entrar.');
   });
 }
 function cloudFlush(cb){
   var done=function(){if(cb)cb()};
-  if(!CLOUD_ON||!SB_USER||!CLOUD_ORG){done();return}
-  var p=_sbPend(),keys=Object.keys(p).filter(cloudCanKey);
-  if(!keys.length){syncEstado('ok','Sincronizado');_sbSetPend({});done();return}
-  var now=new Date().toISOString();
-  var rows=keys.map(function(k){return{org_id:CLOUD_ORG,key:k,value:LS.g(k),updated_at:now,updated_by:SB_USER.id}});
-  sb.from('cromat_data').upsert(rows,{onConflict:'org_id,key'}).then(function(r){
-    if(r.error){syncEstado('err','Sin sincronizar');done();return}
-    var p2=_sbPend();keys.forEach(function(k){delete p2[k]});_sbSetPend(p2);
-    syncEstado(Object.keys(p2).length?'pend':'ok',Object.keys(p2).length?'Guardando…':'Sincronizado');
-    done();
-  },function(){syncEstado('err','Sin conexión');done()});
+  if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){done();return}
+  var keys=Object.keys(_sbPend()).filter(cloudCanKey);
+  if(!keys.length){_sbLastErr='';syncEstado('ok','Sincronizado');_sbSetPend({});done();return}
+  syncEstado('pend','Guardando…');
+  var i=0,failed=[];
+  function next(){
+    if(i>=keys.length){
+      var p2=_sbPend();
+      keys.forEach(function(k){if(failed.indexOf(k)<0)delete p2[k]});
+      _sbSetPend(p2);
+      if(failed.length){
+        if(!_sbLastErr)_sbLastErr='No se pudo guardar: '+failed.join(', ');
+        else if(failed.length===1)_sbLastErr=failed[0]+': '+_sbLastErr;
+        syncEstado('err','Sin sincronizar');
+      }else{
+        _sbLastErr='';
+        var queda=Object.keys(p2).filter(cloudCanKey);
+        syncEstado(queda.length?'pend':'ok',queda.length?'Guardando…':'Sincronizado');
+        if(queda.length){clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},400)}
+      }
+      done();
+      return;
+    }
+    var k=keys[i++];
+    cloudWriteKey(k).then(function(r){
+      if(r&&r.error){
+        failed.push(k);
+        _sbLastErr=cloudErrNube(r.error);
+      }
+      next();
+    },function(e){
+      failed.push(k);
+      _sbLastErr=cloudErrNube(e);
+      next();
+    });
+  }
+  next();
 }
 function cloudClearLocal(){
   CLOUD_DATA_KEYS.concat(['crm_usuarios']).forEach(function(k){localStorage.removeItem(k)});
@@ -4244,7 +4324,7 @@ function cloudPull(){
   var owner=localStorage.getItem('cromat_owner');
   if(owner&&owner!==CLOUD_ORG)cloudClearLocal();
   sb.from('cromat_data').select('key,value').then(function(r){
-    if(r.error){_sbReady=true;syncEstado('err','Sin conexión');return}
+    if(r.error){_sbReady=true;_sbLastErr=cloudErrNube(r.error);syncEstado('err','Sin conexión');return}
     var rows=r.data||[];
     localStorage.setItem('cromat_owner',CLOUD_ORG);
     CLOUD_DATA_KEYS.forEach(function(k){
@@ -4266,14 +4346,16 @@ function cloudPull(){
       if(localStorage.getItem(row.key)!==nuevo){localStorage.setItem(row.key,nuevo);cambio=true}
     });
     CLOUD_DATA_KEYS.forEach(function(k){
+      if(!enNube[k]&&cloudCanKey(k)&&localStorage.getItem(k)!==null)pend[k]=1;
       if(!enNube[k]&&!pend[k]&&localStorage.getItem(k)!==null&&!cloudCanKey(k)){localStorage.removeItem(k);cambio=true}
     });
-    if(Object.keys(pend).length)cloudFlush();else syncEstado('ok','Sincronizado');
+    _sbSetPend(pend);
+    if(Object.keys(pend).filter(cloudCanKey).length)cloudFlush();else{_sbLastErr='';syncEstado('ok','Sincronizado')}
     if(cambio){
       var last=+sessionStorage.getItem('cromat_reload')||0;
       if(Date.now()-last>15000){sessionStorage.setItem('cromat_reload',Date.now());location.reload()}
     }
-  },function(){_sbReady=true;syncEstado('err','Sin conexión')});
+  },function(e){_sbReady=true;_sbLastErr=cloudErrNube(e);syncEstado('err','Sin conexión')});
 }
 function cloudSetModo(m){
   _sbModo=m==='signup'||m==='invite'?m:'login';

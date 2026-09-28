@@ -227,6 +227,36 @@ grant select, insert, update, delete on public.cromat_data to authenticated;
 grant execute on function public.cromat_rol() to authenticated;
 grant execute on function public.cromat_org_id() to authenticated;
 grant execute on function public.cromat_can_key(text) to authenticated;
+
+-- Guarda un bloque de datos de la empresa (evita fallos raros del upsert + RLS).
+create or replace function public.cromat_save_data(p_key text, p_value jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  oid uuid := public.cromat_org_id();
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+  if oid is null then
+    raise exception 'no_org';
+  end if;
+  if not public.cromat_can_key(p_key) then
+    raise exception 'forbidden_key';
+  end if;
+  insert into public.cromat_data (org_id, key, value, updated_at, updated_by)
+  values (oid, p_key, coalesce(p_value, 'null'::jsonb), now(), auth.uid())
+  on conflict (org_id, key) do update
+    set value = excluded.value,
+        updated_at = now(),
+        updated_by = auth.uid();
+end;
+$$;
+
+grant execute on function public.cromat_save_data(text, jsonb) to authenticated;
 grant execute on function public.cromat_bootstrap(text) to authenticated;
 grant execute on function public.cromat_redeem_invite(text, text) to authenticated;
 
