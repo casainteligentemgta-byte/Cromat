@@ -80,11 +80,11 @@ as $$
   select case public.cromat_rol()
     when 'admin' then k in (
       'crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo',
-      'crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals'
+      'crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'
     )
     when 'ventas' then k in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo')
     when 'operadora' then k in ('crm_ordenes','crm_inventario','crm_costos','imp_vals')
-    when 'conta' then k in ('crm_movimientos','crm_fondos_config','crm_fondos_audit')
+    when 'conta' then k in ('crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config')
     when 'diseno' then k in ('crm_presupuestos','crm_costos','crm_catalogo','imp_vals')
     else false
   end

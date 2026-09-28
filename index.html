@@ -251,9 +251,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- CONTABILIDAD -->
 <div id="s-conta" class="sec">
   <div class="period-tabs" style="margin-top:14px">
-    <button class="ptab on" id="ctab-dia" onclick="setPeriodo('dia')">Hoy</button>
+    <button class="ptab" id="ctab-dia" onclick="setPeriodo('dia')">Hoy</button>
     <button class="ptab" id="ctab-semana" onclick="setPeriodo('semana')">Semana</button>
-    <button class="ptab" id="ctab-mes" onclick="setPeriodo('mes')">Mes</button>
+    <button class="ptab on" id="ctab-mes" onclick="setPeriodo('mes')">Mes</button>
     <button class="ptab" id="ctab-custom" onclick="setPeriodo('custom')">Rango</button>
   </div>
   <div id="conta-rango" style="display:none;gap:6px;margin-bottom:10px;flex-wrap:wrap">
@@ -261,27 +261,51 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <input class="fi" type="date" id="conta-hasta" style="max-width:140px" onchange="renderConta()">
   </div>
   <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
-    <div class="kpi green"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos</div></div>
+    <div class="kpi green"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos cobrados</div></div>
     <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos</div></div>
-    <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Balance</div></div>
+    <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+    <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
+    <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
+  </div>
+  <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
+    <div class="st">Cuentas por cobrar</div>
+    <div id="conta-cxc"><div class="empty">Sin saldos pendientes en OP</div></div>
   </div>
   <div class="card" style="margin-bottom:10px">
-    <div class="st">Distribucion de ingresos</div>
+    <div class="st">Reparto de ganancia</div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Estimación sobre los ingresos cobrados del periodo. El 80 / 15 / 5 se aplica a la ganancia estimada (después de costo e impuesto). Los gastos reales están en el resultado de arriba; los fondos se reservan aparte con cada cobro.</div>
     <div id="conta-dist">
-      <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="renderConta()">% = <span id="cd-costo">$0</span></span></div>
-      <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="renderConta()">% = <span id="cd-imp">$0</span></span></div>
-      <div class="dist-row"><span class="result-label">Ganancia neta</span><span id="cd-gan" style="font-weight:600;color:var(--gt)">$0</span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Negocio</span><span><input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="renderConta()">% = <span id="cd-neg">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- CEO</span><span><input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="renderConta()">% = <span id="cd-ceo">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="renderConta()">% = <span id="cd-oper">$0</span></span></div>
+      <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="onContaPct()">% = <span id="cd-costo">$0</span></span></div>
+      <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="onContaPct()">% = <span id="cd-imp">$0</span></span></div>
+      <div class="dist-row"><span class="result-label">Ganancia neta est.</span><span id="cd-gan" style="font-weight:600;color:var(--gt)">$0</span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Negocio</span><span><input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-neg">$0</span></span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- CEO</span><span><input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-ceo">$0</span></span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-oper">$0</span></span></div>
     </div>
+    <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="st">Por categoria (periodo)</div>
+    <div id="conta-cats"><div class="empty">Sin desglose</div></div>
   </div>
   <div class="btn-row">
-    <button class="btn btn-primary btn-sm" onclick="openModal('modal-movimiento')">+ Movimiento</button>
-    <select class="fi btn-sm" id="conta-cat-fil" style="max-width:150px" onchange="renderConta()">
-      <option value="">Todas las categ.</option>
+    <button class="btn btn-primary btn-sm" onclick="abrirMovimiento()">+ Movimiento</button>
+    <select class="fi btn-sm" id="conta-tipo-fil" style="max-width:120px" onchange="renderConta()">
+      <option value="">Tipo: todos</option>
       <option value="ingreso">Ingresos</option>
       <option value="gasto">Gastos</option>
+    </select>
+    <select class="fi btn-sm" id="conta-cat-fil" style="max-width:150px" onchange="renderConta()">
+      <option value="">Todas las categ.</option>
+      <option value="ventas">Ventas</option>
+      <option value="servicios">Servicios</option>
+      <option value="insumos">Insumos/Materiales</option>
+      <option value="operativos">Gastos operativos</option>
+      <option value="equipo">Equipo/Mantenimiento</option>
+      <option value="salarios">Salarios</option>
+      <option value="otro">Otro</option>
     </select>
   </div>
   <div id="lista-movimientos"></div>
@@ -312,7 +336,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <div class="kpi-l">Total en fondos</div>
       </div>
     </div>
-    <div id="fondos-subtitle" style="font-size:11px;color:var(--tm);margin-bottom:10px"></div>
+    <div id="fondos-subtitle" style="font-size:11px;color:var(--tm);margin-bottom:6px"></div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:10px">El 80 / 15 / 5 (negocio / CEO / operadora) se calcula en Contabilidad. Aquí se reservan fondos operativos sobre la ganancia neta de cada cobro.</div>
   </div>
   <!-- Fondos por categoría -->
   <div id="lista-fondos"></div>
@@ -981,22 +1006,22 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- MODAL MOVIMIENTO -->
 <div class="modal-bg" id="modal-movimiento">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Registrar movimiento</span><button class="close-btn" onclick="closeModal('modal-movimiento')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="mov-titulo">Registrar movimiento</span><button class="close-btn" onclick="closeModal('modal-movimiento')">&#x2715;</button></div>
+    <input type="hidden" id="mov-id">
     <div class="fg"><label class="fl">Tipo</label>
-      <select class="fi" id="mov-tipo">
+      <select class="fi" id="mov-tipo" onchange="fillMovCats()">
         <option value="ingreso">Ingreso</option><option value="gasto">Gasto</option>
       </select>
     </div>
-    <div class="fg"><label class="fl">Descripcion</label><input class="fi" type="text" id="mov-desc" placeholder="Descripcion..."></div>
+    <div class="fg"><label class="fl">Descripcion</label><input class="fi" type="text" id="mov-desc" placeholder="Ej: tinta, luz, cobro extra..."></div>
     <div class="row2">
       <div class="fg"><label class="fl">Monto ($)</label><input class="fi" type="number" id="mov-monto" value="0" min="0" step="0.5"></div>
       <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="mov-fecha"></div>
     </div>
     <div class="fg"><label class="fl">Categoria</label>
-      <select class="fi" id="mov-cat">
-        <option value="ventas">Ventas</option><option value="servicios">Servicios</option><option value="insumos">Insumos/Materiales</option><option value="operativos">Gastos operativos</option><option value="equipo">Equipo/Mantenimiento</option><option value="salarios">Salarios</option><option value="otro">Otro</option>
-      </select>
+      <select class="fi" id="mov-cat"></select>
     </div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:10px">Los ingresos alimentan los fondos. Los cobros de OP (anticipo y saldo) se registran solos al cobrar.</div>
     <button class="btn btn-primary" style="width:100%" onclick="guardarMovimiento()">Guardar</button>
   </div>
 </div>
@@ -1510,8 +1535,7 @@ function renderDash(){
   var inv=LS.g('crm_inventario')||[];
   document.getElementById('k-clientes').textContent=clientes.length;
   document.getElementById('k-presupuestos').textContent=presup.length+' presup. / '+ordenes.length+' OP';
-  var cobrar=presup.filter(function(p){return p.estado!=='pagado'}).reduce(function(a,p){return a+(parseFloat(p.saldo)||0)},0);
-  document.getElementById('k-cobrar').textContent=usd(cobrar);
+  document.getElementById('k-cobrar').textContent=usd(totalPorCobrar());
   var m=hoy().slice(0,7);
   var ingMes=movs.filter(function(v){return v.tipo==='ingreso'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
   var gasMes=movs.filter(function(v){return v.tipo==='gasto'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
@@ -2443,13 +2467,13 @@ function guardarOrden(){
       id:uid(),tipo:'ingreso',
       desc:'Anticipo OP #'+obj.id.slice(-6).toUpperCase()+' — '+obj.clienteNombre+(pagoAnt?' ('+pagoAnt.metodo+(pagoAnt.referencia?' Ref '+pagoAnt.referencia:'')+')':''),
       monto:obj.anticipo,fecha:pagoAnt?pagoAnt.fecha:hoy(),
-      cat:'Anticipo',opId:obj.id,concepto:'anticipo',
+      cat:'ventas',opId:obj.id,concepto:'anticipo',
       metodo:pagoAnt?pagoAnt.metodo:'',referencia:pagoAnt?pagoAnt.referencia:''
     };
+    movAnticipo.fondosAuditId=alimentarFondos(obj.anticipo,obj);
     var movsList=LS.g('crm_movimientos')||[];
     movsList.push(movAnticipo);
     LS.s('crm_movimientos',movsList);
-    alimentarFondos(obj.anticipo,obj);
   }
   closeModal('modal-orden');
   renderOrdenes();
@@ -2632,14 +2656,13 @@ function cobrarSaldoOP(id,saldo,pago){
     id:uid(),tipo:'ingreso',
     desc:'Saldo OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
     monto:saldo,fecha:pago?pago.fecha:hoy(),
-    cat:'Saldo cobrado',opId:o.id,concepto:'saldo',
+    cat:'ventas',opId:o.id,concepto:'saldo',
     metodo:pago?pago.metodo:'',referencia:pago?pago.referencia:''
   };
+  mov.fondosAuditId=alimentarFondos(saldo,o);
   var movsList=LS.g('crm_movimientos')||[];
   movsList.push(mov);
   LS.s('crm_movimientos',movsList);
-  // Alimentar fondos con el saldo
-  alimentarFondos(saldo,o);
   // Marcar saldo como cobrado y pasar a entregado
   lista[i].saldoCobrado=true;
   lista[i].fechaCobroSaldo=pago?pago.fecha:hoy();
@@ -2663,7 +2686,68 @@ function eliminarOrden(id){
 }
 
 // ===== CONTABILIDAD =====
-var periodoConta='dia';
+var periodoConta='mes';
+var CONTA_CFG_DEFAULT={costoPct:35,impPct:10,negPct:80,ceoPct:15,operPct:5};
+var MOV_CAT_LABEL={ventas:'Ventas',servicios:'Servicios',insumos:'Insumos/Materiales',operativos:'Gastos operativos',equipo:'Equipo/Mantenimiento',salarios:'Salarios',otro:'Otro'};
+var _contaPctReady=false;
+function saldoPendienteOP(o){
+  if(!o||o.saldoCobrado)return 0;
+  return Math.max(0,(parseFloat(o.monto)||0)-(parseFloat(o.anticipo)||0));
+}
+function totalPorCobrar(){
+  return (LS.g('crm_ordenes')||[]).reduce(function(a,o){return a+saldoPendienteOP(o)},0);
+}
+function movCatKey(m){
+  var c=String(m&&m.cat||'').toLowerCase();
+  if(c==='anticipo'||c==='saldo cobrado'||c==='saldo')return 'ventas';
+  if(MOV_CAT_LABEL[m.cat])return m.cat;
+  return 'otro';
+}
+function movCatLabel(m){
+  var extra='';
+  var c=String(m&&m.cat||'').toLowerCase();
+  if(m.concepto==='anticipo'||c==='anticipo')extra=' · Anticipo';
+  else if(m.concepto==='saldo'||c.indexOf('saldo')>=0)extra=' · Saldo';
+  return (MOV_CAT_LABEL[movCatKey(m)]||m.cat||'Otro')+extra;
+}
+function getContaCfg(){
+  var s=LS.g('crm_conta_config')||{};
+  return {
+    costoPct:s.costoPct!=null?+s.costoPct:CONTA_CFG_DEFAULT.costoPct,
+    impPct:s.impPct!=null?+s.impPct:CONTA_CFG_DEFAULT.impPct,
+    negPct:s.negPct!=null?+s.negPct:CONTA_CFG_DEFAULT.negPct,
+    ceoPct:s.ceoPct!=null?+s.ceoPct:CONTA_CFG_DEFAULT.ceoPct,
+    operPct:s.operPct!=null?+s.operPct:CONTA_CFG_DEFAULT.operPct
+  };
+}
+function applyContaCfg(){
+  var cfg=getContaCfg();
+  document.getElementById('cd-costo-pct').value=cfg.costoPct;
+  document.getElementById('cd-imp-pct').value=cfg.impPct;
+  document.getElementById('cd-pct-neg').value=cfg.negPct;
+  document.getElementById('cd-pct-ceo').value=cfg.ceoPct;
+  document.getElementById('cd-pct-oper').value=cfg.operPct;
+  _contaPctReady=true;
+}
+function onContaPct(){
+  if(!_contaPctReady)return;
+  LS.s('crm_conta_config',{
+    costoPct:parseFloat(document.getElementById('cd-costo-pct').value)||0,
+    impPct:parseFloat(document.getElementById('cd-imp-pct').value)||0,
+    negPct:parseFloat(document.getElementById('cd-pct-neg').value)||0,
+    ceoPct:parseFloat(document.getElementById('cd-pct-ceo').value)||0,
+    operPct:parseFloat(document.getElementById('cd-pct-oper').value)||0
+  });
+  renderConta();
+}
+function periodoRango(){
+  var hoyStr=hoy(),desde,hasta;
+  if(periodoConta==='dia'){desde=hoyStr;hasta=hoyStr}
+  else if(periodoConta==='semana'){var d=new Date();d.setDate(d.getDate()-7);desde=d.toISOString().split('T')[0];hasta=hoyStr}
+  else if(periodoConta==='mes'){desde=hoyStr.slice(0,7)+'-01';hasta=hoyStr}
+  else{desde=document.getElementById('conta-desde').value;hasta=document.getElementById('conta-hasta').value}
+  return {desde:desde,hasta:hasta};
+}
 function setPeriodo(p){
   periodoConta=p;
   ['dia','semana','mes','custom'].forEach(function(x){document.getElementById('ctab-'+x).classList.remove('on')});
@@ -2671,22 +2755,55 @@ function setPeriodo(p){
   document.getElementById('conta-rango').style.display=p==='custom'?'flex':'none';
   renderConta();
 }
+function fillMovCats(selected){
+  var tipo=document.getElementById('mov-tipo').value;
+  var opts=tipo==='gasto'
+    ?[['insumos','Insumos/Materiales'],['operativos','Gastos operativos'],['equipo','Equipo/Mantenimiento'],['salarios','Salarios'],['otro','Otro']]
+    :[['ventas','Ventas'],['servicios','Servicios'],['otro','Otro']];
+  var sel=document.getElementById('mov-cat');
+  var cur=selected||sel.value;
+  sel.innerHTML=opts.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>'}).join('');
+  if(cur&&opts.some(function(o){return o[0]===cur}))sel.value=cur;
+}
+function abrirMovimiento(id){
+  if(!requireTab('conta'))return;
+  var m=id?(LS.g('crm_movimientos')||[]).find(function(x){return x.id===id}):null;
+  document.getElementById('mov-id').value=m?m.id:'';
+  document.getElementById('mov-tipo').value=m?m.tipo:'ingreso';
+  fillMovCats(m?movCatKey(m):'');
+  document.getElementById('mov-desc').value=m?m.desc:'';
+  document.getElementById('mov-monto').value=m?m.monto:0;
+  document.getElementById('mov-fecha').value=m&&m.fecha?m.fecha:hoy();
+  document.getElementById('mov-titulo').textContent=m?'Editar movimiento':'Registrar movimiento';
+  openModal('modal-movimiento');
+}
+function abrirMovTap(ev,id){
+  var w=ev.currentTarget.closest('.swipe-wrap');
+  if(!w||w.classList.contains('open')||w._swiped)return;
+  abrirMovimiento(id);
+}
 function renderConta(){
+  if(!_contaPctReady)applyContaCfg();
   var movs=LS.g('crm_movimientos')||[];
-  var hoyStr=hoy();
-  var desde,hasta;
-  if(periodoConta==='dia'){desde=hoyStr;hasta=hoyStr}
-  else if(periodoConta==='semana'){var d=new Date();d.setDate(d.getDate()-7);desde=d.toISOString().split('T')[0];hasta=hoyStr}
-  else if(periodoConta==='mes'){desde=hoyStr.slice(0,7)+'-01';hasta=hoyStr}
-  else{desde=document.getElementById('conta-desde').value;hasta=document.getElementById('conta-hasta').value}
-  var fil=movs.filter(function(m){return(!desde||m.fecha>=desde)&&(!hasta||m.fecha<=hasta)});
+  var r=periodoRango();
+  var tipoFil=document.getElementById('conta-tipo-fil').value;
   var catFil=document.getElementById('conta-cat-fil').value;
-  if(catFil)fil=fil.filter(function(m){return m.tipo===catFil});
-  var ing=fil.filter(function(m){return m.tipo==='ingreso'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
-  var gas=fil.filter(function(m){return m.tipo==='gasto'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  var enPeriodo=movs.filter(function(m){return(!r.desde||m.fecha>=r.desde)&&(!r.hasta||m.fecha<=r.hasta)});
+  var fil=enPeriodo.filter(function(m){
+    if(tipoFil&&m.tipo!==tipoFil)return false;
+    if(catFil&&movCatKey(m)!==catFil)return false;
+    return true;
+  });
+  var ing=enPeriodo.filter(function(m){return m.tipo==='ingreso'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  var gas=enPeriodo.filter(function(m){return m.tipo==='gasto'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  var cobrar=totalPorCobrar();
   document.getElementById('c-ingresos').textContent=usd(ing);
   document.getElementById('c-gastos2').textContent=usd(gas);
   document.getElementById('c-balance').textContent=usd(ing-gas);
+  var balEl=document.getElementById('c-balance');
+  if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
+  document.getElementById('c-cobrar').textContent=usd(cobrar);
+  document.getElementById('c-nmovs').textContent=String(fil.length);
   var costPct=parseFloat(document.getElementById('cd-costo-pct').value)||0;
   var impPct=parseFloat(document.getElementById('cd-imp-pct').value)||0;
   var negPct=parseFloat(document.getElementById('cd-pct-neg').value)||0;
@@ -2701,29 +2818,101 @@ function renderConta(){
   document.getElementById('cd-neg').textContent=usd(gan*negPct/100);
   document.getElementById('cd-ceo').textContent=usd(gan*ceoPct/100);
   document.getElementById('cd-oper').textContent=usd(gan*operPct/100);
-  var allMovs=movs.filter(function(m){return(!desde||m.fecha>=desde)&&(!hasta||m.fecha<=hasta)});
-  if(catFil)allMovs=allMovs.filter(function(m){return m.tipo===catFil});
-  allMovs.sort(function(a,b){return b.fecha>a.fecha?1:-1});
+  var warn=document.getElementById('cd-warn');
+  var msgs=[];
+  if(Math.abs(negPct+ceoPct+operPct-100)>0.05)msgs.push('Negocio + CEO + Operadora suman '+(negPct+ceoPct+operPct)+'%. Debería ser 100.');
+  if(costPct+impPct>100)msgs.push('Costo e impuesto suman más del 100% del ingreso.');
+  if(msgs.length){warn.style.display='block';warn.textContent=msgs.join(' ')}
+  else{warn.style.display='none';warn.textContent=''}
+  var ops=(LS.g('crm_ordenes')||[]).map(function(o){return {o:o,saldo:saldoPendienteOP(o)}}).filter(function(x){return x.saldo>0});
+  ops.sort(function(a,b){return b.saldo-a.saldo});
+  var cxcEl=document.getElementById('conta-cxc');
+  if(!ops.length){cxcEl.innerHTML='<div class="empty">Sin saldos pendientes en OP</div>'}
+  else{
+    cxcEl.innerHTML=ops.slice(0,8).map(function(x){
+      var o=x.o;
+      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(String(o.id).slice(-6).toUpperCase())+(o.estado?' · '+escHtml(o.estado):'')+'</div></div>';
+    }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' OP más</div>':'');
+  }
+  var byCat={};
+  enPeriodo.forEach(function(m){
+    var k=movCatKey(m);
+    if(!byCat[k])byCat[k]={ing:0,gas:0};
+    if(m.tipo==='ingreso')byCat[k].ing+=(parseFloat(m.monto)||0);
+    else byCat[k].gas+=(parseFloat(m.monto)||0);
+  });
+  var catKeys=Object.keys(byCat);
+  var catsEl=document.getElementById('conta-cats');
+  if(!catKeys.length){catsEl.innerHTML='<div class="empty">Sin desglose</div>'}
+  else{
+    catsEl.innerHTML=catKeys.map(function(k){
+      var row=byCat[k];
+      var bits=[];
+      if(row.ing)bits.push('<span style="color:var(--gt)">+'+usd(row.ing)+'</span>');
+      if(row.gas)bits.push('<span style="color:var(--dt)">-'+usd(row.gas)+'</span>');
+      return'<div class="dist-row"><span class="result-label">'+escHtml(MOV_CAT_LABEL[k]||k)+'</span><span style="font-size:12px;font-weight:600">'+bits.join(' · ')+'</span></div>';
+    }).join('');
+  }
+  fil.sort(function(a,b){return b.fecha>a.fecha?1:-1});
   var el=document.getElementById('lista-movimientos');
-  if(!allMovs.length){el.innerHTML='<div class="empty">Sin movimientos</div>';return}
-  el.innerHTML=allMovs.map(function(m){
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(m.desc)+'</span><span style="font-weight:700;color:'+(m.tipo==='ingreso'?'var(--gt)':'var(--dt)')+'">'+((m.tipo==='ingreso'?'+':'-'))+usd(m.monto)+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(m.fecha)+' &bull; '+escHtml(m.cat)+'</span><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarMov(\''+m.id+'\')">X</button></div></div>'
+  if(!fil.length){
+    el.innerHTML='<div class="empty">Sin movimientos en este periodo. Los cobros de OP (anticipo y saldo) aparecen aquí solos. También puedes registrar un gasto o un ingreso extra.</div><button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="abrirMovimiento()">+ Primer movimiento</button>';
+    return;
+  }
+  el.innerHTML=fil.map(function(m){
+    var extra=(m.metodo?' · '+m.metodo:'')+(m.referencia?' Ref '+m.referencia:'');
+    return'<div class="swipe-wrap" data-id="'+m.id+'">'
+      +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarMov(\''+m.id+'\')">'
+      +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
+      +'</button>'
+      +'<div class="list-item swipe-front" onclick="abrirMovTap(event,\''+m.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(m.desc)+'</span><span style="font-weight:700;color:'+(m.tipo==='ingreso'?'var(--gt)':'var(--dt)')+'">'+((m.tipo==='ingreso'?'+':'-'))+usd(m.monto)+'</span></div><div class="li-sub">'+fch(m.fecha)+' · '+escHtml(movCatLabel(m))+escHtml(extra)+(m.opId?' · OP':'')+'</div></div>'
+      +'</div>';
   }).join('');
+  bindSwipeDelete(el);
 }
 function guardarMovimiento(){
   if(!requireTab('conta'))return;
+  var desc=(document.getElementById('mov-desc').value||'').trim();
+  var monto=parseFloat(document.getElementById('mov-monto').value)||0;
+  if(!desc){alert('Escribe una descripcion.');return}
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return}
   var lista=LS.g('crm_movimientos')||[];
-  var m={id:uid(),tipo:document.getElementById('mov-tipo').value,desc:document.getElementById('mov-desc').value,monto:parseFloat(document.getElementById('mov-monto').value)||0,fecha:document.getElementById('mov-fecha').value||hoy(),cat:document.getElementById('mov-cat').value};
-  lista.push(m);
+  var id=document.getElementById('mov-id').value;
+  var tipo=document.getElementById('mov-tipo').value;
+  var cat=document.getElementById('mov-cat').value||'otro';
+  var fecha=document.getElementById('mov-fecha').value||hoy();
+  if(id){
+    var i=lista.findIndex(function(x){return x.id===id});
+    if(i<0)return;
+    var old=lista[i];
+    if(old.fondosAuditId)revertirFondos(old.fondosAuditId);
+    old.tipo=tipo;old.desc=desc;old.monto=monto;old.fecha=fecha;old.cat=cat;
+    old.fondosAuditId=tipo==='ingreso'?alimentarFondos(monto):'';
+    lista[i]=old;
+  }else{
+    var m={id:uid(),tipo:tipo,desc:desc,monto:monto,fecha:fecha,cat:cat};
+    if(tipo==='ingreso')m.fondosAuditId=alimentarFondos(monto);
+    lista.push(m);
+  }
   LS.s('crm_movimientos',lista);
-  if(m.tipo==='ingreso')alimentarFondos(m.monto);
   closeModal('modal-movimiento');
   renderConta();
 }
 function eliminarMov(id){
   if(!requireTab('conta'))return;
-  if(!confirmarBorrar('Eliminar este movimiento?'))return;
-  LS.s('crm_movimientos',(LS.g('crm_movimientos')||[]).filter(function(x){return x.id!==id}));
+  var lista=LS.g('crm_movimientos')||[];
+  var m=lista.find(function(x){return x.id===id});
+  if(!m)return;
+  var msg='Eliminar este movimiento?';
+  if(m.fondosAuditId||m.tipo==='ingreso')msg='Eliminar este movimiento y revertir su aporte a fondos?';
+  if(!confirmarBorrar(msg))return;
+  if(m.fondosAuditId)revertirFondos(m.fondosAuditId);
+  if(m.opId&&m.concepto==='saldo'){
+    var ops=LS.g('crm_ordenes')||[];
+    var oi=ops.findIndex(function(x){return x.id===m.opId});
+    if(oi>=0){ops[oi].saldoCobrado=false;delete ops[oi].fechaCobroSaldo;LS.s('crm_ordenes',ops)}
+  }
+  LS.s('crm_movimientos',lista.filter(function(x){return x.id!==id}));
   renderConta();
 }
 
@@ -2763,6 +2952,21 @@ function alimentarFondos(ingreso,op){
   audit.unshift(entry);
   LS.s('crm_fondos_config',fondos);
   LS.s('crm_fondos_audit',audit);
+  return entry.id;
+}
+function revertirFondos(auditId){
+  if(!auditId)return;
+  var audit=LS.g('crm_fondos_audit')||[];
+  var e=audit.find(function(x){return x.id===auditId});
+  if(!e)return;
+  var fondos=getFondos();
+  (e.detalle||[]).forEach(function(d){
+    var f=fondos.find(function(x){return x.nombre===d.nombre});
+    if(!f)return;
+    f.acumulado=Math.max(0,(parseFloat(f.acumulado)||0)-(parseFloat(d.aporte)||0));
+  });
+  LS.s('crm_fondos_config',fondos);
+  LS.s('crm_fondos_audit',audit.filter(function(x){return x.id!==auditId}));
 }
 function renderFondos(){
   var fondos=getFondos();
@@ -3579,7 +3783,7 @@ function eliminarInsumo(id){
 }
 
 // ===== BACKUP =====
-var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals','crm_usuarios'];
+var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals','crm_usuarios'];
 function abrirBackup(){
   if(!requireTab('backup'))return;
   openModal('modal-backup');
@@ -3839,7 +4043,7 @@ function bindSwipeDelete(root){
 var SB_URL='__SB_URL__';
 var SB_KEY='__SB_KEY__';
 var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciado=false,CLOUD_ORG=null;
-var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals'];
+var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'];
 var CLOUD_KEY_ROLES={
   crm_clientes:['admin','ventas'],
   crm_presupuestos:['admin','ventas','diseno'],
@@ -3850,6 +4054,7 @@ var CLOUD_KEY_ROLES={
   crm_movimientos:['admin','conta'],
   crm_fondos_config:['admin','conta'],
   crm_fondos_audit:['admin','conta'],
+  crm_conta_config:['admin','conta'],
   imp_vals:['admin','operadora','diseno']
 };
 function leerCfgNube(){
