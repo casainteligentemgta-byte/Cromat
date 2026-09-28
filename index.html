@@ -277,12 +277,12 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="st">Reparto de ganancia</div>
     <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Estimación sobre los ingresos cobrados del periodo. El 80 / 15 / 5 se aplica a la ganancia estimada (después de costo e impuesto). Los gastos reales están en el resultado de arriba; los fondos se reservan aparte con cada cobro.</div>
     <div id="conta-dist">
-      <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="onContaPct()">% = <span id="cd-costo">$0</span></span></div>
-      <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" oninput="onContaPct()">% = <span id="cd-imp">$0</span></span></div>
+      <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-costo">$0</span></span></div>
+      <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-imp">$0</span></span></div>
       <div class="dist-row"><span class="result-label">Ganancia neta est.</span><span id="cd-gan" style="font-weight:600;color:var(--gt)">$0</span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Negocio</span><span><input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-neg">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- CEO</span><span><input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-ceo">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" oninput="onContaPct()">% = <span id="cd-oper">$0</span></span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Negocio</span><span><input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-neg">$0</span></span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- CEO</span><span><input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-ceo">$0</span></span></div>
+      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-oper">$0</span></span></div>
     </div>
     <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
   </div>
@@ -2712,12 +2712,13 @@ function movCatLabel(m){
 }
 function getContaCfg(){
   var s=LS.g('crm_conta_config')||{};
+  var clamp=function(v,d){v=v!=null?+v:d;if(isNaN(v))v=d;return Math.max(0,Math.min(100,v))};
   return {
-    costoPct:s.costoPct!=null?+s.costoPct:CONTA_CFG_DEFAULT.costoPct,
-    impPct:s.impPct!=null?+s.impPct:CONTA_CFG_DEFAULT.impPct,
-    negPct:s.negPct!=null?+s.negPct:CONTA_CFG_DEFAULT.negPct,
-    ceoPct:s.ceoPct!=null?+s.ceoPct:CONTA_CFG_DEFAULT.ceoPct,
-    operPct:s.operPct!=null?+s.operPct:CONTA_CFG_DEFAULT.operPct
+    costoPct:clamp(s.costoPct,CONTA_CFG_DEFAULT.costoPct),
+    impPct:clamp(s.impPct,CONTA_CFG_DEFAULT.impPct),
+    negPct:clamp(s.negPct,CONTA_CFG_DEFAULT.negPct),
+    ceoPct:clamp(s.ceoPct,CONTA_CFG_DEFAULT.ceoPct),
+    operPct:clamp(s.operPct,CONTA_CFG_DEFAULT.operPct)
   };
 }
 function applyContaCfg(){
@@ -2729,14 +2730,22 @@ function applyContaCfg(){
   document.getElementById('cd-pct-oper').value=cfg.operPct;
   _contaPctReady=true;
 }
+function pctInput(id){
+  var el=document.getElementById(id);
+  var n=parseFloat(el.value);
+  if(isNaN(n))n=0;
+  n=Math.max(0,Math.min(100,n));
+  if(String(el.value)!==String(n))el.value=n;
+  return n;
+}
 function onContaPct(){
   if(!_contaPctReady)return;
   LS.s('crm_conta_config',{
-    costoPct:parseFloat(document.getElementById('cd-costo-pct').value)||0,
-    impPct:parseFloat(document.getElementById('cd-imp-pct').value)||0,
-    negPct:parseFloat(document.getElementById('cd-pct-neg').value)||0,
-    ceoPct:parseFloat(document.getElementById('cd-pct-ceo').value)||0,
-    operPct:parseFloat(document.getElementById('cd-pct-oper').value)||0
+    costoPct:pctInput('cd-costo-pct'),
+    impPct:pctInput('cd-imp-pct'),
+    negPct:pctInput('cd-pct-neg'),
+    ceoPct:pctInput('cd-pct-ceo'),
+    operPct:pctInput('cd-pct-oper')
   });
   renderConta();
 }
