@@ -1273,6 +1273,7 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 
 // ===== AUTH Y ROLES =====
 var AUTH=null;
+var OWNER_EMAIL='casainteligentemgta@gmail.com';
 var ROLES={
   admin:{l:'Dueño / Admin',tabs:['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'],users:true,backup:true},
   ventas:{l:'Ventas',tabs:['dash','clientes','presupuestos','ordenes','catalogo']},
@@ -1283,6 +1284,23 @@ var ROLES={
 function authUsers(){return LS.g('crm_usuarios')||[]}
 function authSaveUsers(lista){LS.s('crm_usuarios',lista)}
 function authRol(r){return ROLES[r]||ROLES.ventas}
+function authHandle(u){
+  var h=String((u&&(u.email||u.usuario))||'');
+  if(!h)return '';
+  return h.indexOf('@')>=0?h:'@'+h;
+}
+function esDueñoEmail(email){
+  return String(email||'').trim().toLowerCase()===OWNER_EMAIL;
+}
+function esDueñoPerfil(u){
+  if(!u)return false;
+  var em=String(u.email||u.usuario||'').trim().toLowerCase();
+  if(esDueñoEmail(em))return true;
+  if(em==='casainteligentemgta')return true;
+  var id=u.user_id||u.id;
+  if(AUTH&&id&&AUTH.id===id&&esDueñoEmail(SB_USER&&SB_USER.email))return true;
+  return false;
+}
 function authCan(tab){return !!(AUTH&&authRol(AUTH.rol).tabs.indexOf(tab)>=0)}
 function authCanUsers(){return !!(AUTH&&authRol(AUTH.rol).users)}
 function authCanBackup(){return !!(AUTH&&authRol(AUTH.rol).backup)}
@@ -1380,7 +1398,9 @@ function authApplyUI(){
   if(up)up.style.display=(cloud&&authCanUsers())?'':'none';
 }
 function authSetSession(u){
-  AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now()};
+  var rol=u.rol;
+  if(esDueñoPerfil(u))rol='admin';
+  AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,email:u.email||u.usuario,rol:rol,t:Date.now()};
   authTouch();
   authApplyUI();
   goTab(authFirstTab());
@@ -1399,7 +1419,7 @@ function authLogin(){
     var nombre=(document.getElementById('login-nombre').value||'').trim()||usuario;
     var salt=newSalt();
     hashClave(pass,salt).then(function(h){
-      var admin={id:uid(),nombre:nombre,usuario:usuario,pass:h,salt:salt,rol:'admin',activo:true};
+      var admin={id:uid(),nombre:nombre,usuario:usuario,email:esDueñoEmail(usuario)?OWNER_EMAIL:'',pass:h,salt:salt,rol:'admin',activo:true};
       authSaveUsers([admin]);
       authMsg('');
       authSetSession(admin);
@@ -1442,7 +1462,12 @@ function authBoot(){
       AUTH=null;authShowLogin();return;
     }
     var u=authUsers().find(function(x){return x.id===ses.id&&x.activo!==false});
-    if(u){AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now()};authTouch();authApplyUI();return}
+    if(u){
+      var rol=u.rol;
+      if(esDueñoPerfil(u))rol='admin';
+      AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,email:u.email||u.usuario,rol:rol,t:Date.now()};
+      authTouch();authApplyUI();return
+    }
   }
   AUTH=null;
   authShowLogin();
@@ -1481,13 +1506,17 @@ function renderUsuarios(){
   var lista=authUsers();
   el.innerHTML=lista.map(function(u){
     var yo=AUTH&&u.id===AUTH.id;
+    var dueño=esDueñoPerfil(u);
     var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
     return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-      +'<div class="li-sub">@'+escHtml(u.usuario)+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
-      +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
-      +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.id+'\',this.value)">'+opts+'</select>'
-      +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.id+'\')">X</button>')
-      +'</div></div>';
+      +'<div class="li-sub">'+escHtml(authHandle(u))+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+(dueño?' · dueño':'')+'</div>'
+      +(dueño
+        ?'<div class="li-sub" style="margin-top:6px">Dueño fijo. No se puede cambiar el rol ni quitar.</div>'
+        :'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+          +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.id+'\',this.value)">'+opts+'</select>'
+          +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.id+'\')">X</button>')
+          +'</div>')
+      +'</div>';
   }).join('');
 }
 function crearUsuario(){
@@ -1519,6 +1548,7 @@ function cambiarRolUsuario(id,rol){
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
   if(lista[i].rol==='admin'&&rol!=='admin'){
+    if(esDueñoPerfil(lista[i])){alert('El dueño no puede dejar de ser administrador.');renderUsuarios();return}
     var admins=lista.filter(function(x){return x.rol==='admin'&&x.id!==id});
     if(!admins.length){alert('Debe quedar al menos un administrador');renderUsuarios();return}
   }
@@ -1533,6 +1563,7 @@ function eliminarUsuario(id){
   var lista=authUsers();
   var u=lista.find(function(x){return x.id===id});
   if(!u)return;
+  if(esDueñoPerfil(u)){alert('No se puede quitar al dueño.');return}
   if(AUTH&&u.id===AUTH.id){alert('No puedes borrar tu propio usuario');return}
   if(u.rol==='admin'&&!lista.some(function(x){return x.rol==='admin'&&x.id!==id})){alert('Debe quedar al menos un administrador');return}
   if(!confirm('Eliminar a '+u.nombre+'?'))return;
@@ -4269,33 +4300,57 @@ function cloudAuth(){
   },function(){authMsg('Sin conexion.',true);fin()});
 }
 function cloudEntrar(nombre,code){
-  return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
-    if(r.error)throw r.error;
-    if(r.data&&r.data.activo===false)throw {message:'Tu usuario esta inactivo.'};
-    if(r.data)return cloudSesion(r.data);
-    if(_sbModo==='invite'||code){
-      return sb.rpc('cromat_redeem_invite',{p_code:code,p_nombre:nombre||''}).then(function(x){
+  var cargar=function(){
+    return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,email,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
+      if(r.error&&/email/i.test(r.error.message||'')){
+        return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle();
+      }
+      return r;
+    }).then(function(r){
+      if(r.error)throw r.error;
+      if(r.data&&r.data.activo===false&&!esDueñoEmail(SB_USER&&SB_USER.email)&&!esDueñoPerfil(r.data))throw {message:'Tu usuario esta inactivo.'};
+      if(r.data)return cloudSesion(r.data);
+      if(_sbModo==='invite'||code){
+        return sb.rpc('cromat_redeem_invite',{p_code:code,p_nombre:nombre||''}).then(function(x){
+          if(x.error)throw x.error;
+          return cloudCargarPerfil();
+        });
+      }
+      return sb.rpc('cromat_bootstrap',{p_nombre:nombre||''}).then(function(x){
         if(x.error)throw x.error;
         return cloudCargarPerfil();
       });
-    }
-    return sb.rpc('cromat_bootstrap',{p_nombre:nombre||''}).then(function(x){
-      if(x.error)throw x.error;
-      return cloudCargarPerfil();
     });
-  });
+  };
+  if(esDueñoEmail(SB_USER&&SB_USER.email)){
+    return cloudCargarPerfil().then(function(x){return x},function(){return cargar()});
+  }
+  return cargar();
 }
 function cloudCargarPerfil(){
-  return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
-    if(r.error)throw r.error;
-    if(!r.data)throw {message:'No hay perfil. Pide un codigo de invitacion.'};
-    if(r.data.activo===false)throw {message:'Tu usuario esta inactivo.'};
-    return cloudSesion(r.data);
-  });
+  var leer=function(){
+    return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,email,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
+      if(r.error&&/email/i.test(r.error.message||'')){
+        return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle();
+      }
+      return r;
+    }).then(function(r){
+      if(r.error)throw r.error;
+      if(!r.data)throw {message:'No hay perfil. Pide un codigo de invitacion.'};
+      if(r.data.activo===false&&!esDueñoEmail(SB_USER&&SB_USER.email)&&!esDueñoPerfil(r.data))throw {message:'Tu usuario esta inactivo.'};
+      return cloudSesion(r.data);
+    });
+  };
+  if(esDueñoEmail(SB_USER&&SB_USER.email)){
+    return sb.rpc('cromat_ensure_owner').then(function(){return leer()},function(){return leer()});
+  }
+  return leer();
 }
 function cloudSesion(p){
   CLOUD_ORG=p.org_id;
-  AUTH={id:p.user_id,nombre:p.nombre,usuario:p.usuario|| (SB_USER.email||'').split('@')[0],rol:p.rol,t:Date.now(),orgId:p.org_id};
+  var rol=p.rol;
+  if(esDueñoEmail(SB_USER&&SB_USER.email)||esDueñoPerfil(p))rol='admin';
+  AUTH={id:p.user_id,nombre:p.nombre,usuario:p.usuario|| (SB_USER.email||'').split('@')[0],email:p.email||(SB_USER&&SB_USER.email)||'',rol:rol,t:Date.now(),orgId:p.org_id};
   authTouch();
   authApplyUI();
   cloudPull();
@@ -4396,13 +4451,17 @@ function cloudRenderUsuarios(){
   function pintar(users,invs){
     var html=(users||[]).map(function(u){
       var yo=AUTH&&u.user_id===AUTH.id;
+      var dueño=esDueñoPerfil(u)||esDueñoEmail(u.email);
       var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-        +'<div class="li-sub">'+escHtml(u.usuario||'')+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
-        +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
-        +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.user_id+'\',this.value)">'+opts+'</select>'
-        +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.user_id+'\')">'+(u.activo===false?'Activar':'Quitar')+'</button>')
-        +'</div></div>';
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(dueño?'admin':u.rol).l)+'</span></div>'
+        +'<div class="li-sub">'+escHtml(u.email||u.usuario||'')+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+(dueño?' · dueño':'')+'</div>'
+        +(dueño
+          ?'<div class="li-sub" style="margin-top:6px">Dueño fijo. No se puede cambiar el rol ni quitar.</div>'
+          :'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+            +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.user_id+'\',this.value)">'+opts+'</select>'
+            +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.user_id+'\')">'+(u.activo===false?'Activar':'Quitar')+'</button>')
+            +'</div>')
+        +'</div>';
     }).join('');
     if(invs&&invs.length){
       html+='<div class="st" style="margin-top:12px">Invitaciones pendientes</div>';
@@ -4420,31 +4479,63 @@ function cloudRenderUsuarios(){
     }
     el.innerHTML=html||'<div class="empty">Sin usuarios</div>';
   }
-  Promise.all([
-    sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre'),
-    sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,email,used_at').is('used_at',null).order('created_at',{ascending:false})
-  ]).then(function(res){
-    if(res[0].error){el.textContent=cloudErr(res[0].error);return}
-    if(res[1].error){
-      return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r2){
-        pintar(res[0].data||[],(!r2.error&&r2.data)||[]);
+  function cargarInvites(users){
+    return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,email,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r){
+      if(r.error){
+        return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r2){
+          pintar(users,(!r2.error&&r2.data)||[]);
+        });
+      }
+      pintar(users,r.data||[]);
+    });
+  }
+  sb.from('cromat_profiles').select('user_id,nombre,usuario,email,rol,activo').order('nombre').then(function(r){
+    if(r.error&&/email/i.test(r.error.message||'')){
+      return sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre').then(function(r2){
+        if(r2.error){el.textContent=cloudErr(r2.error);return}
+        return cargarInvites(r2.data||[]);
       });
     }
-    pintar(res[0].data||[],res[1].data||[]);
+    if(r.error){el.textContent=cloudErr(r.error);return}
+    return cargarInvites(r.data||[]);
   });
 }
 function cloudCambiarRol(id,rol){
   if(!sb||!ROLES[rol])return;
-  sb.from('cromat_profiles').update({rol:rol}).eq('user_id',id).then(function(r){
-    if(r.error){alert(cloudErr(r.error));cloudRenderUsuarios();return}
-    if(AUTH&&AUTH.id===id){AUTH.rol=rol;authApplyUI()}
+  if(AUTH&&AUTH.id===id&&esDueñoEmail(SB_USER&&SB_USER.email)&&rol!=='admin'){
+    alert('El dueño no puede dejar de ser administrador.');
     cloudRenderUsuarios();
+    return;
+  }
+  sb.from('cromat_profiles').select('usuario,email').eq('user_id',id).maybeSingle().then(function(p){
+    if(p.error&&/email/i.test(p.error.message||'')){
+      return sb.from('cromat_profiles').select('usuario').eq('user_id',id).maybeSingle();
+    }
+    return p;
+  }).then(function(p){
+    if(p.data&&esDueñoPerfil(p.data)&&rol!=='admin'){
+      alert('El dueño no puede dejar de ser administrador.');
+      cloudRenderUsuarios();
+      return;
+    }
+    sb.from('cromat_profiles').update({rol:rol}).eq('user_id',id).then(function(r){
+      if(r.error){alert(cloudErr(r.error));cloudRenderUsuarios();return}
+      if(AUTH&&AUTH.id===id){AUTH.rol=rol;authApplyUI()}
+      cloudRenderUsuarios();
+    });
   });
 }
 function cloudDesactivarUsuario(id){
   if(!sb)return;
-  sb.from('cromat_profiles').select('activo').eq('user_id',id).maybeSingle().then(function(r){
+  if(AUTH&&AUTH.id===id){alert('No puedes quitarte a ti mismo.');return}
+  sb.from('cromat_profiles').select('usuario,email,activo').eq('user_id',id).maybeSingle().then(function(r){
+    if(r.error&&/email/i.test(r.error.message||'')){
+      return sb.from('cromat_profiles').select('usuario,activo').eq('user_id',id).maybeSingle();
+    }
+    return r;
+  }).then(function(r){
     if(r.error||!r.data)return;
+    if(esDueñoPerfil(r.data)){alert('No se puede quitar al dueño.');return}
     var next=!r.data.activo;
     if(r.data.activo&&!confirm('Quitar el acceso de esta persona?'))return;
     sb.from('cromat_profiles').update({activo:next}).eq('user_id',id).then(function(x){
