@@ -111,14 +111,15 @@ begin
     raise exception 'invite_required';
   end if;
   insert into public.cromat_orgs (nombre) values ('Cromat') returning id into oid;
-  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo)
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
   values (
     auth.uid(),
     oid,
     nom,
     split_part(coalesce(auth.email(), 'admin'), '@', 1),
     'admin',
-    true
+    true,
+    coalesce(auth.email(), '')
   );
   return oid;
 end;
@@ -150,14 +151,15 @@ begin
   if nom = '' then
     nom := coalesce(nullif(inv.nombre_sugerido, ''), split_part(coalesce(auth.email(), 'user'), '@', 1));
   end if;
-  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo)
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
   values (
     auth.uid(),
     inv.org_id,
     nom,
     split_part(coalesce(auth.email(), 'user'), '@', 1),
     inv.rol,
-    true
+    true,
+    coalesce(auth.email(), '')
   );
   update public.cromat_invites
   set used_by = auth.uid(), used_at = now()
@@ -226,3 +228,33 @@ grant execute on function public.cromat_bootstrap(text) to authenticated;
 grant execute on function public.cromat_redeem_invite(text, text) to authenticated;
 
 alter table public.cromat_invites add column if not exists email text;
+alter table public.cromat_profiles add column if not exists email text not null default '';
+
+create or replace function public.cromat_equipo()
+returns table (
+  user_id uuid,
+  nombre text,
+  usuario text,
+  email text,
+  rol text,
+  activo boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p.user_id,
+    p.nombre,
+    p.usuario,
+    coalesce(nullif(trim(p.email), ''), u.email, '')::text,
+    p.rol,
+    p.activo
+  from public.cromat_profiles p
+  left join auth.users u on u.id = p.user_id
+  where p.org_id = public.cromat_org_id()
+  order by p.nombre
+$$;
+
+grant execute on function public.cromat_equipo() to authenticated;
