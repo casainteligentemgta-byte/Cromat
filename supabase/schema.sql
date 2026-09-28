@@ -27,6 +27,7 @@ create table if not exists public.cromat_invites (
   code text not null unique,
   rol text not null check (rol in ('admin','ventas','operadora','conta','diseno')),
   nombre_sugerido text,
+  email text,
   created_by uuid references auth.users (id),
   created_at timestamptz not null default now(),
   used_by uuid references auth.users (id),
@@ -223,3 +224,5 @@ grant execute on function public.cromat_org_id() to authenticated;
 grant execute on function public.cromat_can_key(text) to authenticated;
 grant execute on function public.cromat_bootstrap(text) to authenticated;
 grant execute on function public.cromat_redeem_invite(text, text) to authenticated;
+
+alter table public.cromat_invites add column if not exists email text;

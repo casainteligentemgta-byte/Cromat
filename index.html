@@ -1147,8 +1147,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Usuarios y roles</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
     <div id="lista-usuarios"></div>
-    <div class="st" style="margin-top:14px">Nuevo usuario</div>
+    <div class="st" style="margin-top:14px" id="nu-nuevo-st">Nuevo usuario</div>
     <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
+    <div class="fg" id="nu-email-wrap" style="display:none"><label class="fl">Correo de la persona</label><input class="fi" type="email" id="nu-email" placeholder="maria@correo.com" autocomplete="off"></div>
       <div class="fg" id="nu-usuario-wrap"><label class="fl" id="nu-usuario-lbl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
     <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
     <div class="fg"><label class="fl">Rol</label>
@@ -1161,10 +1162,16 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       </select>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:8px" id="nu-crear-btn" onclick="crearUsuario()">Crear usuario</button>
-    <div id="nu-invite-out" style="display:none;margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;font-size:13px"></div>
+    <div id="nu-invite-out" style="display:none;margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;font-size:13px;line-height:1.5"></div>
     <div id="nu-cloud-cfg" style="display:none;margin-top:16px">
-      <div class="st">Conectar nube</div>
-      <p style="font-size:12px;color:var(--ts);margin-bottom:8px">Pega la URL y la clave anon de Supabase. Luego recarga e inicia sesion con correo.</p>
+      <div class="st">Conectar nube (Supabase)</div>
+      <p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">En supabase.com → tu proyecto → <strong>Project Settings → API</strong>:</p>
+      <ul style="font-size:12px;color:var(--ts);margin:0 0 10px 18px;line-height:1.5;padding:0">
+        <li><strong>Project URL</strong> — empieza por https:// y termina en .supabase.co</li>
+        <li><strong>anon public</strong> — la clave larga que empieza por eyJ. Es pública a propósito.</li>
+        <li>No copies <strong>service_role</strong>. Esa es secreta y no va en Cromat.</li>
+      </ul>
+      <p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">Para que todo el equipo entre a la misma nube, pega también esas dos en Vercel → Settings → Environment Variables: <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code>, y vuelve a publicar. Pegarlas solo aquí deja la nube en este teléfono.</p>
       <div class="fg"><label class="fl">Project URL</label><input class="fi" type="url" id="sb-url" placeholder="https://xxxx.supabase.co"></div>
       <div class="fg"><label class="fl">anon public</label><input class="fi" type="text" id="sb-key" placeholder="eyJ..." autocomplete="off"></div>
       <button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="guardarConfigNube()">Guardar y recargar</button>
@@ -1426,18 +1433,30 @@ function abrirUsuarios(){
   document.getElementById('nu-nombre').value='';
   document.getElementById('nu-usuario').value='';
   document.getElementById('nu-clave').value='';
+  var em=document.getElementById('nu-email'); if(em)em.value='';
   document.getElementById('nu-rol').value='ventas';
   var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
   var uw=document.getElementById('nu-usuario-wrap');
   var cw=document.getElementById('nu-clave-wrap');
+  var ew=document.getElementById('nu-email-wrap');
   var btn=document.getElementById('nu-crear-btn');
   var out=document.getElementById('nu-invite-out');
   var cfg=document.getElementById('nu-cloud-cfg');
+  var st=document.getElementById('nu-nuevo-st');
   if(uw)uw.style.display=cloud?'none':'';
   if(cw)cw.style.display=cloud?'none':'';
-  if(btn)btn.textContent=cloud?'Crear codigo de invitacion':'Crear usuario';
-  if(out){out.style.display='none';out.textContent=''}
-  if(cfg)cfg.style.display=(!cloud&&authCanUsers())?'':'none';
+  if(ew)ew.style.display=cloud?'':'none';
+  if(st)st.textContent=cloud?'Invitar al equipo':'Nuevo usuario';
+  if(btn)btn.textContent=cloud?'Crear invitación y abrir correo':'Crear usuario';
+  if(out){out.style.display='none';out.innerHTML=''}
+  if(cfg){
+    cfg.style.display=(!cloud&&authCanUsers())?'':'none';
+    try{
+      var c=JSON.parse(localStorage.getItem('cromat_sb_cfg')||'null');
+      if(c&&c.url){var u=document.getElementById('sb-url'); if(u)u.value=c.url}
+      if(c&&c.key){var k=document.getElementById('sb-key'); if(k)k.value=c.key}
+    }catch(e){}
+  }
   renderUsuarios();
   openModal('modal-usuarios');
 }
@@ -4185,7 +4204,7 @@ function cloudSetModo(m){
   if(nom)nom.style.display=_sbModo==='login'?'none':'';
   if(inv)inv.style.display=_sbModo==='invite'?'':'none';
   if(titulo)titulo.textContent=_sbModo==='signup'?'Crear empresa':_sbModo==='invite'?'Unirme al equipo':'Iniciar sesión';
-  if(sub)sub.textContent=_sbModo==='signup'?'Primer dueño: crea la empresa con tu correo. Luego invita al equipo.':_sbModo==='invite'?'Usa el codigo que te dio el dueño.': 'Entra con el correo de la empresa.';
+  if(sub)sub.textContent=_sbModo==='signup'?'Primer dueño: crea la empresa con tu correo. Luego invita al equipo.':_sbModo==='invite'?'Abre el enlace de invitación o pega el código que te enviaron.': 'Entra con el correo de la empresa.';
   if(btn)btn.textContent=_sbModo==='signup'?'Crear y entrar':_sbModo==='invite'?'Unirme':'Entrar';
 }
 function cloudAuth(){
@@ -4272,6 +4291,13 @@ function guardarConfigNube(){
   var url=(document.getElementById('sb-url').value||'').trim();
   var key=(document.getElementById('sb-key').value||'').trim();
   if(url.indexOf('https://')!==0||!key){alert('Pega la URL https y la clave anon');return}
+  try{
+    var p=key.split('.')[1];
+    if(p){
+      var json=JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/')));
+      if(json.role==='service_role'){alert('Esa es la clave service_role (secreta). Usa la anon public.');return}
+    }
+  }catch(e){}
   localStorage.setItem('cromat_sb_cfg',JSON.stringify({url:url,key:key}));
   location.reload();
 }
@@ -4280,32 +4306,71 @@ function cloudInviteCode(){
   for(var i=0;i<8;i++)s+=a.charAt(Math.floor(Math.random()*a.length));
   return s;
 }
+function cloudInviteLink(code){
+  var path=(location.pathname||'/').split('?')[0];
+  return location.origin+path+'?invite='+encodeURIComponent(code);
+}
+function cloudInviteTexto(code,nombre,rol){
+  var link=cloudInviteLink(code);
+  var quien=nombre||'te';
+  return 'Hola'+(nombre?(' '+nombre):'')+',\n\nTe invitaron a Cromat como '+authRol(rol).l+'.\n\n1. Abre este enlace:\n'+link+'\n\n2. Crea tu cuenta con tu correo y una clave de 8 caracteres o más.\n\n3. Si te pide código, usa: '+code+'\n\nElige "Me invitaron" si el enlace no abre solo.';
+}
+function cloudAbrirCorreoInvitacion(email,code,nombre,rol){
+  var asunto=encodeURIComponent('Invitación a Cromat');
+  var cuerpo=encodeURIComponent(cloudInviteTexto(code,nombre,rol));
+  var to=encodeURIComponent(email||'');
+  location.href='mailto:'+to+'?subject='+asunto+'&body='+cuerpo;
+}
+function cloudCopiarInvitacion(code,nombre,rol){
+  var t=cloudInviteTexto(code,nombre,rol);
+  var ok=function(){alert('Invitación copiada. Pégala en WhatsApp o correo.')};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,function(){prompt('Copia esto:',t)});
+  else prompt('Copia esto:',t);
+}
+function cloudWhatsAppInvitacion(code,nombre,rol){
+  window.open('https://wa.me/?text='+encodeURIComponent(cloudInviteTexto(code,nombre,rol)),'_blank');
+}
 function cloudCrearInvitacion(){
   if(!CLOUD_ORG||!sb)return;
   var nombre=(document.getElementById('nu-nombre').value||'').trim();
+  var email=(document.getElementById('nu-email')&&document.getElementById('nu-email').value||'').trim().toLowerCase();
   var rol=document.getElementById('nu-rol').value||'ventas';
   if(!ROLES[rol])rol='ventas';
+  if(!email||email.indexOf('@')<1){alert('Escribe el correo de la persona para enviarle la invitación.');return}
   var code=cloudInviteCode();
-  sb.from('cromat_invites').insert({org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre||null,created_by:SB_USER.id}).then(function(r){
+  var row={org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre||null,created_by:SB_USER.id,email:email};
+  sb.from('cromat_invites').insert(row).then(function(r){
+    if(r.error&&/email/i.test(r.error.message||'')){
+      delete row.email;
+      return sb.from('cromat_invites').insert(row);
+    }
+    return r;
+  }).then(function(r){
     if(r.error){alert(cloudErr(r.error));return}
     var out=document.getElementById('nu-invite-out');
+    var link=cloudInviteLink(code);
     if(out){
       out.style.display='';
-      out.textContent='Codigo para '+authRol(rol).l+(nombre?(' ('+nombre+')'):'')+': '+code+'  —  esa persona elige Me invitaron e ingresa este codigo.';
+      out.innerHTML='<div style="font-weight:700;margin-bottom:6px">Invitación para '+escHtml(authRol(rol).l)+'</div>'
+        +'<div style="margin-bottom:6px">'+escHtml(nombre||email)+' · '+escHtml(email)+'</div>'
+        +'<div style="font-size:12px;word-break:break-all;margin-bottom:8px">Código: <strong>'+escHtml(code)+'</strong><br>'+escHtml(link)+'</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button class="btn btn-primary btn-sm" type="button" onclick="cloudAbrirCorreoInvitacion(\''+escHtml(email)+'\',\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">Abrir correo</button>'
+        +'<button class="btn btn-teal btn-sm" type="button" onclick="cloudWhatsAppInvitacion(\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">WhatsApp</button>'
+        +'<button class="btn btn-ghost btn-sm" type="button" onclick="cloudCopiarInvitacion(\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">Copiar</button>'
+        +'</div>';
     }
     document.getElementById('nu-nombre').value='';
+    if(document.getElementById('nu-email'))document.getElementById('nu-email').value='';
     cloudRenderUsuarios();
+    cloudAbrirCorreoInvitacion(email,code,nombre,rol);
   });
 }
 function cloudRenderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el||!sb)return;
-  Promise.all([
-    sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre'),
-    sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false})
-  ]).then(function(res){
-    if(res[0].error){el.textContent=cloudErr(res[0].error);return}
-    var html=(res[0].data||[]).map(function(u){
+  function pintar(users,invs){
+    var html=(users||[]).map(function(u){
       var yo=AUTH&&u.user_id===AUTH.id;
       var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
       return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
@@ -4315,15 +4380,33 @@ function cloudRenderUsuarios(){
         +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.user_id+'\')">'+(u.activo===false?'Activar':'Quitar')+'</button>')
         +'</div></div>';
     }).join('');
-    var invs=(!res[1].error&&res[1].data)||[];
-    if(invs.length){
-      html+='<div class="st" style="margin-top:12px">Codigos sin usar</div>';
+    if(invs&&invs.length){
+      html+='<div class="st" style="margin-top:12px">Invitaciones pendientes</div>';
       html+=invs.map(function(i){
+        var mail=i.email||'';
+        var nom=i.nombre_sugerido||'';
         return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.code)+'</span><span class="tag tag-teal">'+escHtml(authRol(i.rol).l)+'</span></div>'
-          +'<div class="li-sub">'+(i.nombre_sugerido?escHtml(i.nombre_sugerido)+' · ':'')+'Pendiente</div></div>';
+          +'<div class="li-sub">'+(nom?escHtml(nom)+' · ':'')+(mail?escHtml(mail)+' · ':'')+'Pendiente</div>'
+          +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+          +(mail?'<button class="btn btn-primary btn-sm" type="button" onclick="cloudAbrirCorreoInvitacion(\''+escHtml(mail)+'\',\''+escHtml(i.code)+'\',\''+escHtml(nom)+'\',\''+escHtml(i.rol)+'\')">Abrir correo</button>':'')
+          +'<button class="btn btn-teal btn-sm" type="button" onclick="cloudWhatsAppInvitacion(\''+escHtml(i.code)+'\',\''+escHtml(nom)+'\',\''+escHtml(i.rol)+'\')">WhatsApp</button>'
+          +'<button class="btn btn-ghost btn-sm" type="button" onclick="cloudCopiarInvitacion(\''+escHtml(i.code)+'\',\''+escHtml(nom)+'\',\''+escHtml(i.rol)+'\')">Copiar</button>'
+          +'</div></div>';
       }).join('');
     }
     el.innerHTML=html||'<div class="empty">Sin usuarios</div>';
+  }
+  Promise.all([
+    sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre'),
+    sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,email,used_at').is('used_at',null).order('created_at',{ascending:false})
+  ]).then(function(res){
+    if(res[0].error){el.textContent=cloudErr(res[0].error);return}
+    if(res[1].error){
+      return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r2){
+        pintar(res[0].data||[],(!r2.error&&r2.data)||[]);
+      });
+    }
+    pintar(res[0].data||[],res[1].data||[]);
   });
 }
 function cloudCambiarRol(id,rol){
@@ -4371,7 +4454,16 @@ function cloudDesactivarUsuario(id){
   });
   window.addEventListener('online',function(){cloudFlush()});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')cloudFlush()});
+  try{
+    var inv=(new URLSearchParams(location.search).get('invite')||'').trim();
+    if(inv){
+      _sbModo='invite';
+      var invEl=document.getElementById('login-invite');
+      if(invEl)invEl.value=inv.toUpperCase();
+    }
+  }catch(e){}
   authShowLogin();
+  if(_sbModo==='invite')cloudSetModo('invite');
 })();
 </script>
 
