@@ -18,8 +18,11 @@ create table if not exists public.cromat_profiles (
   usuario text not null default '',
   rol text not null check (rol in ('admin','ventas','operadora','conta','diseno')),
   activo boolean not null default true,
+  email text,
   created_at timestamptz not null default now()
 );
+
+alter table public.cromat_profiles add column if not exists email text;
 
 create table if not exists public.cromat_invites (
   id uuid primary key default gen_random_uuid(),
@@ -111,14 +114,15 @@ begin
     raise exception 'invite_required';
   end if;
   insert into public.cromat_orgs (nombre) values ('Cromat') returning id into oid;
-  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo)
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
   values (
     auth.uid(),
     oid,
     nom,
     split_part(coalesce(auth.email(), 'admin'), '@', 1),
     'admin',
-    true
+    true,
+    auth.email()
   );
   return oid;
 end;
@@ -150,14 +154,15 @@ begin
   if nom = '' then
     nom := coalesce(nullif(inv.nombre_sugerido, ''), split_part(coalesce(auth.email(), 'user'), '@', 1));
   end if;
-  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo)
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
   values (
     auth.uid(),
     inv.org_id,
     nom,
     split_part(coalesce(auth.email(), 'user'), '@', 1),
     inv.rol,
-    true
+    true,
+    auth.email()
   );
   update public.cromat_invites
   set used_by = auth.uid(), used_at = now()
@@ -226,3 +231,116 @@ grant execute on function public.cromat_bootstrap(text) to authenticated;
 grant execute on function public.cromat_redeem_invite(text, text) to authenticated;
 
 alter table public.cromat_invites add column if not exists email text;
+
+-- Dueño fijo de Cromat
+create or replace function public.cromat_owner_email()
+returns text
+language sql
+immutable
+as $$
+  select 'casainteligentemgta@gmail.com'::text
+$$;
+
+alter table public.cromat_profiles add column if not exists email text;
+
+create or replace function public.cromat_ensure_owner()
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  oid uuid;
+  uid uuid := auth.uid();
+  em text := lower(coalesce(auth.email(), ''));
+begin
+  if uid is null then
+    raise exception 'not_authenticated';
+  end if;
+  if em <> public.cromat_owner_email() then
+    return public.cromat_org_id();
+  end if;
+
+  update public.cromat_profiles
+  set rol = 'admin', activo = true, email = coalesce(auth.email(), email)
+  where user_id = uid
+  returning org_id into oid;
+  if found then
+    return oid;
+  end if;
+
+  select id into oid from public.cromat_orgs order by created_at asc limit 1;
+  if oid is null then
+    return public.cromat_bootstrap(coalesce(nullif(trim(split_part(auth.email(), '@', 1)), ''), 'Luis Mata'));
+  end if;
+
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
+  values (
+    uid,
+    oid,
+    'Luis Mata',
+    split_part(coalesce(auth.email(), 'admin'), '@', 1),
+    'admin',
+    true,
+    auth.email()
+  );
+  return oid;
+end;
+$$;
+
+create or replace function public.cromat_protect_owner()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  em text;
+begin
+  select lower(email) into em from auth.users where id = new.user_id;
+  if em is null then
+    em := lower(coalesce(new.email, ''));
+  end if;
+  if em = public.cromat_owner_email() then
+    new.rol := 'admin';
+    new.activo := true;
+    new.email := public.cromat_owner_email();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists cromat_protect_owner on public.cromat_profiles;
+create trigger cromat_protect_owner
+  before insert or update on public.cromat_profiles
+  for each row execute function public.cromat_protect_owner();
+
+grant execute on function public.cromat_owner_email() to authenticated;
+grant execute on function public.cromat_ensure_owner() to authenticated;
+
+-- Si la cuenta ya existe, deja el perfil como dueño ahora.
+update public.cromat_profiles p
+set rol = 'admin', activo = true, email = u.email
+from auth.users u
+where p.user_id = u.id
+  and lower(u.email) = 'casainteligentemgta@gmail.com';
+
+do $$
+declare
+  uid uuid;
+  oid uuid;
+begin
+  select id into uid from auth.users where lower(email) = 'casainteligentemgta@gmail.com' limit 1;
+  if uid is null then
+    return;
+  end if;
+  select id into oid from public.cromat_orgs order by created_at asc limit 1;
+  if oid is null then
+    return;
+  end if;
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
+  values (uid, oid, 'Luis Mata', split_part('casainteligentemgta@gmail.com', '@', 1), 'admin', true, 'casainteligentemgta@gmail.com')
+  on conflict (user_id) do update
+    set rol = 'admin', activo = true, email = excluded.email;
+end;
+$$;
