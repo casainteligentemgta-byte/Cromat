@@ -501,7 +501,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <span style="font-size:13px;font-weight:700;color:var(--teal)" id="ir-costo">-</span>
     </div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia neta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
-    <div class="result-row"><span class="result-label">Comisiones (CEO + Oper.)</span><span class="result-val" id="ir-comis">-</span></div>
+    <div style="border-top:0.5px solid var(--bd);margin:8px 0 4px"></div>
+    <div class="st" style="margin:0 0 6px">Reparto del precio</div>
+    <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio (<span id="ir-neg-pct-m2">80</span>%)</span><span class="result-val" style="color:var(--gt)" id="ir-neg">-</span></div>
+    <div class="result-row"><span class="result-label">CEO (<span id="ir-ceo-pct-m2">15</span>%)</span><span class="result-val" id="ir-ceo">-</span></div>
+    <div class="result-row"><span class="result-label">Operadora (<span id="ir-oper-pct-m2">5</span>%)</span><span class="result-val" id="ir-oper">-</span></div>
   </div>
 
   <!-- RESULTADO FINAL -->
@@ -525,6 +529,20 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:12px;color:#aaa;font-weight:700">PRECIO TOTAL DEL TRABAJO</span>
       <span style="font-size:20px;color:var(--coral);font-weight:800" id="ir-total">-</span>
+    </div>
+    <div style="border-top:0.5px solid #444;margin:10px 0 8px"></div>
+    <div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.04em;margin-bottom:8px">QUIÉN SE LLEVA EL TRABAJO</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:#aaa">Negocio (<span id="ir-neg-pct">80</span>%)</span>
+      <span style="font-size:14px;color:#8fd19e;font-weight:700" id="ir-neg-tot">-</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:#aaa">CEO (<span id="ir-ceo-pct">15</span>%)</span>
+      <span style="font-size:14px;color:var(--coral);font-weight:700" id="ir-ceo-tot">-</span>
+    </div>
+    <div style="display:flex;justify-content:space-between">
+      <span style="font-size:11px;color:#aaa">Operadora (<span id="ir-oper-pct">5</span>%)</span>
+      <span style="font-size:14px;color:#5ec8d4;font-weight:700" id="ir-oper-tot">-</span>
     </div>
     <div id="ir-sem" style="margin-top:8px;text-align:center"></div>
   </div>
@@ -639,8 +657,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       </div>
       <div class="result-box">
         <div class="result-row"><span class="result-label">Costo base</span><span class="result-val" id="dsr-1">-</span></div>
-        <div class="result-row"><span class="result-label">Comision CEO</span><span class="result-val coral" id="dsr-2">-</span></div>
-        <div class="result-row"><span class="result-label">Comision Operadora</span><span class="result-val" id="dsr-3">-</span></div>
+        <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio</span><span class="result-val" style="color:var(--gt)" id="dsr-neg">-</span></div>
+        <div class="result-row"><span class="result-label">CEO</span><span class="result-val coral" id="dsr-2">-</span></div>
+        <div class="result-row"><span class="result-label">Operadora</span><span class="result-val" id="dsr-3">-</span></div>
         <div class="total-row"><span class="total-label">Precio final</span><span class="total-val" id="dsr-p">-</span></div>
       </div>
       <div style="text-align:right;margin-top:8px">
@@ -3142,12 +3161,12 @@ function calcImpresion(passN){
   var gan_m2=costo_m2*mgPct/100;
   var precio_m2=costo_m2+gan_m2;
   var comis_m2=precio_m2*(ceoPct+operPct)/100;
-  var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100;
+  var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100,neg_m2=precio_m2*negPct/100;
   var precio_ml=precio_m2*ancho;
   var total_trabajo=precio_ml*largo;
   var sin_fijos=precio_m2-prorr_m2;
   var margen=precio_m2>0?gan_m2/precio_m2*100:0;
-  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
+  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
 }
 function calcDTFUnit(){
   var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
@@ -3321,8 +3340,16 @@ function cImp(){
   document.getElementById('ir-otros-res').textContent=usd(r.otros)+'/m²';
   document.getElementById('ir-costo').textContent=usd(r.costo_m2)+'/m²';
   document.getElementById('ir-gan').textContent=usd(r.gan_m2)+'/m²';
-  document.getElementById('ir-comis').textContent=usd(r.comis_m2)+'/m² (CEO '+usd(r.ceo_m2)+' + Oper. '+usd(r.oper_m2)+')';
   document.getElementById('ir-pct-neg').textContent=r.negPct.toFixed(0)+'%';
+  function setRepartoPct(id,n){var el=document.getElementById(id);if(el)el.textContent=n.toFixed(0)}
+  setRepartoPct('ir-neg-pct-m2',r.negPct);setRepartoPct('ir-ceo-pct-m2',r.ceoPct);setRepartoPct('ir-oper-pct-m2',r.operPct);
+  setRepartoPct('ir-neg-pct',r.negPct);setRepartoPct('ir-ceo-pct',r.ceoPct);setRepartoPct('ir-oper-pct',r.operPct);
+  document.getElementById('ir-neg').textContent=usd(r.neg_m2)+'/m²';
+  document.getElementById('ir-ceo').textContent=usd(r.ceo_m2)+'/m²';
+  document.getElementById('ir-oper').textContent=usd(r.oper_m2)+'/m²';
+  document.getElementById('ir-neg-tot').textContent=usd(r.neg_m2*r.area);
+  document.getElementById('ir-ceo-tot').textContent=usd(r.ceo_m2*r.area);
+  document.getElementById('ir-oper-tot').textContent=usd(r.oper_m2*r.area);
   document.getElementById('ir-sin-fijos').textContent=usd(r.sin_fijos)+'/m²';
   document.getElementById('ir-pm2').textContent=usd(r.precio_m2)+'/m²';
   document.getElementById('ir-precio').textContent=usd(r.precio_ml)+'/ml';
@@ -3350,9 +3377,9 @@ function cImp(){
       ],
       ganancia:r.gan_m2*r.area,
       reparto:[
+        {label:'Negocio',pct:r.negPct,monto:r.neg_m2*r.area,color:'#2E7D32'},
         {label:'CEO',pct:r.ceoPct,monto:r.ceo_m2*r.area,color:'#FF6B35'},
-        {label:'Operadora',pct:r.operPct,monto:r.oper_m2*r.area,color:'#028090'},
-        {label:'Negocio',pct:r.negPct,monto:r.total_trabajo*r.negPct/100,color:'#2E7D32'}
+        {label:'Operadora',pct:r.operPct,monto:r.oper_m2*r.area,color:'#028090'}
       ],
       notas:[
         {label:'Modo',val:PASS_MODES[_activePass]?PASS_MODES[_activePass].label:''},
@@ -3521,20 +3548,21 @@ function cDs(){
   var operPct=parseFloat(document.getElementById('ds-pct-oper').value)||5;
   var base=h*hrs;
   var final=base*(1+mg/100);
-  document.getElementById('dsr-1').textContent=usd(base);
-  document.getElementById('dsr-2').textContent=usd(final*ceoPct/100);
-  document.getElementById('dsr-3').textContent=usd(final*operPct/100);
-  document.getElementById('dsr-p').textContent=usd(final);
   var negPct=Math.max(0,100-ceoPct-operPct);
+  document.getElementById('dsr-1').textContent=usd(base);
+  document.getElementById('dsr-neg').textContent=usd(final*negPct/100)+' ('+negPct.toFixed(0)+'%)';
+  document.getElementById('dsr-2').textContent=usd(final*ceoPct/100)+' ('+ceoPct.toFixed(0)+'%)';
+  document.getElementById('dsr-3').textContent=usd(final*operPct/100)+' ('+operPct.toFixed(0)+'%)';
+  document.getElementById('dsr-p').textContent=usd(final);
   window._dsResult={
     costo:base,precio:final,gan:final-base,
     detalle:{
       gastos:[{label:'Costo base (horas)',monto:base}],
       ganancia:final-base,
       reparto:[
+        {label:'Negocio',pct:negPct,monto:final*negPct/100,color:'#2E7D32'},
         {label:'CEO',pct:ceoPct,monto:final*ceoPct/100,color:'#FF6B35'},
-        {label:'Operadora',pct:operPct,monto:final*operPct/100,color:'#028090'},
-        {label:'Negocio',pct:negPct,monto:final*negPct/100,color:'#2E7D32'}
+        {label:'Operadora',pct:operPct,monto:final*operPct/100,color:'#028090'}
       ],
       notas:[{label:'Tarifa/hora',val:usd(h)},{label:'Horas',val:String(hrs)}]
     }
