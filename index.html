@@ -190,6 +190,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div style="margin-top:16px">
     <div id="dash-local-note" style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
     <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="abrirBackup()">&#128190; Exportar / Importar datos</button>
+    <button class="btn btn-teal btn-sm" id="btn-subir-nube" style="display:none;margin-top:8px" onclick="cloudSubirLocal()">Subir datos de este teléfono a la nube</button>
   </div>
 </div>
 
@@ -1373,7 +1374,10 @@ function authApplyUI(){
     if(b)b.style.display=authCan(id)?'':'none';
   });
   var dn=document.getElementById('dash-local-note');
-  if(dn)dn.textContent=(typeof CLOUD_ON!=='undefined'&&CLOUD_ON)?'Datos de la empresa en la nube. Cada quien ve solo lo de su rol.':'Los datos se guardan en este dispositivo. Aún no hay nube activa.';
+  var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
+  if(dn)dn.textContent=cloud?'Datos de la empresa en la nube. Cada quien ve solo lo de su rol. Si este teléfono tiene clientes o trabajos de antes, usa Subir datos de este teléfono.':'Los datos se guardan en este dispositivo. Aún no hay nube activa.';
+  var up=document.getElementById('btn-subir-nube');
+  if(up)up.style.display=(cloud&&authCanUsers())?'':'none';
 }
 function authSetSession(u){
   AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now()};
@@ -4142,6 +4146,20 @@ function cloudErr(e){
   if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesion.';
   if(/Password should/i.test(m))return 'La clave debe tener al menos 6 caracteres (Supabase).';
   return m||'Error de nube';
+}
+function cloudSubirLocal(){
+  if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){alert('Entra primero con tu correo de la nube.');return}
+  if(!authCanUsers())return;
+  if(!confirm('Esto copia lo de ESTE teléfono (clientes, presupuestos, OP, costos, inventario, contabilidad y fondos) a Supabase. Si ya hay datos en la nube, se reemplazan por los de este celular. Continuar?'))return;
+  var p={};
+  CLOUD_DATA_KEYS.forEach(function(k){if(cloudCanKey(k))p[k]=1});
+  _sbSetPend(p);
+  syncEstado('pend','Subiendo…');
+  cloudFlush(function(){
+    var queda=_sbPend();
+    if(queda&&Object.keys(queda).length)alert('No se pudo subir. Revisa internet y que hayas corrido el SQL en Supabase.');
+    else alert('Listo. Lo de este teléfono ya está en la nube. El equipo lo verá al entrar.');
+  });
 }
 function cloudFlush(cb){
   var done=function(){if(cb)cb()};
