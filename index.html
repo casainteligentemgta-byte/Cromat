@@ -3346,10 +3346,10 @@ function setVistaCostos(v){
 }
 var _html2pdfCargando=null;
 function precargarHtml2Pdf(){
-  if(window.html2pdf||_html2pdfCargando)return _html2pdfCargando||Promise.resolve();
+  if((window.jspdf&&window.jspdf.jsPDF)||window.jsPDF||_html2pdfCargando)return _html2pdfCargando||Promise.resolve();
   _html2pdfCargando=new Promise(function(ok,fail){
     var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js';
+    s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
     s.onload=function(){ok()};
     s.onerror=function(){_html2pdfCargando=null;fail(new Error('No se pudo cargar el generador de PDF'))};
     document.head.appendChild(s);
@@ -3383,39 +3383,92 @@ function entregarPdf(blob,nombre){
   }
   descargarBlob(blob,nombre);
 }
-function armarNodoPdf(){
+function valorCampoPdf(el){
+  if(!el)return '';
+  if(el.tagName==='SELECT'){
+    var o=el.options[el.selectedIndex];
+    return o?String(o.text):String(el.value||'');
+  }
+  if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){
+    if(el.type==='checkbox'||el.type==='radio')return el.checked?'Si':'No';
+    return String(el.value===''?'—':el.value);
+  }
+  return ((el.innerText||el.textContent||'')+'').replace(/\s+/g,' ').trim();
+}
+function lineasCostosPdf(){
   var src=panelCostosActivo();
-  if(!src)return null;
-  var viejo=document.getElementById('costos-pdf-src');
-  if(viejo)viejo.remove();
-  var wrap=document.createElement('div');
-  wrap.id='costos-pdf-src';
-  wrap.style.cssText='position:absolute;left:0;top:0;width:760px;padding:22px 24px 28px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;z-index:-1;pointer-events:none';
-  wrap.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;border-bottom:2px solid #FF6B35;padding-bottom:10px">'
-    +'<div><span style="font-size:22px;font-weight:800;color:#FF6B35">CRO</span><span style="font-size:22px;font-weight:800;color:#028090">MAT</span>'
-    +'<div style="font-size:10px;letter-spacing:2px;color:#888;margin-top:2px">GESTION EMPRESARIAL</div></div>'
-    +'<div style="text-align:right;font-size:12px;color:#555;font-weight:600">Analisis '+escHtml(nombreCalcActiva())+'<br>'+fch(hoy())+'</div></div>';
-  var clone=src.cloneNode(true);
-  clone.querySelectorAll('input,select,textarea').forEach(function(el){
-    var span=document.createElement('span');
-    span.style.cssText='font-weight:700;color:#028090;font-size:13px';
-    if(el.tagName==='SELECT'){
-      var opt=el.options[el.selectedIndex];
-      span.textContent=opt?opt.text:el.value;
-    }else if(el.type==='checkbox'||el.type==='radio'){
-      span.textContent=el.checked?'Si':'No';
-    }else span.textContent=el.value===''?'—':el.value;
-    el.parentNode.replaceChild(span,el);
+  var lineas=[];
+  var seen={};
+  function push(k,l,v){
+    l=((l||'')+'').replace(/\s+/g,' ').trim();
+    v=((v||'')+'').replace(/\s+/g,' ').trim();
+    var key=k+'|'+l+'|'+v;
+    if(!l&&!v||seen[key])return;
+    seen[key]=1;
+    lineas.push({k:k,l:l,v:v});
+  }
+  if(!src)return lineas;
+  var pass=src.querySelector('.pass-btn.active');
+  if(pass)push('fila','Modo de impresion',valorCampoPdf(pass));
+  src.querySelectorAll('.st, .field-row, .result-row').forEach(function(el){
+    if(el.classList.contains('st')){push('sec',valorCampoPdf(el),'');return}
+    var lab=el.querySelector('.field-label,.result-label');
+    var inp=el.querySelector('input,select,textarea');
+    var val=el.querySelector('.result-val');
+    push('fila',valorCampoPdf(lab),inp?valorCampoPdf(inp):valorCampoPdf(val));
   });
-  clone.querySelectorAll('button').forEach(function(b){
-    if(b.classList.contains('pass-btn')){
-      if(!b.classList.contains('active'))b.remove();
-      else{b.disabled=true;b.style.cursor='default'}
-    }else b.remove();
+  [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
+   ['ir-luz','Electricidad total / m2'],['ir-dep','Depreciacion / ml'],['ir-mano','Mano de obra / m2'],
+   ['ir-costo','Costo total / m2'],['ir-gan','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
+   ['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],['ir-total','PRECIO TOTAL DEL TRABAJO'],
+   ['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
+    var n=document.getElementById(p[0]);
+    if(n&&src.contains(n))push('fila',p[1],valorCampoPdf(n));
   });
-  wrap.appendChild(clone);
-  document.body.appendChild(wrap);
-  return wrap;
+  return lineas;
+}
+function construirPdfCostos(){
+  var JsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+  if(!JsPDF)throw new Error('PDF no disponible');
+  var pdf=new JsPDF({unit:'mm',format:'a4'});
+  var W=210,M=14,y=18,maxY=282;
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(18);
+  pdf.setTextColor(255,107,53);
+  pdf.text('CROMAT',M,y);
+  pdf.setTextColor(2,128,144);
+  pdf.text('Gestion',M+30,y);
+  y+=7;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(90);
+  pdf.text('Analisis de costos  ·  '+nombreCalcActiva()+'  ·  '+fch(hoy()),M,y);
+  y+=6;
+  pdf.setDrawColor(255,107,53);
+  pdf.setLineWidth(0.6);
+  pdf.line(M,y,W-M,y);
+  y+=8;
+  lineasCostosPdf().forEach(function(row){
+    if(y>maxY){pdf.addPage();y=18}
+    if(row.k==='sec'){
+      y+=2;
+      pdf.setFont('helvetica','bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(2,128,144);
+      pdf.text(String(row.l||'').toUpperCase(),M,y);
+      y+=6;
+      return;
+    }
+    pdf.setFont('helvetica','normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(70);
+    pdf.text(String(row.l||''),M,y,{maxWidth:110});
+    pdf.setFont('helvetica','bold');
+    pdf.setTextColor(20);
+    pdf.text(String(row.v||''),W-M,y,{align:'right'});
+    y+=5.6;
+  });
+  return pdf.output('blob');
 }
 function enviarCostosPdf(){
   if(!requireTab('costos'))return;
@@ -3423,25 +3476,14 @@ function enviarCostosPdf(){
   var prev=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Preparando PDF…'}
   var nombre='Cromat-'+nombreCalcActiva()+'-'+hoy()+'.pdf';
-  var wrap=null;
   precargarHtml2Pdf().then(function(){
-    if(!window.html2pdf)throw new Error('PDF no disponible');
-    wrap=armarNodoPdf();
-    if(!wrap)throw new Error('No hay calculadora para enviar');
-    return html2pdf().set({
-      margin:[8,8,10,8],
-      filename:nombre,
-      image:{type:'jpeg',quality:0.95},
-      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',windowWidth:760},
-      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-      pagebreak:{mode:['css','legacy']}
-    }).from(wrap).toPdf().get('pdf').then(function(pdf){return pdf.output('blob')});
+    return construirPdfCostos();
   }).then(function(blob){
+    if(!blob||blob.size<80)throw new Error('El PDF salio vacio');
     return entregarPdf(blob,nombre);
   }).catch(function(e){
-    alert((e&&e.message)||'No se pudo crear el PDF. Revisa la conexión e inténtalo de nuevo.');
+    alert((e&&e.message)||'No se pudo crear el PDF. Revisa la conexion e intentalo de nuevo.');
   }).then(function(){
-    if(wrap&&wrap.parentNode)wrap.remove();
     if(btn){btn.disabled=false;btn.textContent=prev||'Enviar PDF'}
   });
 }
