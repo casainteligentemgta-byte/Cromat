@@ -183,7 +183,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi coral"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
     <div class="kpi purple"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
   </div>
-  <div id="k-gastos-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Gastos fijos del mes + gastos agregados</div>
+  <div style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">
+    <div id="k-mes-split">Lo cobrado este mes (anticipos, saldos y extras)</div>
+    <div id="k-gastos-split">Gastos fijos del mes + gastos agregados</div>
+  </div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
@@ -268,6 +271,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos</div></div>
     <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
   </div>
+  <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Lo cobrado en el periodo (anticipos, saldos y extras)</div>
   <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
     <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
     <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
@@ -290,6 +294,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
   </div>
   <div class="card" id="conta-fijos-card" style="margin-bottom:10px">
+    <div class="st">Gastos fijos del mes</div>
     <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Se cuentan enteros en el mes. Cada gasto que registres abajo se suma encima.</div>
     <div id="conta-fijos-list"></div>
     <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
@@ -1632,13 +1637,17 @@ function renderDash(){
   document.getElementById('k-presupuestos').textContent=presup.length+' presup. / '+ordenes.length+' OP';
   document.getElementById('k-cobrar').textContent=usd(totalPorCobrar());
   var m=hoy().slice(0,7);
-  var ingMes=movs.filter(function(v){return v.tipo==='ingreso'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
+  var cob=cobrosDelPeriodo(movs,m);
   var extraMes=gastosAgregados(movs,null,null,m);
   var gasMes=totalGastosFijos()+extraMes;
-  document.getElementById('k-mes').textContent=usd(ingMes);
+  document.getElementById('k-mes').textContent=usd(cob.total);
   document.getElementById('k-gastos').textContent=usd(gasMes);
+  var ms=document.getElementById('k-mes-split');
+  if(ms)ms.textContent='Lo cobrado: OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total);
   var gs=document.getElementById('k-gastos-split');
   if(gs)gs.textContent='Fijos '+usd(totalGastosFijos())+' + agregados '+usd(extraMes)+' = '+usd(gasMes);
+  var km=document.getElementById('k-mes');
+  if(km&&km.parentNode)km.parentNode.title='Lo cobrado este mes (anticipos, saldos de OP y otros ingresos)';
   var kg=document.getElementById('k-gastos');
   if(kg&&kg.parentNode){
     var lab=kg.parentNode.querySelector('.kpi-l');
@@ -2581,6 +2590,7 @@ function guardarOrden(){
   }
   closeModal('modal-orden');
   renderOrdenes();
+  renderDash();
   return obj;
 }
 function verOP(id){
@@ -2775,7 +2785,7 @@ function cobrarSaldoOP(id,saldo,pago){
   LS.s('crm_ordenes',lista);
   closeModal('modal-ver-op');
   renderOrdenes();
-  // Mostrar confirmación
+  renderDash();
   var cf=document.createElement('div');
   cf.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--gt);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
   cf.textContent='✓ Saldo cobrado — OP entregada y registrada en contabilidad';
@@ -2881,6 +2891,52 @@ function gastosAgregados(movs,desde,hasta,ym){
     if(hasta&&m.fecha>hasta)return false;
     return true;
   }).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+}
+function fechaEnPeriodo(f,ym,desde,hasta){
+  if(!f)return false;
+  f=String(f);
+  if(ym)return f.startsWith(ym);
+  if(desde&&f<desde)return false;
+  if(hasta&&f>hasta)return false;
+  return true;
+}
+function tipoCobroMov(m){
+  var c=String(m&&m.concepto||'').toLowerCase();
+  var d=String(m&&m.desc||'').toLowerCase();
+  if(c==='anticipo'||d.indexOf('anticipo')>=0)return 'anticipo';
+  if(c==='saldo'||d.indexOf('saldo')>=0)return 'saldo';
+  if(m&&m.opId)return 'op';
+  return '';
+}
+function cobrosDelPeriodo(movs,ym,desde,hasta){
+  movs=movs||LS.g('crm_movimientos')||[];
+  var op=0,otros=0,seen={},backfill=0;
+  movs.forEach(function(m){
+    if(m.tipo!=='ingreso'||!fechaEnPeriodo(m.fecha,ym,desde,hasta))return;
+    var n=parseFloat(m.monto)||0;
+    var t=tipoCobroMov(m);
+    if(t){
+      op+=n;
+      if(m.opId){
+        seen[m.opId+'|'+t]=1;
+        if(t==='op'){seen[m.opId+'|anticipo']=1;seen[m.opId+'|saldo']=1}
+      }
+    }else otros+=n;
+  });
+  (LS.g('crm_ordenes')||[]).forEach(function(o){
+    var ant=parseFloat(o.anticipo)||0;
+    var antF=o.anticipoPago&&o.anticipoPago.fecha;
+    if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&!seen[o.id+'|anticipo']&&!seen[o.id+'|op']){
+      op+=ant;backfill+=ant;seen[o.id+'|anticipo']=1;
+    }
+    if(!o.saldoCobrado)return;
+    var sal=o.saldoPago?parseFloat(o.saldoPago.monto)||0:Math.max(0,(parseFloat(o.monto)||0)-ant);
+    var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
+    if(sal>0&&fechaEnPeriodo(salF,ym,desde,hasta)&&!seen[o.id+'|saldo']&&!seen[o.id+'|op']){
+      op+=sal;backfill+=sal;
+    }
+  });
+  return {op:op,otros:otros,total:op+otros,backfill:backfill};
 }
 var _skipFijosUi=false;
 function renderGastosFijos(){
@@ -3007,7 +3063,8 @@ function renderConta(){
     if(catFil&&movCatKey(m)!==catFil)return false;
     return true;
   });
-  var ing=enPeriodo.filter(function(m){return m.tipo==='ingreso'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  var cob=periodoConta==='mes'?cobrosDelPeriodo(movs,hoy().slice(0,7)):cobrosDelPeriodo(movs,null,r.desde,r.hasta);
+  var ing=cob.total;
   var extra=gastosAgregados(enPeriodo,r.desde,r.hasta);
   var fijos=fijosEnRango(r.desde,r.hasta,periodoConta);
   var gas=fijos+extra;
@@ -3017,6 +3074,8 @@ function renderConta(){
   document.getElementById('c-balance').textContent=usd(ing-gas);
   var split=document.getElementById('conta-gastos-split');
   if(split)split.textContent=usd(fijos)+' + '+usd(extra)+' = '+usd(gas);
+  var ingSplit=document.getElementById('conta-ing-split');
+  if(ingSplit)ingSplit.textContent='Lo cobrado: OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total);
   renderGastosFijos();
   var balEl=document.getElementById('c-balance');
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
@@ -3066,6 +3125,10 @@ function renderConta(){
     if(!byCat[k])byCat[k]={ing:0,gas:0};
     byCat[k].gas+=(parseFloat(f.monto)||0)*factorF;
   });
+  if(cob.backfill){
+    if(!byCat.ventas)byCat.ventas={ing:0,gas:0};
+    byCat.ventas.ing+=cob.backfill;
+  }
   var catKeys=Object.keys(byCat);
   var catsEl=document.getElementById('conta-cats');
   if(!catKeys.length){catsEl.innerHTML='<div class="empty">Sin desglose</div>'}
@@ -3122,6 +3185,7 @@ function guardarMovimiento(){
   LS.s('crm_movimientos',lista);
   closeModal('modal-movimiento');
   renderConta();
+  renderDash();
 }
 function eliminarMov(id){
   if(!requireTab('conta'))return;
@@ -3139,6 +3203,7 @@ function eliminarMov(id){
   }
   LS.s('crm_movimientos',lista.filter(function(x){return x.id!==id}));
   renderConta();
+  renderDash();
 }
 
 // ===== FONDOS =====
