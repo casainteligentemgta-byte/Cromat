@@ -354,7 +354,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <div class="ctabs">
       <button class="ctab on" id="btn-vista-calc" onclick="setVistaCostos('calc')">Calculadoras</button>
-      <button class="ctab" onclick="setVistaCostos('saved')">Guardados</button>
+      <button class="ctab" id="btn-vista-saved" onclick="setVistaCostos('saved')">Guardados</button>
     </div>
   </div>
   <div id="vista-calc-live">
@@ -3125,7 +3125,14 @@ function showCalc(id,btn){
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
   document.getElementById('vista-calc-saved').style.display=v==='saved'?'':'none';
-  if(v==='saved')renderCostos();
+  var bc=document.getElementById('btn-vista-calc');
+  var bs=document.getElementById('btn-vista-saved');
+  if(bc)bc.classList.toggle('on',v==='calc');
+  if(bs)bs.classList.toggle('on',v==='saved');
+  if(v==='saved'){
+    try{if(typeof cImp==='function')cImp()}catch(e){}
+    renderCostos();
+  }
 }
 // IMPRESION
 function numEl(id,def){
@@ -3570,22 +3577,37 @@ function cDs(){
   };
 }
 // GUARDAR ANALISIS
+function resultadoAnalisis(tipo){
+  return tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
+}
+function nombreAutoAnalisis(tipo,res){
+  var extra='';
+  if(tipo==='Impresion'){
+    var modo=document.getElementById('ir-modo');
+    var modoTxt=modo&&modo.textContent?modo.textContent.split('—')[0].trim():'';
+    extra=(modoTxt?(' · '+modoTxt):'')+(res&&res.area?(' · '+Number(res.area).toFixed(1)+' m²'):'');
+  }
+  return tipo+extra+' · '+fch(hoy());
+}
+function nubesubirAhora(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudFlush==='function')cloudFlush();
+}
 function guardarAnalisis(tipo){
   if(!requireTab('costos'))return;
-  var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
-  if(!res){alert('Calcula primero');return}
+  var res=resultadoAnalisis(tipo);
+  if(!res||!(+res.precio>0)){alert('Calcula primero');return}
   document.getElementById('gc-id').value='';
   document.getElementById('gc-tipo').value=tipo;
   document.getElementById('gc-title').textContent='Guardar analisis';
   document.getElementById('gc-btn').textContent='Guardar';
-  document.getElementById('gc-nombre').value='';
+  document.getElementById('gc-nombre').value=nombreAutoAnalisis(tipo,res);
   document.getElementById('gc-material').value='';
   document.getElementById('gc-costo').value=(+res.costo||0).toFixed(2);
   document.getElementById('gc-precio').value=(+res.precio||0).toFixed(2);
   document.getElementById('gc-preview-items').textContent='Tipo: '+tipo;
-  document.getElementById('gc-activo').checked=true;
+  document.getElementById('gc-activo').checked=false;
   document.getElementById('gc-catalogo-wrap').style.display='';
-  openModal('modal-guardar-calc');
+  confirmarGuardarAnalisis(true);
 }
 function abrirCosto(id){
   var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
@@ -3616,7 +3638,7 @@ function syncCostoCatalogo(c,prevNombre){
   cat[i].costo=c.costo;
   LS.s('crm_catalogo',cat);
 }
-function confirmarGuardarAnalisis(){
+function confirmarGuardarAnalisis(silencio){
   if(!requireTab('costos'))return;
   var lista=LS.g('crm_costos')||[];
   var id=document.getElementById('gc-id').value;
@@ -3639,12 +3661,32 @@ function confirmarGuardarAnalisis(){
     syncCostoCatalogo(lista[i],prevNombre);
     closeModal('modal-guardar-calc');
     fillTxImpSelect();
-    renderCostos();
+    nubesubirAhora();
+    setVistaCostos('saved');
     verCosto(id);
     return;
   }
-  var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
+  var res=resultadoAnalisis(tipo);
   if(!res){alert('Calcula primero');return}
+  var mismo=lista.findIndex(function(x){
+    return x.tipo===tipo&&x.fecha===hoy()&&Math.abs((+x.precio||0)-precio)<0.02&&Math.abs((+x.costo||0)-costo)<0.02;
+  });
+  if(mismo>=0){
+    lista[mismo].nombre=nombre;
+    lista[mismo].material=material;
+    lista[mismo].detalle=res.detalle||lista[mismo].detalle||null;
+    lista[mismo].costo=costo;
+    lista[mismo].precio=precio;
+    if(precio>0)lista[mismo].margen=(precio-costo)/precio*100;
+    if(tipo==='Impresion'){lista[mismo].costo_m2=res.costo_m2||0;lista[mismo].area=res.area||0}
+    LS.s('crm_costos',lista);
+    closeModal('modal-guardar-calc');
+    fillTxImpSelect();
+    nubesubirAhora();
+    setVistaCostos('saved');
+    if(!silencio)alert('Analisis actualizado en Guardados y en la nube.');
+    return;
+  }
   var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:costo,precio:precio,fecha:hoy(),activo:activo,detalle:res.detalle||null};
   if(precio>0)obj.margen=(precio-(costo||0))/precio*100;
   if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0}
@@ -3659,8 +3701,9 @@ function confirmarGuardarAnalisis(){
   LS.s('crm_costos',lista);
   closeModal('modal-guardar-calc');
   fillTxImpSelect();
-  renderCostos();
-  alert('Analisis guardado!');
+  nubesubirAhora();
+  setVistaCostos('saved');
+  if(!silencio)alert('Analisis guardado en Guardados y en la nube.');
 }
 function renderCostos(){
   var lista=LS.g('crm_costos')||[];
@@ -3669,8 +3712,18 @@ function renderCostos(){
   if(q)lista=lista.filter(function(c){return(c.nombre||'').toLowerCase().includes(q)});
   if(fil)lista=lista.filter(function(c){return c.tipo===fil});
   var el=document.getElementById('lista-costos');
-  if(!lista.length){el.innerHTML='<div class="empty">Sin analisis guardados</div>';return}
-  el.innerHTML=lista.map(function(c){
+  var actual='';
+  var res=window._impResult;
+  if(res&&+res.precio>0){
+    actual='<div class="card" style="margin-bottom:10px"><div class="st">Cálculo actual (calculadora)</div>'
+      +'<div class="result-row"><span class="result-label">Impresion</span><span class="result-val coral">'+usd(res.precio)+'</span></div>'
+      +'<button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="guardarAnalisis(\'Impresion\')">Guardar en la lista y en la nube</button></div>';
+  }
+  if(!lista.length){
+    el.innerHTML=actual+'<div class="empty">Aún no hay análisis en esta lista. En Calculadoras toca <strong>Guardar este analisis</strong>; queda aquí y en la nube.</div>';
+    return;
+  }
+  el.innerHTML=actual+lista.map(function(c){
     return'<div class="swipe-wrap" data-id="'+c.id+'">'
       +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarCosto(\''+c.id+'\')">'
       +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
@@ -4318,11 +4371,61 @@ function cloudClearLocal(){
   CLOUD_DATA_KEYS.concat(['crm_usuarios']).forEach(function(k){localStorage.removeItem(k)});
   _sbSetPend({});
 }
+var CLOUD_LIST_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit'];
+function cloudAsList(v){return Array.isArray(v)?v:[]}
+function cloudItemTime(it){
+  if(!it||typeof it!=='object')return 0;
+  return Date.parse(it.fecha||it.updated_at||it.created_at||'')||0;
+}
+function cloudMergeLists(local,remote){
+  var map={};
+  function add(it){
+    if(!it||typeof it!=='object')return;
+    var id=it.id||it.user_id;
+    if(!id){
+      try{map['j:'+JSON.stringify(it)]=it}catch(e){}
+      return;
+    }
+    var prev=map[id];
+    if(!prev){map[id]=it;return}
+    var a=cloudItemTime(it),b=cloudItemTime(prev);
+    var pick=a!==b?(a>b?it:prev):(it.detalle&&!prev.detalle?it:prev);
+    if(it.detalle&&!pick.detalle)pick=it;
+    map[id]=pick;
+  }
+  cloudAsList(remote).forEach(add);
+  cloudAsList(local).forEach(add);
+  return Object.keys(map).map(function(k){return map[k]});
+}
+function cloudApplyRow(k,remote,pend){
+  var local=LS.g(k);
+  if(CLOUD_LIST_KEYS.indexOf(k)>=0){
+    var merged=cloudMergeLists(local,remote);
+    var nuevo=JSON.stringify(merged);
+    var remoto=JSON.stringify(cloudAsList(remote));
+    if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);return{cambio:true,subir:nuevo!==remoto}}
+    return{cambio:false,subir:nuevo!==remoto};
+  }
+  var remoteVacio=remote==null||(typeof remote==='object'&&!Array.isArray(remote)&&!Object.keys(remote).length)||(Array.isArray(remote)&&!remote.length);
+  var localVacio=local==null||(Array.isArray(local)&&!local.length);
+  if(pend&&pend[k]&&!localVacio)return{cambio:false,subir:true};
+  if(remoteVacio&&!localVacio)return{cambio:false,subir:true};
+  var nuevo=JSON.stringify(remote);
+  if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);return{cambio:true,subir:false}}
+  return{cambio:false,subir:false};
+}
 function cloudPull(){
   if(!CLOUD_ORG){syncEstado('err','Sin empresa');return}
   syncEstado('pend','Cargando…');
+  var stash=null;
   var owner=localStorage.getItem('cromat_owner');
-  if(owner&&owner!==CLOUD_ORG)cloudClearLocal();
+  if(owner&&owner!==CLOUD_ORG){
+    stash={};
+    CLOUD_LIST_KEYS.forEach(function(k){
+      var v=LS.g(k);
+      if(v&&v.length)stash[k]=v;
+    });
+  }
   sb.from('cromat_data').select('key,value').then(function(r){
     if(r.error){_sbReady=true;_sbLastErr=cloudErrNube(r.error);syncEstado('err','Sin conexión');return}
     var rows=r.data||[];
@@ -4332,23 +4435,27 @@ function cloudPull(){
     });
     localStorage.removeItem('crm_usuarios');
     _sbReady=true;
-    if(!rows.length){
-      var p={};
-      CLOUD_DATA_KEYS.forEach(function(k){if(cloudCanKey(k)&&localStorage.getItem(k)!==null)p[k]=1});
-      _sbSetPend(p);cloudFlush();return;
-    }
     var pend=_sbPend(),cambio=false,enNube={};
     rows.forEach(function(row){
       enNube[row.key]=1;
       if(!cloudCanKey(row.key))return;
-      if(pend[row.key])return;
-      var nuevo=JSON.stringify(row.value);
-      if(localStorage.getItem(row.key)!==nuevo){localStorage.setItem(row.key,nuevo);cambio=true}
+      var ap=cloudApplyRow(row.key,row.value,pend);
+      if(ap.cambio)cambio=true;
+      if(ap.subir)pend[row.key]=1;
     });
     CLOUD_DATA_KEYS.forEach(function(k){
-      if(!enNube[k]&&cloudCanKey(k)&&localStorage.getItem(k)!==null)pend[k]=1;
-      if(!enNube[k]&&!pend[k]&&localStorage.getItem(k)!==null&&!cloudCanKey(k)){localStorage.removeItem(k);cambio=true}
+      if(!cloudCanKey(k))return;
+      if(!enNube[k]&&localStorage.getItem(k)!==null)pend[k]=1;
     });
+    if(stash){
+      CLOUD_LIST_KEYS.forEach(function(k){
+        if(!stash[k]||!cloudCanKey(k))return;
+        var merged=cloudMergeLists(stash[k],LS.g(k));
+        var nuevo=JSON.stringify(merged);
+        if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);cambio=true}
+        pend[k]=1;
+      });
+    }
     _sbSetPend(pend);
     if(Object.keys(pend).filter(cloudCanKey).length)cloudFlush();else{_sbLastErr='';syncEstado('ok','Sincronizado')}
     if(cambio){
