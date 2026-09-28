@@ -1284,6 +1284,11 @@ var ROLES={
 function authUsers(){return LS.g('crm_usuarios')||[]}
 function authSaveUsers(lista){LS.s('crm_usuarios',lista)}
 function authRol(r){return ROLES[r]||ROLES.ventas}
+function authHandle(u){
+  var h=String((u&&(u.email||u.usuario))||'');
+  if(!h)return '';
+  return h.indexOf('@')>=0?h:'@'+h;
+}
 function esDueñoEmail(email){
   return String(email||'').trim().toLowerCase()===OWNER_EMAIL;
 }
@@ -1504,7 +1509,7 @@ function renderUsuarios(){
     var dueño=esDueñoPerfil(u);
     var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
     return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-      +'<div class="li-sub">@'+escHtml(u.usuario)+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+(dueño?' · dueño':'')+'</div>'
+      +'<div class="li-sub">'+escHtml(authHandle(u))+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+(dueño?' · dueño':'')+'</div>'
       +(dueño
         ?'<div class="li-sub" style="margin-top:6px">Dueño fijo. No se puede cambiar el rol ni quitar.</div>'
         :'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
