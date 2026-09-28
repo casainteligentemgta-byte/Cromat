@@ -161,7 +161,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="tagline">GESTION EMPRESARIAL</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <span id="sync-status" title="" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
+    <span id="sync-status" title="" onclick="cloudSyncTap()" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
     <div id="auth-chip" style="display:none;text-align:right;line-height:1.2">
       <div id="auth-nombre" style="font-size:11px;color:#eee;font-weight:600"></div>
       <div id="auth-rol" style="font-size:9px;color:var(--coral)"></div>
@@ -189,6 +189,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div style="margin-top:16px">
     <div id="dash-local-note" style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
+    <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin-bottom:8px;line-height:1.4"></div>
     <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="abrirBackup()">&#128190; Exportar / Importar datos</button>
     <button class="btn btn-teal btn-sm" id="btn-subir-nube" style="display:none;margin-top:8px" onclick="cloudSubirLocal()">Subir datos de este teléfono a la nube</button>
   </div>
@@ -353,7 +354,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
     <div class="ctabs">
       <button class="ctab on" id="btn-vista-calc" onclick="setVistaCostos('calc')">Calculadoras</button>
-      <button class="ctab" onclick="setVistaCostos('saved')">Guardados</button>
+      <button class="ctab" id="btn-vista-saved" onclick="setVistaCostos('saved')">Guardados</button>
     </div>
   </div>
   <div id="vista-calc-live">
@@ -3124,7 +3125,14 @@ function showCalc(id,btn){
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
   document.getElementById('vista-calc-saved').style.display=v==='saved'?'':'none';
-  if(v==='saved')renderCostos();
+  var bc=document.getElementById('btn-vista-calc');
+  var bs=document.getElementById('btn-vista-saved');
+  if(bc)bc.classList.toggle('on',v==='calc');
+  if(bs)bs.classList.toggle('on',v==='saved');
+  if(v==='saved'){
+    try{if(typeof cImp==='function')cImp()}catch(e){}
+    renderCostos();
+  }
 }
 // IMPRESION
 function numEl(id,def){
@@ -3569,22 +3577,37 @@ function cDs(){
   };
 }
 // GUARDAR ANALISIS
+function resultadoAnalisis(tipo){
+  return tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
+}
+function nombreAutoAnalisis(tipo,res){
+  var extra='';
+  if(tipo==='Impresion'){
+    var modo=document.getElementById('ir-modo');
+    var modoTxt=modo&&modo.textContent?modo.textContent.split('—')[0].trim():'';
+    extra=(modoTxt?(' · '+modoTxt):'')+(res&&res.area?(' · '+Number(res.area).toFixed(1)+' m²'):'');
+  }
+  return tipo+extra+' · '+fch(hoy());
+}
+function nubesubirAhora(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudFlush==='function')cloudFlush();
+}
 function guardarAnalisis(tipo){
   if(!requireTab('costos'))return;
-  var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
-  if(!res){alert('Calcula primero');return}
+  var res=resultadoAnalisis(tipo);
+  if(!res||!(+res.precio>0)){alert('Calcula primero');return}
   document.getElementById('gc-id').value='';
   document.getElementById('gc-tipo').value=tipo;
   document.getElementById('gc-title').textContent='Guardar analisis';
   document.getElementById('gc-btn').textContent='Guardar';
-  document.getElementById('gc-nombre').value='';
+  document.getElementById('gc-nombre').value=nombreAutoAnalisis(tipo,res);
   document.getElementById('gc-material').value='';
   document.getElementById('gc-costo').value=(+res.costo||0).toFixed(2);
   document.getElementById('gc-precio').value=(+res.precio||0).toFixed(2);
   document.getElementById('gc-preview-items').textContent='Tipo: '+tipo;
-  document.getElementById('gc-activo').checked=true;
+  document.getElementById('gc-activo').checked=false;
   document.getElementById('gc-catalogo-wrap').style.display='';
-  openModal('modal-guardar-calc');
+  confirmarGuardarAnalisis(true);
 }
 function abrirCosto(id){
   var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
@@ -3615,7 +3638,7 @@ function syncCostoCatalogo(c,prevNombre){
   cat[i].costo=c.costo;
   LS.s('crm_catalogo',cat);
 }
-function confirmarGuardarAnalisis(){
+function confirmarGuardarAnalisis(silencio){
   if(!requireTab('costos'))return;
   var lista=LS.g('crm_costos')||[];
   var id=document.getElementById('gc-id').value;
@@ -3638,12 +3661,32 @@ function confirmarGuardarAnalisis(){
     syncCostoCatalogo(lista[i],prevNombre);
     closeModal('modal-guardar-calc');
     fillTxImpSelect();
-    renderCostos();
+    nubesubirAhora();
+    setVistaCostos('saved');
     verCosto(id);
     return;
   }
-  var res=tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
+  var res=resultadoAnalisis(tipo);
   if(!res){alert('Calcula primero');return}
+  var mismo=lista.findIndex(function(x){
+    return x.tipo===tipo&&x.fecha===hoy()&&Math.abs((+x.precio||0)-precio)<0.02&&Math.abs((+x.costo||0)-costo)<0.02;
+  });
+  if(mismo>=0){
+    lista[mismo].nombre=nombre;
+    lista[mismo].material=material;
+    lista[mismo].detalle=res.detalle||lista[mismo].detalle||null;
+    lista[mismo].costo=costo;
+    lista[mismo].precio=precio;
+    if(precio>0)lista[mismo].margen=(precio-costo)/precio*100;
+    if(tipo==='Impresion'){lista[mismo].costo_m2=res.costo_m2||0;lista[mismo].area=res.area||0}
+    LS.s('crm_costos',lista);
+    closeModal('modal-guardar-calc');
+    fillTxImpSelect();
+    nubesubirAhora();
+    setVistaCostos('saved');
+    if(!silencio)alert('Analisis actualizado en Guardados y en la nube.');
+    return;
+  }
   var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:costo,precio:precio,fecha:hoy(),activo:activo,detalle:res.detalle||null};
   if(precio>0)obj.margen=(precio-(costo||0))/precio*100;
   if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0}
@@ -3658,8 +3701,9 @@ function confirmarGuardarAnalisis(){
   LS.s('crm_costos',lista);
   closeModal('modal-guardar-calc');
   fillTxImpSelect();
-  renderCostos();
-  alert('Analisis guardado!');
+  nubesubirAhora();
+  setVistaCostos('saved');
+  if(!silencio)alert('Analisis guardado en Guardados y en la nube.');
 }
 function renderCostos(){
   var lista=LS.g('crm_costos')||[];
@@ -3668,8 +3712,18 @@ function renderCostos(){
   if(q)lista=lista.filter(function(c){return(c.nombre||'').toLowerCase().includes(q)});
   if(fil)lista=lista.filter(function(c){return c.tipo===fil});
   var el=document.getElementById('lista-costos');
-  if(!lista.length){el.innerHTML='<div class="empty">Sin analisis guardados</div>';return}
-  el.innerHTML=lista.map(function(c){
+  var actual='';
+  var res=window._impResult;
+  if(res&&+res.precio>0){
+    actual='<div class="card" style="margin-bottom:10px"><div class="st">Cálculo actual (calculadora)</div>'
+      +'<div class="result-row"><span class="result-label">Impresion</span><span class="result-val coral">'+usd(res.precio)+'</span></div>'
+      +'<button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="guardarAnalisis(\'Impresion\')">Guardar en la lista y en la nube</button></div>';
+  }
+  if(!lista.length){
+    el.innerHTML=actual+'<div class="empty">Aún no hay análisis en esta lista. En Calculadoras toca <strong>Guardar este analisis</strong>; queda aquí y en la nube.</div>';
+    return;
+  }
+  el.innerHTML=actual+lista.map(function(c){
     return'<div class="swipe-wrap" data-id="'+c.id+'">'
       +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarCosto(\''+c.id+'\')">'
       +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
@@ -4179,23 +4233,6 @@ function cloudCanKey(k){
 
 function _sbPend(){try{return JSON.parse(localStorage.getItem('cromat_pending'))||{}}catch(e){return{}}}
 function _sbSetPend(o){try{localStorage.setItem('cromat_pending',JSON.stringify(o))}catch(e){}}
-function syncEstado(tipo,txt){
-  var w=document.getElementById('sync-status');if(!w)return;
-  w.style.display='inline-flex';
-  document.getElementById('sync-dot').style.background={ok:'#2E7D32',pend:'#F57F17',err:'#C62828',off:'#888'}[tipo]||'#888';
-  document.getElementById('sync-txt').textContent=txt||'';
-  w.title=txt||'';
-}
-(function(){
-  var set=LS.s;
-  LS.s=function(k,v){
-    set(k,v);
-    if(!CLOUD_ON||!_sbReady||!cloudCanKey(k))return;
-    var p=_sbPend();p[k]=1;_sbSetPend(p);
-    syncEstado('pend','Guardando…');
-    clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},700);
-  };
-})();
 function cloudErr(e){
   var m=(e&&(e.message||e.details||e.code))||'';
   if(/invite_required/i.test(m))return 'Esta empresa ya existe. Pide un codigo de invitacion.';
@@ -4206,6 +4243,76 @@ function cloudErr(e){
   if(/Password should/i.test(m))return 'La clave debe tener al menos 6 caracteres (Supabase).';
   return m||'Error de nube';
 }
+function cloudErrNube(e){
+  var m=cloudErr(e);
+  if(/forbidden_key|permission denied|42501|row-level security/i.test(m))return 'La nube rechazó el permiso. En Supabase → SQL Editor pega otra vez schema.sql y córrelo.';
+  if(/Could not find the table|relation .* does not exist|PGRST205/i.test(m))return 'Falta la tabla de datos. En Supabase → SQL Editor pega schema.sql y córrelo.';
+  if(/no unique or exclusion constraint|ON CONFLICT/i.test(m))return 'El SQL de la nube está incompleto. Pega schema.sql otra vez en el SQL Editor.';
+  if(/Could not find the function|PGRST202/i.test(m))return m;
+  if(/no_org/i.test(m))return 'Tu usuario no tiene empresa. Sal y entra otra vez con el correo dueño.';
+  if(/not_authenticated/i.test(m))return 'La sesión de la nube se cerró. Entra otra vez.';
+  if(/payload|too large|413/i.test(m))return 'Un dato es demasiado grande para la nube (suele ser una foto).';
+  return m||'No se pudo guardar en la nube';
+}
+var _sbLastErr='';
+var _sbSaveRpc=true;
+function syncEstado(tipo,txt){
+  var w=document.getElementById('sync-status');if(!w)return;
+  w.style.display='inline-flex';
+  document.getElementById('sync-dot').style.background={ok:'#2E7D32',pend:'#F57F17',err:'#C62828',off:'#888'}[tipo]||'#888';
+  document.getElementById('sync-txt').textContent=txt||'';
+  w.title=tipo==='err'?(_sbLastErr||txt||''):(txt||'');
+  var er=document.getElementById('dash-sync-err');
+  if(er){
+    if(tipo==='err'&&CLOUD_ON){
+      er.style.display='';
+      er.textContent='La nube no está guardando' + (_sbLastErr?(': '+_sbLastErr):'.') + ' Toca «Sin sincronizar» arriba para ver el error y reintentar.';
+    } else {
+      er.style.display='none';
+      er.textContent='';
+    }
+  }
+}
+function cloudSyncTap(){
+  if(!CLOUD_ON)return;
+  if(_sbLastErr){
+    if(confirm('Nube: '+_sbLastErr+'\n\n¿Reintentar ahora?'))cloudFlush();
+    return;
+  }
+  cloudFlush();
+}
+function cloudWriteKey(k){
+  var val=LS.g(k);
+  var row={org_id:CLOUD_ORG,key:k,value:val,updated_at:new Date().toISOString(),updated_by:SB_USER&&SB_USER.id||null};
+  var viaTabla=function(){
+    return sb.from('cromat_data').upsert(row,{onConflict:'org_id,key'}).then(function(u){
+      if(!u.error)return u;
+      return sb.from('cromat_data').update({value:row.value,updated_at:row.updated_at,updated_by:row.updated_by}).eq('org_id',CLOUD_ORG).eq('key',k).select('key').then(function(up){
+        if(!up.error&&up.data&&up.data.length)return up;
+        return sb.from('cromat_data').insert(row);
+      });
+    });
+  };
+  if(!_sbSaveRpc)return viaTabla();
+  return sb.rpc('cromat_save_data',{p_key:k,p_value:val}).then(function(r){
+    if(r.error&&/Could not find the function|PGRST202/i.test(r.error.message||'')){
+      _sbSaveRpc=false;
+      return viaTabla();
+    }
+    return r;
+  });
+}
+(function(){
+  var set=LS.s;
+  LS.s=function(k,v){
+    set(k,v);
+    if(!CLOUD_ON||!cloudCanKey(k))return;
+    var p=_sbPend();p[k]=1;_sbSetPend(p);
+    if(!_sbReady)return;
+    syncEstado('pend','Guardando…');
+    clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},700);
+  };
+})();
 function cloudSubirLocal(){
   if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){alert('Entra primero con tu correo de la nube.');return}
   if(!authCanUsers())return;
@@ -4216,35 +4323,111 @@ function cloudSubirLocal(){
   syncEstado('pend','Subiendo…');
   cloudFlush(function(){
     var queda=_sbPend();
-    if(queda&&Object.keys(queda).length)alert('No se pudo subir. Revisa internet y que hayas corrido el SQL en Supabase.');
+    if(queda&&Object.keys(queda).length)alert('No se pudo subir' + (_sbLastErr?(': '+_sbLastErr):'.') + ' Revisa internet y pega schema.sql en Supabase.');
     else alert('Listo. Lo de este teléfono ya está en la nube. El equipo lo verá al entrar.');
   });
 }
 function cloudFlush(cb){
   var done=function(){if(cb)cb()};
-  if(!CLOUD_ON||!SB_USER||!CLOUD_ORG){done();return}
-  var p=_sbPend(),keys=Object.keys(p).filter(cloudCanKey);
-  if(!keys.length){syncEstado('ok','Sincronizado');_sbSetPend({});done();return}
-  var now=new Date().toISOString();
-  var rows=keys.map(function(k){return{org_id:CLOUD_ORG,key:k,value:LS.g(k),updated_at:now,updated_by:SB_USER.id}});
-  sb.from('cromat_data').upsert(rows,{onConflict:'org_id,key'}).then(function(r){
-    if(r.error){syncEstado('err','Sin sincronizar');done();return}
-    var p2=_sbPend();keys.forEach(function(k){delete p2[k]});_sbSetPend(p2);
-    syncEstado(Object.keys(p2).length?'pend':'ok',Object.keys(p2).length?'Guardando…':'Sincronizado');
-    done();
-  },function(){syncEstado('err','Sin conexión');done()});
+  if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){done();return}
+  var keys=Object.keys(_sbPend()).filter(cloudCanKey);
+  if(!keys.length){_sbLastErr='';syncEstado('ok','Sincronizado');_sbSetPend({});done();return}
+  syncEstado('pend','Guardando…');
+  var i=0,failed=[];
+  function next(){
+    if(i>=keys.length){
+      var p2=_sbPend();
+      keys.forEach(function(k){if(failed.indexOf(k)<0)delete p2[k]});
+      _sbSetPend(p2);
+      if(failed.length){
+        if(!_sbLastErr)_sbLastErr='No se pudo guardar: '+failed.join(', ');
+        else if(failed.length===1)_sbLastErr=failed[0]+': '+_sbLastErr;
+        syncEstado('err','Sin sincronizar');
+      }else{
+        _sbLastErr='';
+        var queda=Object.keys(p2).filter(cloudCanKey);
+        syncEstado(queda.length?'pend':'ok',queda.length?'Guardando…':'Sincronizado');
+        if(queda.length){clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},400)}
+      }
+      done();
+      return;
+    }
+    var k=keys[i++];
+    cloudWriteKey(k).then(function(r){
+      if(r&&r.error){
+        failed.push(k);
+        _sbLastErr=cloudErrNube(r.error);
+      }
+      next();
+    },function(e){
+      failed.push(k);
+      _sbLastErr=cloudErrNube(e);
+      next();
+    });
+  }
+  next();
 }
 function cloudClearLocal(){
   CLOUD_DATA_KEYS.concat(['crm_usuarios']).forEach(function(k){localStorage.removeItem(k)});
   _sbSetPend({});
 }
+var CLOUD_LIST_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit'];
+function cloudAsList(v){return Array.isArray(v)?v:[]}
+function cloudItemTime(it){
+  if(!it||typeof it!=='object')return 0;
+  return Date.parse(it.fecha||it.updated_at||it.created_at||'')||0;
+}
+function cloudMergeLists(local,remote){
+  var map={};
+  function add(it){
+    if(!it||typeof it!=='object')return;
+    var id=it.id||it.user_id;
+    if(!id){
+      try{map['j:'+JSON.stringify(it)]=it}catch(e){}
+      return;
+    }
+    var prev=map[id];
+    if(!prev){map[id]=it;return}
+    var a=cloudItemTime(it),b=cloudItemTime(prev);
+    var pick=a!==b?(a>b?it:prev):(it.detalle&&!prev.detalle?it:prev);
+    if(it.detalle&&!pick.detalle)pick=it;
+    map[id]=pick;
+  }
+  cloudAsList(remote).forEach(add);
+  cloudAsList(local).forEach(add);
+  return Object.keys(map).map(function(k){return map[k]});
+}
+function cloudApplyRow(k,remote,pend){
+  var local=LS.g(k);
+  if(CLOUD_LIST_KEYS.indexOf(k)>=0){
+    var merged=cloudMergeLists(local,remote);
+    var nuevo=JSON.stringify(merged);
+    var remoto=JSON.stringify(cloudAsList(remote));
+    if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);return{cambio:true,subir:nuevo!==remoto}}
+    return{cambio:false,subir:nuevo!==remoto};
+  }
+  var remoteVacio=remote==null||(typeof remote==='object'&&!Array.isArray(remote)&&!Object.keys(remote).length)||(Array.isArray(remote)&&!remote.length);
+  var localVacio=local==null||(Array.isArray(local)&&!local.length);
+  if(pend&&pend[k]&&!localVacio)return{cambio:false,subir:true};
+  if(remoteVacio&&!localVacio)return{cambio:false,subir:true};
+  var nuevo=JSON.stringify(remote);
+  if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);return{cambio:true,subir:false}}
+  return{cambio:false,subir:false};
+}
 function cloudPull(){
   if(!CLOUD_ORG){syncEstado('err','Sin empresa');return}
   syncEstado('pend','Cargando…');
+  var stash=null;
   var owner=localStorage.getItem('cromat_owner');
-  if(owner&&owner!==CLOUD_ORG)cloudClearLocal();
+  if(owner&&owner!==CLOUD_ORG){
+    stash={};
+    CLOUD_LIST_KEYS.forEach(function(k){
+      var v=LS.g(k);
+      if(v&&v.length)stash[k]=v;
+    });
+  }
   sb.from('cromat_data').select('key,value').then(function(r){
-    if(r.error){_sbReady=true;syncEstado('err','Sin conexión');return}
+    if(r.error){_sbReady=true;_sbLastErr=cloudErrNube(r.error);syncEstado('err','Sin conexión');return}
     var rows=r.data||[];
     localStorage.setItem('cromat_owner',CLOUD_ORG);
     CLOUD_DATA_KEYS.forEach(function(k){
@@ -4252,28 +4435,34 @@ function cloudPull(){
     });
     localStorage.removeItem('crm_usuarios');
     _sbReady=true;
-    if(!rows.length){
-      var p={};
-      CLOUD_DATA_KEYS.forEach(function(k){if(cloudCanKey(k)&&localStorage.getItem(k)!==null)p[k]=1});
-      _sbSetPend(p);cloudFlush();return;
-    }
     var pend=_sbPend(),cambio=false,enNube={};
     rows.forEach(function(row){
       enNube[row.key]=1;
       if(!cloudCanKey(row.key))return;
-      if(pend[row.key])return;
-      var nuevo=JSON.stringify(row.value);
-      if(localStorage.getItem(row.key)!==nuevo){localStorage.setItem(row.key,nuevo);cambio=true}
+      var ap=cloudApplyRow(row.key,row.value,pend);
+      if(ap.cambio)cambio=true;
+      if(ap.subir)pend[row.key]=1;
     });
     CLOUD_DATA_KEYS.forEach(function(k){
-      if(!enNube[k]&&!pend[k]&&localStorage.getItem(k)!==null&&!cloudCanKey(k)){localStorage.removeItem(k);cambio=true}
+      if(!cloudCanKey(k))return;
+      if(!enNube[k]&&localStorage.getItem(k)!==null)pend[k]=1;
     });
-    if(Object.keys(pend).length)cloudFlush();else syncEstado('ok','Sincronizado');
+    if(stash){
+      CLOUD_LIST_KEYS.forEach(function(k){
+        if(!stash[k]||!cloudCanKey(k))return;
+        var merged=cloudMergeLists(stash[k],LS.g(k));
+        var nuevo=JSON.stringify(merged);
+        if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);cambio=true}
+        pend[k]=1;
+      });
+    }
+    _sbSetPend(pend);
+    if(Object.keys(pend).filter(cloudCanKey).length)cloudFlush();else{_sbLastErr='';syncEstado('ok','Sincronizado')}
     if(cambio){
       var last=+sessionStorage.getItem('cromat_reload')||0;
       if(Date.now()-last>15000){sessionStorage.setItem('cromat_reload',Date.now());location.reload()}
     }
-  },function(){_sbReady=true;syncEstado('err','Sin conexión')});
+  },function(e){_sbReady=true;_sbLastErr=cloudErrNube(e);syncEstado('err','Sin conexión')});
 }
 function cloudSetModo(m){
   _sbModo=m==='signup'||m==='invite'?m:'login';
