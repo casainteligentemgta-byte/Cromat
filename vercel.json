@@ -1,3 +1,6 @@
 {
-  "buildCommand": "node scripts/inject-supabase.js"
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "node scripts/inject-supabase.js && mkdir -p public && cp index.html public/index.html",
+  "outputDirectory": "public"
 }

@@ -1,0 +1,8 @@
+{
+  "name": "cromat",
+  "private": true,
+  "description": "Cromat gestión empresarial",
+  "scripts": {
+    "build": "node scripts/inject-supabase.js && mkdir -p public && cp index.html public/index.html"
+  }
+}
