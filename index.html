@@ -521,9 +521,14 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <span style="font-size:12px;font-weight:700">Costo total / m²</span>
       <span style="font-size:13px;font-weight:700;color:var(--teal)" id="ir-costo">-</span>
     </div>
-    <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia neta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
+    <div class="result-row"><span class="result-label" style="font-weight:700">Costo total / metro lineal</span><span class="result-val" id="ir-costo-ml" style="font-weight:700;color:var(--teal)">-</span></div>
+    <div class="field-row" style="padding:8px 0;align-items:center">
+      <span class="field-label" style="color:var(--gt);font-weight:700">Ganancia bruta ($ / ml)</span>
+      <input class="field-input" type="number" id="i-gan-bruta" value="2" min="0" step="1" inputmode="numeric" oninput="onGanBruta()" style="color:var(--gt);font-weight:700">
+    </div>
+    <div id="ir-gan" style="display:none"></div>
     <div style="border-top:0.5px solid var(--bd);margin:8px 0 4px"></div>
-    <div class="st" style="margin:0 0 6px">Reparto del precio</div>
+    <div class="st" style="margin:0 0 6px">Reparto de la ganancia</div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio (<span id="ir-neg-pct-m2">80</span>%)</span><span class="result-val" style="color:var(--gt)" id="ir-neg">-</span></div>
     <div class="result-row"><span class="result-label">CEO (<span id="ir-ceo-pct-m2">15</span>%)</span><span class="result-val" id="ir-ceo">-</span></div>
     <div class="result-row"><span class="result-label">Operadora (<span id="ir-oper-pct-m2">5</span>%)</span><span class="result-val" id="ir-oper">-</span></div>
@@ -550,20 +555,6 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:12px;color:#aaa;font-weight:700">PRECIO TOTAL DEL TRABAJO</span>
       <span style="font-size:20px;color:var(--coral);font-weight:800" id="ir-total">-</span>
-    </div>
-    <div style="border-top:0.5px solid #444;margin:10px 0 8px"></div>
-    <div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.04em;margin-bottom:8px">QUIÉN SE LLEVA EL TRABAJO</div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <span style="font-size:11px;color:#aaa">Negocio (<span id="ir-neg-pct">80</span>%)</span>
-      <span style="font-size:14px;color:#8fd19e;font-weight:700" id="ir-neg-tot">-</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <span style="font-size:11px;color:#aaa">CEO (<span id="ir-ceo-pct">15</span>%)</span>
-      <span style="font-size:14px;color:var(--coral);font-weight:700" id="ir-ceo-tot">-</span>
-    </div>
-    <div style="display:flex;justify-content:space-between">
-      <span style="font-size:11px;color:#aaa">Operadora (<span id="ir-oper-pct">5</span>%)</span>
-      <span style="font-size:14px;color:#5ec8d4;font-weight:700" id="ir-oper-tot">-</span>
     </div>
     <div id="ir-sem" style="margin-top:8px;text-align:center"></div>
   </div>
@@ -3419,9 +3410,9 @@ function lineasCostosPdf(){
   });
   [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
    ['ir-luz','Electricidad total / m2'],['ir-dep','Depreciacion / ml'],['ir-mano','Mano de obra / m2'],
-   ['ir-costo','Costo total / m2'],['ir-gan','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
-   ['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],['ir-total','PRECIO TOTAL DEL TRABAJO'],
-   ['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
+   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / metro lineal'],['i-gan-bruta','Ganancia bruta / ml'],
+   ['ir-sin-fijos','Sin gastos fijos / m2'],['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],
+   ['ir-total','PRECIO TOTAL DEL TRABAJO']].forEach(function(p){
     var n=document.getElementById(p[0]);
     if(n&&src.contains(n))push('fila',p[1],valorCampoPdf(n));
   });
@@ -3519,15 +3510,18 @@ function calcImpresion(passN){
   var mgPct=numEl('i-mg',89),ceoPct=numEl('i-pct-ceo',15),operPct=numEl('i-pct-oper',5);
   var negPct=Math.max(0,100-ceoPct-operPct);
   var impPct=numEl('i-imp',10);
-  var gan_m2=costo_m2*mgPct/100;
-  var precio_m2=costo_m2+gan_m2;
-  var comis_m2=precio_m2*(ceoPct+operPct)/100;
-  var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100,neg_m2=precio_m2*negPct/100;
-  var precio_ml=precio_m2*ancho;
+  var costo_ml=costo_m2*ancho;
+  var gan_ml=Math.max(0,Math.floor(numEl('i-gan-bruta',2)));
+  var gan_m2=ancho>0?gan_ml/ancho:0;
+  var precio_ml=costo_ml+gan_ml;
+  var precio_m2=ancho>0?precio_ml/ancho:0;
+  var ceo_ml=gan_ml*ceoPct/100,oper_ml=gan_ml*operPct/100,neg_ml=gan_ml*negPct/100;
+  var ceo_m2=ancho>0?ceo_ml/ancho:0,oper_m2=ancho>0?oper_ml/ancho:0,neg_m2=ancho>0?neg_ml/ancho:0;
+  var comis_m2=ceo_m2+oper_m2;
   var total_trabajo=precio_ml*largo;
   var sin_fijos=precio_m2-prorr_m2;
-  var margen=precio_m2>0?gan_m2/precio_m2*100:0;
-  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
+  var margen=precio_ml>0?gan_ml/precio_ml*100:0;
+  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,costo_ml:costo_ml,gan_ml:gan_ml,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,ceo_ml:ceo_ml,oper_ml:oper_ml,neg_ml:neg_ml,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
 }
 function calcDTFUnit(){
   var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
@@ -3700,17 +3694,16 @@ function cImp(){
   document.getElementById('ir-prorr').textContent=usd(r.prorr_m2)+'/m²';
   document.getElementById('ir-otros-res').textContent=usd(r.otros)+'/m²';
   document.getElementById('ir-costo').textContent=usd(r.costo_m2)+'/m²';
-  document.getElementById('ir-gan').textContent=usd(r.gan_m2)+'/m²';
+  var costoMlEl=document.getElementById('ir-costo-ml');
+  if(costoMlEl)costoMlEl.textContent=usd(r.costo_ml)+'/ml';
+  var ganEl=document.getElementById('ir-gan');
+  if(ganEl)ganEl.textContent=usd(r.gan_ml)+'/ml';
   document.getElementById('ir-pct-neg').textContent=r.negPct.toFixed(0)+'%';
   function setRepartoPct(id,n){var el=document.getElementById(id);if(el)el.textContent=n.toFixed(0)}
   setRepartoPct('ir-neg-pct-m2',r.negPct);setRepartoPct('ir-ceo-pct-m2',r.ceoPct);setRepartoPct('ir-oper-pct-m2',r.operPct);
-  setRepartoPct('ir-neg-pct',r.negPct);setRepartoPct('ir-ceo-pct',r.ceoPct);setRepartoPct('ir-oper-pct',r.operPct);
-  document.getElementById('ir-neg').textContent=usd(r.neg_m2)+'/m²';
-  document.getElementById('ir-ceo').textContent=usd(r.ceo_m2)+'/m²';
-  document.getElementById('ir-oper').textContent=usd(r.oper_m2)+'/m²';
-  document.getElementById('ir-neg-tot').textContent=usd(r.neg_m2*r.area);
-  document.getElementById('ir-ceo-tot').textContent=usd(r.ceo_m2*r.area);
-  document.getElementById('ir-oper-tot').textContent=usd(r.oper_m2*r.area);
+  document.getElementById('ir-neg').textContent=usd(r.neg_ml)+'/ml';
+  document.getElementById('ir-ceo').textContent=usd(r.ceo_ml)+'/ml';
+  document.getElementById('ir-oper').textContent=usd(r.oper_ml)+'/ml';
   document.getElementById('ir-sin-fijos').textContent=usd(r.sin_fijos)+'/m²';
   document.getElementById('ir-pm2').textContent=usd(r.precio_m2)+'/m²';
   document.getElementById('ir-precio').textContent=usd(r.precio_ml)+'/ml';
@@ -3750,9 +3743,18 @@ function cImp(){
       ]
     }
   };
-  LS.s('imp_vals',{largo:r.largo,ancho:r.ancho,tkC:r.tkC,tkM:r.tkM,tkY:r.tkY,tkK:r.tkK,mlm2:r.mlm2,purga:r.purga,rp:r.rp,rl:r.rl,kwImp:r.kwImp,kwCal:r.kwCal,kwh:r.kwh,tImp:r.tImp,tCal:r.tCal,vimp:r.vimp,vidaM:r.metrosVida,m2mes:r.m2mes,sal:r.sal,gf:r.gf,otros:r.otros,mg:r.mgPct,imp:r.impPct,ceo:r.ceoPct,oper:r.operPct});
+  LS.s('imp_vals',{largo:r.largo,ancho:r.ancho,tkC:r.tkC,tkM:r.tkM,tkY:r.tkY,tkK:r.tkK,mlm2:r.mlm2,purga:r.purga,rp:r.rp,rl:r.rl,kwImp:r.kwImp,kwCal:r.kwCal,kwh:r.kwh,tImp:r.tImp,tCal:r.tCal,vimp:r.vimp,vidaM:r.metrosVida,m2mes:r.m2mes,sal:r.sal,gf:r.gf,otros:r.otros,mg:r.mgPct,imp:r.impPct,ceo:r.ceoPct,oper:r.operPct,ganMl:r.gan_ml});
   var txSel=document.getElementById('tx-imp-select');
   if(txSel&&txSel.value){fillTxImpSelect();txApplyImpPrecio();_cTxTotals()}
+}
+function onGanBruta(){
+  var el=document.getElementById('i-gan-bruta');
+  if(!el)return;
+  if(el.value===''){cImp();return}
+  var n=Math.floor(Math.abs(parseFloat(el.value)));
+  if(isNaN(n))n=0;
+  if(String(el.value)!==String(n))el.value=n;
+  cImp();
 }
 function iMgFromPct(){ cImp(); }
 function iMgFromUsd(){
@@ -4471,7 +4473,7 @@ function bindSwipeDelete(root){
   // Load last imp values
   var v=LS.g('imp_vals');
   if(v){
-    var map={largo:'i-largo',ancho:'i-ancho',tkC:'i-tk-c',tkM:'i-tk-m',tkY:'i-tk-y',tkK:'i-tk-k',mlm2:'i-tm',purga:'i-purga',rp:'i-rollo',rl:'i-rlargo',kwImp:'i-kwhc',kwCal:'i-kw-cal',kwh:'i-kwhi',tImp:'i-t-imp',tCal:'i-t-cal',vimp:'i-vimp',metrosVida:'i-metros-vida',m2mes:'i-m2mes',sal:'i-sal-sem',gf:'i-gf',otros:'i-otros',mg:'i-mg',imp:'i-imp',ceo:'i-pct-ceo',oper:'i-pct-oper'};
+    var map={largo:'i-largo',ancho:'i-ancho',tkC:'i-tk-c',tkM:'i-tk-m',tkY:'i-tk-y',tkK:'i-tk-k',mlm2:'i-tm',purga:'i-purga',rp:'i-rollo',rl:'i-rlargo',kwImp:'i-kwhc',kwCal:'i-kw-cal',kwh:'i-kwhi',tImp:'i-t-imp',tCal:'i-t-cal',vimp:'i-vimp',metrosVida:'i-metros-vida',m2mes:'i-m2mes',sal:'i-sal-sem',gf:'i-gf',otros:'i-otros',mg:'i-mg',imp:'i-imp',ceo:'i-pct-ceo',oper:'i-pct-oper',ganMl:'i-gan-bruta'};
     Object.keys(map).forEach(function(k){if(v[k]!==undefined){var el=document.getElementById(map[k]);if(el)el.value=v[k]}});
   }
   // Set today's date on date fields
