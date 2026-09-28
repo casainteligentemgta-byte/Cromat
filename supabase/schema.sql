@@ -1,5 +1,5 @@
 -- Cromat: una empresa, usuarios con rol, datos compartidos y RLS.
--- Correr en Supabase → SQL Editor (una vez).
+-- Pega ESTE ARCHIVO COMPLETO en Supabase → SQL Editor y córrelo (no un fragmento).
 -- Auth: Authentication → Providers → Email.
 -- Recomendado al inicio: desactivar "Confirm email" para el equipo.
 
@@ -74,24 +74,26 @@ as $$
   limit 1
 $$;
 
-create or replace function public.cromat_can_key(k text)
+create or replace function public.cromat_can_key(p_key text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select case public.cromat_rol()
-    when 'admin' then k in (
+begin
+  return case public.cromat_rol()
+    when 'admin' then p_key in (
       'crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo',
       'crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'
     )
-    when 'ventas' then k in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo')
-    when 'operadora' then k in ('crm_ordenes','crm_inventario','crm_costos','imp_vals')
-    when 'conta' then k in ('crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config')
-    when 'diseno' then k in ('crm_presupuestos','crm_costos','crm_catalogo','imp_vals')
+    when 'ventas' then p_key in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo')
+    when 'operadora' then p_key in ('crm_ordenes','crm_inventario','crm_costos','imp_vals')
+    when 'conta' then p_key in ('crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config')
+    when 'diseno' then p_key in ('crm_presupuestos','crm_costos','crm_catalogo','imp_vals')
     else false
-  end
+  end;
+end;
 $$;
 
 create or replace function public.cromat_bootstrap(p_nombre text)
