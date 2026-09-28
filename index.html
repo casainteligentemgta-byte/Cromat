@@ -183,6 +183,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi coral"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
     <div class="kpi purple"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
   </div>
+  <div id="k-gastos-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Gastos fijos del mes + gastos agregados</div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
@@ -287,6 +288,17 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-oper">$0</span></span></div>
     </div>
     <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="st">Gastos fijos del mes</div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Se cuentan enteros en el mes. Cada gasto que registres abajo se suma encima.</div>
+    <div id="conta-fijos-list"></div>
+    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+      <input class="fi" id="fijo-nombre" placeholder="Ej: Alquiler" style="flex:1">
+      <input class="fi" id="fijo-monto" type="number" min="0" step="1" placeholder="$" style="max-width:88px">
+      <button class="btn btn-teal btn-sm" type="button" onclick="agregarGastoFijo()">+</button>
+    </div>
+    <div class="dist-row" style="margin-top:8px;border-bottom:none"><span class="result-label">Fijos + agregados</span><span style="font-size:12px;font-weight:700" id="conta-gastos-split">$0</span></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="st">Por categoria (periodo)</div>
@@ -1622,9 +1634,18 @@ function renderDash(){
   document.getElementById('k-cobrar').textContent=usd(totalPorCobrar());
   var m=hoy().slice(0,7);
   var ingMes=movs.filter(function(v){return v.tipo==='ingreso'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
-  var gasMes=movs.filter(function(v){return v.tipo==='gasto'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
+  var extraMes=gastosAgregados(movs,null,null,m);
+  var gasMes=totalGastosFijos()+extraMes;
   document.getElementById('k-mes').textContent=usd(ingMes);
   document.getElementById('k-gastos').textContent=usd(gasMes);
+  var gs=document.getElementById('k-gastos-split');
+  if(gs)gs.textContent='Fijos '+usd(totalGastosFijos())+' + agregados '+usd(extraMes)+' = '+usd(gasMes);
+  var kg=document.getElementById('k-gastos');
+  if(kg&&kg.parentNode){
+    var lab=kg.parentNode.querySelector('.kpi-l');
+    if(lab)lab.textContent='Gastos mes';
+    kg.parentNode.title='Fijos '+usd(totalGastosFijos())+' + agregados '+usd(extraMes);
+  }
   var rec=presup.slice().sort(function(a,b){return b.fecha>a.fecha?1:-1}).slice(0,3);
   var rEl=document.getElementById('dash-recent');
   if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aun</div>'}
@@ -2802,8 +2823,107 @@ function getContaCfg(){
     impPct:clamp(s.impPct,CONTA_CFG_DEFAULT.impPct),
     negPct:clamp(s.negPct,CONTA_CFG_DEFAULT.negPct),
     ceoPct:clamp(s.ceoPct,CONTA_CFG_DEFAULT.ceoPct),
-    operPct:clamp(s.operPct,CONTA_CFG_DEFAULT.operPct)
+    operPct:clamp(s.operPct,CONTA_CFG_DEFAULT.operPct),
+    fijos:Array.isArray(s.fijos)?s.fijos:null
   };
+}
+function getGastosFijos(){
+  var cfg=getContaCfg();
+  if(Array.isArray(cfg.fijos)){
+    return cfg.fijos.map(function(f){
+      return {id:f.id||uid(),nombre:f.nombre||'Gasto fijo',monto:+f.monto||0,cat:f.cat||'operativos'};
+    });
+  }
+  var v=LS.g('imp_vals')||{};
+  var gf=v.gf!=null?+v.gf:250;
+  var sal=v.sal!=null?+v.sal:200;
+  var out=[];
+  if(gf>0)out.push({id:'seed-gf',nombre:'Gastos fijos operativos',monto:gf,cat:'operativos'});
+  if(sal>0)out.push({id:'seed-sal',nombre:'Salario operadora',monto:sal,cat:'salarios'});
+  return out;
+}
+function saveGastosFijos(lista){
+  var s=LS.g('crm_conta_config')||{};
+  s.fijos=(lista||[]).map(function(f){
+    return {id:f.id||uid(),nombre:f.nombre||'Gasto fijo',monto:+f.monto||0,cat:f.cat||'operativos'};
+  });
+  LS.s('crm_conta_config',s);
+}
+function totalGastosFijos(){
+  return getGastosFijos().reduce(function(a,f){return a+(+f.monto||0)},0);
+}
+function diasIncluidos(a,b){
+  if(!a||!b)return 0;
+  var d1=new Date(a+'T12:00:00'),d2=new Date(b+'T12:00:00');
+  return Math.max(0,Math.round((d2-d1)/86400000)+1);
+}
+function fijosEnRango(desde,hasta,modo){
+  var tot=totalGastosFijos();
+  if(!tot)return 0;
+  if(modo==='mes'||!desde||!hasta)return tot;
+  var sum=0,y=+desde.slice(0,4),mo=+desde.slice(5,7),y2=+hasta.slice(0,4),mo2=+hasta.slice(5,7);
+  while(y<y2||(y===y2&&mo<=mo2)){
+    var dim=new Date(y,mo,0).getDate();
+    var ym=y+'-'+('0'+mo).slice(-2);
+    var start=ym+'-01';
+    var end=ym+'-'+('0'+dim).slice(-2);
+    var o0=desde>start?desde:start;
+    var o1=hasta<end?hasta:end;
+    if(o0<=o1)sum+=tot*(diasIncluidos(o0,o1)/dim);
+    mo++;if(mo>12){mo=1;y++}
+  }
+  return sum;
+}
+function gastosAgregados(movs,desde,hasta,ym){
+  return (movs||[]).filter(function(m){
+    if(m.tipo!=='gasto'||m.fijo)return false;
+    if(ym)return !!(m.fecha&&String(m.fecha).startsWith(ym));
+    if(desde&&m.fecha<desde)return false;
+    if(hasta&&m.fecha>hasta)return false;
+    return true;
+  }).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+}
+var _skipFijosUi=false;
+function renderGastosFijos(){
+  if(_skipFijosUi)return;
+  var el=document.getElementById('conta-fijos-list');
+  if(!el)return;
+  var lista=getGastosFijos();
+  if(!lista.length){el.innerHTML='<div class="empty" style="padding:12px">Sin gastos fijos. Agrégalos (alquiler, salarios, servicios…).</div>';return}
+  el.innerHTML=lista.map(function(f){
+    return'<div class="dist-row"><span class="result-label">'+escHtml(f.nombre)+'</span><span style="display:flex;gap:6px;align-items:center">'
+      +'<input type="number" min="0" step="1" value="'+f.monto+'" style="width:72px;text-align:right;border:none;background:transparent;color:var(--dt);font-weight:600" onfocus="this.select()" onchange="editarMontoFijo(\''+f.id+'\',this.value)">'
+      +'<button class="btn btn-ghost btn-sm" style="color:var(--dt);padding:2px 6px" onclick="quitarGastoFijo(\''+f.id+'\')">X</button></span></div>';
+  }).join('');
+}
+function editarMontoFijo(id,val){
+  var lista=getGastosFijos();
+  var i=lista.findIndex(function(f){return f.id===id});
+  if(i<0)return;
+  lista[i].monto=Math.max(0,parseFloat(val)||0);
+  saveGastosFijos(lista);
+  _skipFijosUi=true;
+  renderDash();
+  renderConta();
+  _skipFijosUi=false;
+}
+function quitarGastoFijo(id){
+  saveGastosFijos(getGastosFijos().filter(function(f){return f.id!==id}));
+  renderDash();
+  renderConta();
+}
+function agregarGastoFijo(){
+  var nom=(document.getElementById('fijo-nombre').value||'').trim();
+  var monto=parseFloat(document.getElementById('fijo-monto').value)||0;
+  if(!nom){alert('Escribe el nombre del gasto fijo.');return}
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return}
+  var lista=getGastosFijos();
+  lista.push({id:uid(),nombre:nom,monto:monto,cat:'operativos'});
+  saveGastosFijos(lista);
+  document.getElementById('fijo-nombre').value='';
+  document.getElementById('fijo-monto').value='';
+  renderDash();
+  renderConta();
 }
 function applyContaCfg(){
   var cfg=getContaCfg();
@@ -2829,7 +2949,8 @@ function onContaPct(){
     impPct:pctInput('cd-imp-pct'),
     negPct:pctInput('cd-pct-neg'),
     ceoPct:pctInput('cd-pct-ceo'),
-    operPct:pctInput('cd-pct-oper')
+    operPct:pctInput('cd-pct-oper'),
+    fijos:(LS.g('crm_conta_config')||{}).fijos
   });
   renderConta();
 }
@@ -2888,11 +3009,16 @@ function renderConta(){
     return true;
   });
   var ing=enPeriodo.filter(function(m){return m.tipo==='ingreso'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
-  var gas=enPeriodo.filter(function(m){return m.tipo==='gasto'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  var extra=gastosAgregados(enPeriodo,r.desde,r.hasta);
+  var fijos=fijosEnRango(r.desde,r.hasta,periodoConta);
+  var gas=fijos+extra;
   var cobrar=totalPorCobrar();
   document.getElementById('c-ingresos').textContent=usd(ing);
   document.getElementById('c-gastos2').textContent=usd(gas);
   document.getElementById('c-balance').textContent=usd(ing-gas);
+  var split=document.getElementById('conta-gastos-split');
+  if(split)split.textContent=usd(fijos)+' + '+usd(extra)+' = '+usd(gas);
+  renderGastosFijos();
   var balEl=document.getElementById('c-balance');
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
   document.getElementById('c-cobrar').textContent=usd(cobrar);
@@ -2933,6 +3059,13 @@ function renderConta(){
     if(!byCat[k])byCat[k]={ing:0,gas:0};
     if(m.tipo==='ingreso')byCat[k].ing+=(parseFloat(m.monto)||0);
     else byCat[k].gas+=(parseFloat(m.monto)||0);
+  });
+  var totF=totalGastosFijos();
+  var factorF=totF?fijos/totF:0;
+  getGastosFijos().forEach(function(f){
+    var k=f.cat&&MOV_CAT_LABEL[f.cat]?f.cat:'operativos';
+    if(!byCat[k])byCat[k]={ing:0,gas:0};
+    byCat[k].gas+=(parseFloat(f.monto)||0)*factorF;
   });
   var catKeys=Object.keys(byCat);
   var catsEl=document.getElementById('conta-cats');
