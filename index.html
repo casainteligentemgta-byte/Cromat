@@ -185,6 +185,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
+  <div class="st" style="margin-top:14px">Equipo</div>
+  <div id="dash-equipo"><div class="empty">Sin usuarios</div></div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div style="margin-top:16px">
@@ -1147,10 +1149,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <div class="modal-bg" id="modal-usuarios">
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Usuarios y roles</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
+    <div class="st">Equipo</div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Nombre, correo y rol de cada persona. El dueño puede cambiar el rol.</div>
     <div id="lista-usuarios"></div>
     <div id="nu-local-block">
       <div class="st" style="margin-top:14px">Nuevo usuario</div>
       <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
+      <div class="fg"><label class="fl">Correo (opcional)</label><input class="fi" type="email" id="nu-email-local" placeholder="maria@correo.com" autocomplete="off"></div>
       <div class="fg" id="nu-usuario-wrap"><label class="fl" id="nu-usuario-lbl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
       <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
       <div class="fg"><label class="fl">Rol</label>
@@ -1166,6 +1171,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     </div>
     <div id="nu-cloud-block" style="display:none">
       <div class="st" style="margin-top:14px">Invitar al equipo</div>
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-inv-nombre" placeholder="Ej: María López" autocomplete="name"></div>
       <div class="fg"><label class="fl">Correo de quien vas a invitar</label><input class="fi" type="email" id="nu-email" placeholder="maria@correo.com" autocomplete="off" onkeydown="if(event.key==='Enter')crearUsuario()"></div>
       <div class="fg"><label class="fl">Rol</label>
         <select class="fi" id="nu-rol-cloud">
@@ -1380,7 +1386,7 @@ function authApplyUI(){
   if(up)up.style.display=(cloud&&authCanUsers())?'':'none';
 }
 function authSetSession(u){
-  AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now()};
+  AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now(),email:u.email||''};
   authTouch();
   authApplyUI();
   goTab(authFirstTab());
@@ -1399,7 +1405,7 @@ function authLogin(){
     var nombre=(document.getElementById('login-nombre').value||'').trim()||usuario;
     var salt=newSalt();
     hashClave(pass,salt).then(function(h){
-      var admin={id:uid(),nombre:nombre,usuario:usuario,pass:h,salt:salt,rol:'admin',activo:true};
+      var admin={id:uid(),nombre:nombre,usuario:usuario,pass:h,salt:salt,rol:'admin',activo:true,email:usuario.indexOf('@')>=0?usuario:''};
       authSaveUsers([admin]);
       authMsg('');
       authSetSession(admin);
@@ -1453,7 +1459,9 @@ function abrirUsuarios(){
   document.getElementById('nu-usuario').value='';
   document.getElementById('nu-clave').value='';
   document.getElementById('nu-rol').value='ventas';
+  var emL=document.getElementById('nu-email-local'); if(emL)emL.value='';
   var em=document.getElementById('nu-email'); if(em)em.value='';
+  var invn=document.getElementById('nu-inv-nombre'); if(invn)invn.value='';
   var rc=document.getElementById('nu-rol-cloud'); if(rc)rc.value='ventas';
   var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
   var localB=document.getElementById('nu-local-block');
@@ -1474,21 +1482,41 @@ function abrirUsuarios(){
   renderUsuarios();
   openModal('modal-usuarios');
 }
+function correoDeUsuario(u){
+  if(!u)return '';
+  if(u.email)return String(u.email).trim();
+  if(u.usuario&&String(u.usuario).indexOf('@')>=0)return String(u.usuario).trim();
+  return '';
+}
+function htmlFilaEquipo(u,admin){
+  var id=u.user_id||u.id||'';
+  var yo=AUTH&&id&&AUTH.id===id;
+  var mail=correoDeUsuario(u);
+  var inact=u.activo===false;
+  var html='<div class="list-item">'
+    +'<div class="li-top"><span class="li-name">'+escHtml(u.nombre||u.usuario||'Sin nombre')+'</span>'
+    +'<span class="tag '+(inact?'tag-gray':'tag-teal')+'">'+escHtml(authRol(u.rol).l)+'</span></div>'
+    +'<div class="li-sub">'+(mail?escHtml(mail):'Sin correo')
+    +(u.usuario&&u.usuario!==mail?' · @'+escHtml(u.usuario):'')
+    +(yo?' · tu sesion':'')
+    +(inact?' · inactivo':'')+'</div>';
+  if(admin){
+    var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
+    html+='<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+      +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+escHtml(id)+'\',this.value)">'+opts+'</select>'
+      +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+escHtml(id)+'\')">'+(inact?'Activar':'Quitar')+'</button>')
+      +'</div>';
+  }
+  html+='</div>';
+  return html;
+}
 function renderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el)return;
   if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudRenderUsuarios==='function'){cloudRenderUsuarios();return}
   var lista=authUsers();
-  el.innerHTML=lista.map(function(u){
-    var yo=AUTH&&u.id===AUTH.id;
-    var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-      +'<div class="li-sub">@'+escHtml(u.usuario)+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
-      +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
-      +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.id+'\',this.value)">'+opts+'</select>'
-      +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.id+'\')">X</button>')
-      +'</div></div>';
-  }).join('');
+  if(!lista.length){el.innerHTML='<div class="empty">Sin usuarios</div>';return}
+  el.innerHTML=lista.map(function(u){return htmlFilaEquipo(u,true)}).join('');
 }
 function crearUsuario(){
   if(!authCanUsers())return;
@@ -1496,20 +1524,25 @@ function crearUsuario(){
   var nombre=(document.getElementById('nu-nombre').value||'').trim();
   var usuario=(document.getElementById('nu-usuario').value||'').trim().toLowerCase();
   var pass=document.getElementById('nu-clave').value||'';
+  var emailEl=document.getElementById('nu-email-local');
+  var email=((emailEl&&emailEl.value)||'').trim().toLowerCase();
   var rol=document.getElementById('nu-rol').value||'ventas';
   if(!nombre||!usuario||!pass){alert('Completa nombre, usuario y clave');return}
+  if(email&&email.indexOf('@')<1){alert('El correo no es válido.');return}
   if(claveCorta(pass)){alert('La clave debe tener al menos 8 caracteres');return}
   if(!ROLES[rol])rol='ventas';
   var lista=authUsers();
   if(lista.some(function(x){return x.usuario===usuario})){alert('Ese usuario ya existe');return}
   var salt=newSalt();
   hashClave(pass,salt).then(function(h){
-    lista.push({id:uid(),nombre:nombre,usuario:usuario,pass:h,salt:salt,rol:rol,activo:true});
+    lista.push({id:uid(),nombre:nombre,usuario:usuario,email:email,pass:h,salt:salt,rol:rol,activo:true});
     authSaveUsers(lista);
     document.getElementById('nu-nombre').value='';
     document.getElementById('nu-usuario').value='';
     document.getElementById('nu-clave').value='';
+    if(emailEl)emailEl.value='';
     renderUsuarios();
+    renderEquipo();
   }).catch(function(){alert('Este navegador no permite guardar claves de forma segura')});
 }
 function cambiarRolUsuario(id,rol){
@@ -1526,6 +1559,7 @@ function cambiarRolUsuario(id,rol){
   authSaveUsers(lista);
   if(AUTH&&AUTH.id===id){AUTH.rol=rol;authTouch();authApplyUI()}
   renderUsuarios();
+  renderEquipo();
 }
 function eliminarUsuario(id){
   if(!authCanUsers())return;
@@ -1538,6 +1572,7 @@ function eliminarUsuario(id){
   if(!confirm('Eliminar a '+u.nombre+'?'))return;
   authSaveUsers(lista.filter(function(x){return x.id!==id}));
   renderUsuarios();
+  renderEquipo();
 }
 
 // ===== NAV =====
@@ -1582,6 +1617,21 @@ function renderDash(){
   var sEl=document.getElementById('dash-stock');
   if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
   else{sEl.innerHTML=bajo.map(function(i){return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span><span class="tag tag-red">BAJO</span></div><div class="li-sub">Stock: '+escHtml(i.stock)+' '+escHtml(i.unidad)+' (min: '+escHtml(i.min)+')</div></div>'}).join('')}
+  renderEquipo();
+}
+function pintarEquipo(lista){
+  var el=document.getElementById('dash-equipo');
+  if(!el)return;
+  lista=(lista||[]).filter(function(u){return u&&u.activo!==false});
+  if(!lista.length){el.innerHTML='<div class="empty">Sin usuarios en el equipo</div>';return}
+  el.innerHTML=lista.map(function(u){return htmlFilaEquipo(u,false)}).join('');
+}
+function renderEquipo(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudCargarEquipo==='function'){
+    cloudCargarEquipo(pintarEquipo);
+    return;
+  }
+  pintarEquipo(authUsers());
 }
 
 // ===== CLIENTES =====
@@ -3836,7 +3886,7 @@ function generarExport(){
   CRM_KEYS.forEach(function(k){
     if(k==='crm_usuarios'){
       data[k]=JSON.stringify((LS.g(k)||[]).map(function(u){
-        return {id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,activo:u.activo};
+        return {id:u.id,nombre:u.nombre,usuario:u.usuario,email:u.email||'',rol:u.rol,activo:u.activo};
       }));
       return;
     }
@@ -4295,11 +4345,38 @@ function cloudCargarPerfil(){
 }
 function cloudSesion(p){
   CLOUD_ORG=p.org_id;
-  AUTH={id:p.user_id,nombre:p.nombre,usuario:p.usuario|| (SB_USER.email||'').split('@')[0],rol:p.rol,t:Date.now(),orgId:p.org_id};
+  AUTH={id:p.user_id,nombre:p.nombre,usuario:p.usuario|| (SB_USER.email||'').split('@')[0],rol:p.rol,t:Date.now(),orgId:p.org_id,email:p.email||(SB_USER&&SB_USER.email)||''};
   authTouch();
   authApplyUI();
+  cloudGuardarMiEmail();
   cloudPull();
   goTab(authFirstTab());
+}
+function cloudGuardarMiEmail(){
+  if(!sb||!SB_USER||!SB_USER.id||!SB_USER.email)return;
+  sb.from('cromat_profiles').update({email:SB_USER.email}).eq('user_id',SB_USER.id).then(function(){});
+}
+function cloudCargarEquipo(cb){
+  if(!sb){cb([]);return}
+  function norm(lista){
+    return (lista||[]).map(function(u){
+      var id=u.user_id||u.id;
+      var email=correoDeUsuario(u);
+      if(!email&&AUTH&&id===AUTH.id&&SB_USER&&SB_USER.email)email=SB_USER.email;
+      return Object.assign({},u,{email:email});
+    });
+  }
+  sb.rpc('cromat_equipo').then(function(r){
+    if(!r.error&&r.data){cb(norm(r.data));return}
+    sb.from('cromat_profiles').select('user_id,nombre,usuario,email,rol,activo').order('nombre').then(function(x){
+      if(x.error){
+        return sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre').then(function(y){
+          cb(norm((!y.error&&y.data)||[]));
+        });
+      }
+      cb(norm(x.data||[]));
+    });
+  });
 }
 function cloudLogout(){
   var fin=function(){
@@ -4361,10 +4438,11 @@ function cloudWhatsAppInvitacion(code,nombre,rol){
 function cloudCrearInvitacion(){
   if(!CLOUD_ORG||!sb)return;
   var email=((document.getElementById('nu-email')&&document.getElementById('nu-email').value)||'').trim().toLowerCase();
+  var nombre=((document.getElementById('nu-inv-nombre')&&document.getElementById('nu-inv-nombre').value)||'').trim();
   var rol=(document.getElementById('nu-rol-cloud')&&document.getElementById('nu-rol-cloud').value)||'ventas';
   if(!ROLES[rol])rol='ventas';
   if(!email||email.indexOf('@')<1){alert('Escribe el correo de quien vas a invitar.');return}
-  var nombre=email.split('@')[0];
+  if(!nombre)nombre=email.split('@')[0];
   var code=cloudInviteCode();
   var row={org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre,created_by:SB_USER.id,email:email};
   var btn=document.getElementById('nu-enviar-btn');
@@ -4380,13 +4458,15 @@ function cloudCrearInvitacion(){
     fin();
     if(r.error){alert(cloudErr(r.error));return}
     if(document.getElementById('nu-email'))document.getElementById('nu-email').value='';
+    if(document.getElementById('nu-inv-nombre'))document.getElementById('nu-inv-nombre').value='';
     if(document.getElementById('nu-rol-cloud'))document.getElementById('nu-rol-cloud').value='ventas';
     var out=document.getElementById('nu-invite-out');
     if(out){
       out.style.display='';
-      out.innerHTML='Invitación de '+escHtml(authRol(rol).l)+' enviada a <strong>'+escHtml(email)+'</strong>. Se abrió tu correo; dale enviar. Si no abre, usa WhatsApp o Copiar en la lista de abajo.';
+      out.innerHTML='Invitación de '+escHtml(authRol(rol).l)+' para <strong>'+escHtml(nombre)+'</strong> ('+escHtml(email)+'). Se abrió tu correo; dale enviar. Si no abre, usa WhatsApp o Copiar en la lista de abajo.';
     }
     cloudRenderUsuarios();
+    renderEquipo();
     cloudAbrirCorreoInvitacion(email,code,nombre,rol);
   },function(){fin();alert('Sin conexion')});
 }
@@ -4394,23 +4474,14 @@ function cloudRenderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el||!sb)return;
   function pintar(users,invs){
-    var html=(users||[]).map(function(u){
-      var yo=AUTH&&u.user_id===AUTH.id;
-      var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-        +'<div class="li-sub">'+escHtml(u.usuario||'')+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
-        +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
-        +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.user_id+'\',this.value)">'+opts+'</select>'
-        +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.user_id+'\')">'+(u.activo===false?'Activar':'Quitar')+'</button>')
-        +'</div></div>';
-    }).join('');
+    var html=(users||[]).map(function(u){return htmlFilaEquipo(u,true)}).join('');
     if(invs&&invs.length){
       html+='<div class="st" style="margin-top:12px">Invitaciones pendientes</div>';
       html+=invs.map(function(i){
         var mail=i.email||'';
         var nom=i.nombre_sugerido||'';
-        return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.code)+'</span><span class="tag tag-teal">'+escHtml(authRol(i.rol).l)+'</span></div>'
-          +'<div class="li-sub">'+(nom?escHtml(nom)+' · ':'')+(mail?escHtml(mail)+' · ':'')+'Pendiente</div>'
+        return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(nom||mail||i.code)+'</span><span class="tag tag-orange">'+escHtml(authRol(i.rol).l)+'</span></div>'
+          +'<div class="li-sub">'+(mail?escHtml(mail)+' · ':'')+'Pendiente · código '+escHtml(i.code)+'</div>'
           +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
           +(mail?'<button class="btn btn-primary btn-sm" type="button" onclick="cloudAbrirCorreoInvitacion(\''+escHtml(mail)+'\',\''+escHtml(i.code)+'\',\''+escHtml(nom)+'\',\''+escHtml(i.rol)+'\')">Abrir correo</button>':'')
           +'<button class="btn btn-teal btn-sm" type="button" onclick="cloudWhatsAppInvitacion(\''+escHtml(i.code)+'\',\''+escHtml(nom)+'\',\''+escHtml(i.rol)+'\')">WhatsApp</button>'
@@ -4421,16 +4492,17 @@ function cloudRenderUsuarios(){
     el.innerHTML=html||'<div class="empty">Sin usuarios</div>';
   }
   Promise.all([
-    sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre'),
+    new Promise(function(ok){cloudCargarEquipo(ok)}),
     sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,email,used_at').is('used_at',null).order('created_at',{ascending:false})
   ]).then(function(res){
-    if(res[0].error){el.textContent=cloudErr(res[0].error);return}
-    if(res[1].error){
+    var users=res[0]||[];
+    var inv=res[1];
+    if(inv.error){
       return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r2){
-        pintar(res[0].data||[],(!r2.error&&r2.data)||[]);
+        pintar(users,(!r2.error&&r2.data)||[]);
       });
     }
-    pintar(res[0].data||[],res[1].data||[]);
+    pintar(users,inv.data||[]);
   });
 }
 function cloudCambiarRol(id,rol){
@@ -4439,6 +4511,7 @@ function cloudCambiarRol(id,rol){
     if(r.error){alert(cloudErr(r.error));cloudRenderUsuarios();return}
     if(AUTH&&AUTH.id===id){AUTH.rol=rol;authApplyUI()}
     cloudRenderUsuarios();
+    renderEquipo();
   });
 }
 function cloudDesactivarUsuario(id){
@@ -4450,6 +4523,7 @@ function cloudDesactivarUsuario(id){
     sb.from('cromat_profiles').update({activo:next}).eq('user_id',id).then(function(x){
       if(x.error)alert(cloudErr(x.error));
       cloudRenderUsuarios();
+      renderEquipo();
     });
   });
 }
