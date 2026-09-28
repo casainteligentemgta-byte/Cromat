@@ -48,6 +48,18 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .kpi.teal{border-left:3px solid var(--teal)}
 .kpi.green{border-left:3px solid var(--gt)}
 .kpi.purple{border-left:3px solid #7B2FBE}
+.kpi.ing{border-left:3px solid var(--gt)}
+.kpi.gas{border-left:3px solid var(--dt)}
+.kpi.ing .kpi-v{color:var(--gt)}
+.kpi.gas .kpi-v{color:var(--dt)}
+.dash-split-ing{color:var(--gt)}
+.dash-split-gas{color:var(--dt)}
+@media(prefers-color-scheme:dark){
+  .kpi.ing{border-left-color:#66BB6A}
+  .kpi.gas{border-left-color:#EF5350}
+  .kpi.ing .kpi-v,.dash-split-ing{color:#81C784}
+  .kpi.gas .kpi-v,.dash-split-gas{color:#EF9A9A}
+}
 /* BTNS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r);border:none;cursor:pointer;font-size:13px;font-weight:600}
 .btn-primary{background:var(--coral);color:#fff}
@@ -183,12 +195,12 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi coral"><div class="kpi-v" id="k-clientes">0</div><div class="kpi-l">Clientes</div></div>
     <div class="kpi teal"><div class="kpi-v" id="k-presupuestos">0 presup. / 0 OP</div><div class="kpi-l">Presupuestos</div></div>
     <div class="kpi green"><div class="kpi-v" id="k-cobrar">$0.00</div><div class="kpi-l">Por cobrar</div></div>
-    <div class="kpi coral"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
-    <div class="kpi purple"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
+    <div class="kpi ing"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
+    <div class="kpi gas"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
   </div>
-  <div style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">
-    <div id="k-mes-split">Lo cobrado este mes (anticipos, saldos y extras)</div>
-    <div id="k-gastos-split">Gastos fijos del mes + gastos agregados</div>
+  <div style="font-size:11px;margin:-4px 0 10px;line-height:1.4">
+    <div id="k-mes-split" class="dash-split-ing">Lo cobrado este mes (anticipos, saldos y extras)</div>
+    <div id="k-gastos-split" class="dash-split-gas">Gastos fijos del mes + gastos agregados</div>
   </div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
@@ -270,8 +282,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <input class="fi" type="date" id="conta-hasta" style="max-width:140px" onchange="renderConta()">
   </div>
   <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
-    <div class="kpi green"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos mes</div></div>
-    <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos mes</div></div>
+    <div class="kpi ing"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos mes</div></div>
+    <div class="kpi gas"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos mes</div></div>
     <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
   </div>
   <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Cifras del mes: lo cobrado y los gastos</div>
@@ -3086,11 +3098,12 @@ function renderConta(){
   var ingSplit=document.getElementById('conta-ing-split');
   if(ingSplit){
     var nota=periodoConta==='mes'?'':'Hoy / Semana / Rango filtra la lista de abajo. ';
-    ingSplit.textContent=nota+'Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+' · Gastos '+usd(gas)+' · Resultado '+usd(ing-gas);
+    var resCol=(ing-gas)<0?'var(--dt)':'var(--gt)';
+    ingSplit.innerHTML=nota+'<span class="dash-split-ing">Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+'</span> · <span class="dash-split-gas">Gastos '+usd(gas)+'</span> · <span style="color:'+resCol+'">Resultado '+usd(ing-gas)+'</span>';
   }
   renderGastosFijos();
   var balEl=document.getElementById('c-balance');
-  if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
+  if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'var(--gt)';
   document.getElementById('c-cobrar').textContent=usd(cobrar);
   document.getElementById('c-nmovs').textContent=String(fil.length);
   var costPct=parseFloat(document.getElementById('cd-costo-pct').value)||0;
