@@ -148,6 +148,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .ptab.on{background:var(--teal);color:#fff;border-color:var(--teal)}
 .dist-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--bd)}
 .dist-row:last-child{border-bottom:none}
+.kpi.amber{border-left:3px solid var(--wt)}
+.pago-foto-box{border:1.5px dashed var(--bd);border-radius:var(--r);padding:10px;background:var(--s1)}
+.pago-foto-actions{display:flex;gap:6px;flex-wrap:wrap}
+.pago-foto-preview{display:none;width:100%;max-height:180px;object-fit:contain;border-radius:var(--r);margin-top:8px;background:#111;cursor:pointer}
+.foto-chip{display:inline-flex;align-items:center;justify-content:center;border:none;background:var(--as);color:var(--at);border-radius:6px;padding:2px 7px;font-size:14px;cursor:pointer;margin-left:6px;vertical-align:middle}
+#modal-foto{z-index:300;align-items:center;justify-content:center}
+#modal-foto .modal{border-radius:12px;max-width:520px;margin:12px auto;width:calc(100% - 24px);max-height:92vh}
 /* ITEM SELECTOR */
 .prod-tag{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--at);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px}
 @media print{.bnav,.nb,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
@@ -180,6 +187,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi coral"><div class="kpi-v" id="k-clientes">0</div><div class="kpi-l">Clientes</div></div>
     <div class="kpi teal"><div class="kpi-v" id="k-presupuestos">0 presup. / 0 OP</div><div class="kpi-l">Presupuestos</div></div>
     <div class="kpi green"><div class="kpi-v" id="k-cobrar">$0.00</div><div class="kpi-l">Por cobrar</div></div>
+    <div class="kpi amber"><div class="kpi-v" id="k-pagar">$0.00</div><div class="kpi-l">Por pagar</div></div>
     <div class="kpi coral"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
     <div class="kpi purple"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
   </div>
@@ -266,13 +274,22 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos</div></div>
     <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
   </div>
-  <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+  <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
     <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
+    <div class="kpi amber"><div class="kpi-v" id="c-pagar">$0</div><div class="kpi-l">Por pagar</div></div>
     <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
   </div>
   <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
     <div class="st">Cuentas por cobrar</div>
     <div id="conta-cxc"><div class="empty">Sin saldos pendientes en OP</div></div>
+  </div>
+  <div class="card" id="conta-cxp-card" style="margin-bottom:10px">
+    <div class="st" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Cuentas por pagar</span>
+      <button class="btn btn-ghost btn-sm" onclick="abrirCxp()">+ Proveedor</button>
+    </div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Facturas de tinta, tela, luz, etc. No entran como gasto hasta que las pagues. Guarda la foto del comprobante al pagar.</div>
+    <div id="conta-cxp"><div class="empty">Sin cuentas por pagar</div></div>
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="st">Reparto de ganancia</div>
@@ -293,6 +310,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="btn-row">
     <button class="btn btn-primary btn-sm" onclick="abrirMovimiento()">+ Movimiento</button>
+    <button class="btn btn-ghost btn-sm" onclick="abrirCxp()">+ Por pagar</button>
     <select class="fi btn-sm" id="conta-tipo-fil" style="max-width:120px" onchange="renderConta()">
       <option value="">Tipo: todos</option>
       <option value="ingreso">Ingresos</option>
@@ -877,6 +895,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="modal-header"><span class="modal-title" id="ant-titulo">Registrar anticipo</span><button class="close-btn" onclick="closeModal('modal-anticipo')">&#x2715;</button></div>
     <input type="hidden" id="ant-pres-id">
     <input type="hidden" id="ant-op-id">
+    <input type="hidden" id="ant-cxp-id">
     <input type="hidden" id="ant-modo" value="anticipo">
     <div id="ant-resumen" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
     <div class="fg">
@@ -899,6 +918,19 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="fg">
       <label class="fl">Nota (opcional)</label>
       <input class="fi" type="text" id="ant-nota" placeholder="Ej: Banco Venezuela, titular...">
+    </div>
+    <div class="fg">
+      <label class="fl">Foto del comprobante</label>
+      <div class="pago-foto-box">
+        <div class="pago-foto-actions">
+          <button type="button" class="btn btn-teal btn-sm" onclick="document.getElementById('ant-foto-cam').click()">📷 Cámara</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('ant-foto-gal').click()">Galería</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="ant-foto-quitar" style="display:none;color:var(--dt)" onclick="quitarPagoFoto()">Quitar</button>
+        </div>
+        <input type="file" id="ant-foto-cam" accept="image/*" capture="environment" style="display:none" onchange="cargarPagoFoto(this)">
+        <input type="file" id="ant-foto-gal" accept="image/*" style="display:none" onchange="cargarPagoFoto(this)">
+        <img id="ant-foto-preview" class="pago-foto-preview" alt="Comprobante" onclick="verFoto(_pagoFoto)">
+      </div>
     </div>
     <div id="ant-error" style="color:var(--dt);font-size:12px;margin-bottom:8px;display:none"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" id="ant-btn" onclick="confirmarPago()">✓ Confirmar anticipo y crear OP</button>
@@ -1022,8 +1054,71 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="fg"><label class="fl">Categoria</label>
       <select class="fi" id="mov-cat"></select>
     </div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:10px">Los ingresos alimentan los fondos. Los cobros de OP (anticipo y saldo) se registran solos al cobrar.</div>
+    <div class="fg">
+      <label class="fl">Foto del comprobante (opcional)</label>
+      <div class="pago-foto-box">
+        <div class="pago-foto-actions">
+          <button type="button" class="btn btn-teal btn-sm" onclick="document.getElementById('mov-foto-cam').click()">📷 Cámara</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('mov-foto-gal').click()">Galería</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="mov-foto-quitar" style="display:none;color:var(--dt)" onclick="quitarMovFoto()">Quitar</button>
+        </div>
+        <input type="file" id="mov-foto-cam" accept="image/*" capture="environment" style="display:none" onchange="cargarMovFoto(this)">
+        <input type="file" id="mov-foto-gal" accept="image/*" style="display:none" onchange="cargarMovFoto(this)">
+        <img id="mov-foto-preview" class="pago-foto-preview" alt="Comprobante" onclick="verFoto(_movFoto)">
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:10px">Los ingresos alimentan los fondos. Los cobros de OP (anticipo y saldo) se registran solos al cobrar. La foto queda guardada con el movimiento.</div>
     <button class="btn btn-primary" style="width:100%" onclick="guardarMovimiento()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL CUENTA POR PAGAR -->
+<div class="modal-bg" id="modal-cxp">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title" id="cxp-titulo">Cuenta por pagar</span><button class="close-btn" onclick="closeModal('modal-cxp')">&#x2715;</button></div>
+    <input type="hidden" id="cxp-id">
+    <div class="fg"><label class="fl">Proveedor</label><input class="fi" type="text" id="cxp-proveedor" placeholder="Ej: Tintas del Este, Corpoelec..."></div>
+    <div class="fg"><label class="fl">Concepto</label><input class="fi" type="text" id="cxp-desc" placeholder="Ej: Tinta magenta 1L, factura de luz..."></div>
+    <div class="row2">
+      <div class="fg"><label class="fl">Monto ($)</label><input class="fi" type="number" id="cxp-monto" value="0" min="0" step="0.01"></div>
+      <div class="fg"><label class="fl">Categoría</label>
+        <select class="fi" id="cxp-cat">
+          <option value="insumos">Insumos/Materiales</option>
+          <option value="operativos">Gastos operativos</option>
+          <option value="equipo">Equipo/Mantenimiento</option>
+          <option value="salarios">Salarios</option>
+          <option value="servicios">Servicios</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label class="fl">Fecha factura</label><input class="fi" type="date" id="cxp-fecha"></div>
+      <div class="fg"><label class="fl">Vence</label><input class="fi" type="date" id="cxp-vence"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Foto de la factura (opcional)</label>
+      <div class="pago-foto-box">
+        <div class="pago-foto-actions">
+          <button type="button" class="btn btn-teal btn-sm" onclick="document.getElementById('cxp-foto-cam').click()">📷 Cámara</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('cxp-foto-gal').click()">Galería</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cxp-foto-quitar" style="display:none;color:var(--dt)" onclick="quitarCxpFoto()">Quitar</button>
+        </div>
+        <input type="file" id="cxp-foto-cam" accept="image/*" capture="environment" style="display:none" onchange="cargarCxpFoto(this)">
+        <input type="file" id="cxp-foto-gal" accept="image/*" style="display:none" onchange="cargarCxpFoto(this)">
+        <img id="cxp-foto-preview" class="pago-foto-preview" alt="Factura" onclick="verFoto(_cxpFoto)">
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:10px">Queda pendiente hasta que registres el pago. Al pagar se crea el gasto y puedes adjuntar el comprobante (Pago Móvil, transferencia, etc.).</div>
+    <button class="btn btn-primary" style="width:100%" onclick="guardarCxp()">Guardar cuenta</button>
+  </div>
+</div>
+
+<!-- MODAL FOTO COMPROBANTE -->
+<div class="modal-bg" id="modal-foto" onclick="if(event.target===this)closeModal('modal-foto')">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Comprobante</span><button class="close-btn" onclick="closeModal('modal-foto')">&#x2715;</button></div>
+    <img id="foto-vista-img" alt="Comprobante" style="width:100%;max-height:75vh;object-fit:contain;border-radius:var(--r);background:#111">
   </div>
 </div>
 
@@ -1243,7 +1338,14 @@ function setPass(n){
 // ===== UTILS =====
 var LS={
   g:function(k){try{return JSON.parse(localStorage.getItem(k))||null}catch(e){return null}},
-  s:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  s:function(k,v){
+    try{localStorage.setItem(k,JSON.stringify(v))}
+    catch(e){
+      if(e&&(e.name==='QuotaExceededError'||e.code===22||e.code===1014)){
+        alert('No hay espacio para guardar. Las fotos de pagos ocupan memoria en el teléfono. Quita alguna foto o exporta un respaldo.');
+      }
+    }
+  },
 };
 function usd(n){return '$'+(+n||0).toFixed(2)}
 function fch(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
@@ -1569,6 +1671,8 @@ function renderDash(){
   document.getElementById('k-clientes').textContent=clientes.length;
   document.getElementById('k-presupuestos').textContent=presup.length+' presup. / '+ordenes.length+' OP';
   document.getElementById('k-cobrar').textContent=usd(totalPorCobrar());
+  var kPagar=document.getElementById('k-pagar');
+  if(kPagar)kPagar.textContent=usd(totalPorPagar());
   var m=hoy().slice(0,7);
   var ingMes=movs.filter(function(v){return v.tipo==='ingreso'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
   var gasMes=movs.filter(function(v){return v.tipo==='gasto'&&v.fecha&&v.fecha.startsWith(m)}).reduce(function(a,v){return a+(parseFloat(v.monto)||0)},0);
@@ -2033,6 +2137,85 @@ function setEstadoPres(id,estado){
 
 // ===== ANTICIPO =====
 var METODOS_PAGO=['Pago Móvil','Transferencia','Efectivo','Binance','Zelle'];
+var _pagoFoto='';
+var _movFoto='';
+var _cxpFoto='';
+function fotoChipBtn(fnCall){
+  return '<button type="button" class="foto-chip" aria-label="Ver comprobante" onclick="event.stopPropagation();'+fnCall+'">&#128247;</button>';
+}
+function setFotoPreview(previewId,quitarId,src){
+  var p=document.getElementById(previewId);
+  var q=document.getElementById(quitarId);
+  src=safeImgSrc(src)||'';
+  if(p){
+    if(src){p.src=src;p.style.display='block'}
+    else{p.removeAttribute('src');p.style.display='none'}
+  }
+  if(q)q.style.display=src?'':'none';
+  return src;
+}
+function resetPagoFoto(){
+  _pagoFoto='';
+  setFotoPreview('ant-foto-preview','ant-foto-quitar','');
+  var cam=document.getElementById('ant-foto-cam');
+  var gal=document.getElementById('ant-foto-gal');
+  if(cam)cam.value='';
+  if(gal)gal.value='';
+}
+function setPagoFoto(src){_pagoFoto=setFotoPreview('ant-foto-preview','ant-foto-quitar',src)}
+function quitarPagoFoto(){resetPagoFoto()}
+function cargarPagoFoto(input){
+  readImageFile(input.files[0],function(src){setPagoFoto(src)},960,220*1024);
+}
+function resetMovFoto(){
+  _movFoto='';
+  setFotoPreview('mov-foto-preview','mov-foto-quitar','');
+  var cam=document.getElementById('mov-foto-cam');
+  var gal=document.getElementById('mov-foto-gal');
+  if(cam)cam.value='';
+  if(gal)gal.value='';
+}
+function setMovFoto(src){_movFoto=setFotoPreview('mov-foto-preview','mov-foto-quitar',src)}
+function quitarMovFoto(){resetMovFoto()}
+function cargarMovFoto(input){
+  readImageFile(input.files[0],function(src){setMovFoto(src)},960,220*1024);
+}
+function resetCxpFoto(){
+  _cxpFoto='';
+  setFotoPreview('cxp-foto-preview','cxp-foto-quitar','');
+  var cam=document.getElementById('cxp-foto-cam');
+  var gal=document.getElementById('cxp-foto-gal');
+  if(cam)cam.value='';
+  if(gal)gal.value='';
+}
+function setCxpFoto(src){_cxpFoto=setFotoPreview('cxp-foto-preview','cxp-foto-quitar',src)}
+function quitarCxpFoto(){resetCxpFoto()}
+function cargarCxpFoto(input){
+  readImageFile(input.files[0],function(src){setCxpFoto(src)},960,220*1024);
+}
+function verFoto(src){
+  src=safeImgSrc(src);
+  if(!src)return;
+  document.getElementById('foto-vista-img').src=src;
+  openModal('modal-foto');
+}
+function verFotoMov(id){
+  var m=(LS.g('crm_movimientos')||[]).find(function(x){return x.id===id});
+  if(m)verFoto(m.foto);
+}
+function verFotoCxp(id){
+  var c=(LS.g('crm_cuentas_pagar')||[]).find(function(x){return x.id===id});
+  if(c)verFoto(c.foto);
+}
+function verFotoOpPago(opId,tipo){
+  var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===opId});
+  if(!o)return;
+  if(tipo==='saldo')verFoto(o.saldoPago&&o.saldoPago.foto);
+  else if(tipo==='abono'){
+    var last=(o.abonos||[]).slice().reverse().find(function(a){return a&&a.foto});
+    verFoto(last&&last.foto);
+  }else verFoto(o.anticipoPago&&o.anticipoPago.foto);
+}
 function selMetodoPago(m){
   document.getElementById('ant-metodo').value=m;
   document.querySelectorAll('#ant-metodos button').forEach(function(b){
@@ -2049,6 +2232,7 @@ function abrirAnticipo(presId){
   if(!p)return;
   document.getElementById('ant-pres-id').value=presId;
   document.getElementById('ant-op-id').value='';
+  document.getElementById('ant-cxp-id').value='';
   document.getElementById('ant-modo').value='anticipo';
   document.getElementById('ant-titulo').textContent='Registrar anticipo';
   document.getElementById('ant-btn').textContent='✓ Confirmar anticipo y crear OP';
@@ -2059,6 +2243,7 @@ function abrirAnticipo(presId){
   document.getElementById('ant-fecha').value=hoy();
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
+  resetPagoFoto();
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(p.clienteNombre||'')+'</div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total presupuesto</span><strong>'+usd(p.total||0)+'</strong></div>'
     +(sug?'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo sugerido</span><strong style="color:var(--coral)">'+usd(sug)+'</strong></div>':'');
@@ -2075,30 +2260,41 @@ function renderMetodosPago(){
 function abrirCobroSaldo(opId){
   var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===opId});
   if(!o)return;
-  var saldo=(o.monto||0)-(o.anticipo||0);
+  var saldo=saldoPendienteOP(o);
+  var yaAbonos=extraCobradoOP(o)>0;
   document.getElementById('ant-pres-id').value='';
   document.getElementById('ant-op-id').value=opId;
+  document.getElementById('ant-cxp-id').value='';
   document.getElementById('ant-modo').value='saldo';
-  document.getElementById('ant-titulo').textContent='Cobrar saldo';
-  document.getElementById('ant-btn').textContent='✓ Confirmar saldo y entregar';
+  document.getElementById('ant-titulo').textContent=yaAbonos?'Registrar abono':'Cobrar saldo';
+  document.getElementById('ant-btn').textContent=yaAbonos?'✓ Confirmar abono':'✓ Confirmar cobro';
   document.getElementById('ant-monto').value=saldo>0?saldo.toFixed(2):'';
   document.getElementById('ant-ref').value='';
   document.getElementById('ant-nota').value='';
   document.getElementById('ant-fecha').value=hoy();
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
+  resetPagoFoto();
   var ap=o.anticipoPago;
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(o.clienteNombre||'')+' <span style="font-weight:500;color:var(--tm);font-size:12px">OP #'+o.id.slice(-6).toUpperCase()+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total OP</span><strong>'+usd(o.monto||0)+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo'+(ap?' ('+escHtml(ap.metodo)+')':'')+'</span><strong style="color:var(--gt)">− '+usd(o.anticipo||0)+'</strong></div>'
-    +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Saldo a cobrar</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>';
+    +(extraCobradoOP(o)?'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Abonos</span><strong style="color:var(--gt)">− '+usd(extraCobradoOP(o))+'</strong></div>':'')
+    +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Pendiente</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>'
+    +'<div style="font-size:11px;color:var(--tm);margin-top:6px">Puedes cobrar menos y dejar el resto a crédito. Adjunta la foto del pago.</div>';
   renderMetodosPago();
   closeModal('modal-ver-op');
   openModal('modal-anticipo');
 }
 function confirmarPago(){
-  if(!requireTab('presupuestos')&&!requireTab('ordenes'))return;
-  if(document.getElementById('ant-modo').value==='saldo')confirmarSaldo();
+  var modo=document.getElementById('ant-modo').value;
+  if(modo==='cxp'){
+    if(!requireTab('conta'))return;
+    confirmarPagoCxp();
+    return;
+  }
+  if(!requireTab('presupuestos')&&!requireTab('ordenes')&&!requireTab('conta'))return;
+  if(modo==='saldo')confirmarSaldo();
   else confirmarAnticipo();
 }
 function leerPagoForm(){
@@ -2112,12 +2308,21 @@ function leerPagoForm(){
   var err=document.getElementById('ant-error');
   if(msg){err.textContent=msg;err.style.display='block';return null;}
   err.style.display='none';
-  return{monto:monto,metodo:metodo,referencia:ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),registrado:hoy()};
+  return{monto:monto,metodo:metodo,referencia:ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),foto:_pagoFoto||'',registrado:hoy()};
 }
 function confirmarSaldo(){
   var pago=leerPagoForm();
   if(!pago)return;
   var opId=document.getElementById('ant-op-id').value;
+  var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===opId});
+  if(!o)return;
+  var pend=saldoPendienteOP(o);
+  if(pago.monto>pend+0.009){
+    var err=document.getElementById('ant-error');
+    err.textContent='El monto no puede ser mayor al saldo pendiente ('+usd(pend)+').';
+    err.style.display='block';
+    return;
+  }
   closeModal('modal-anticipo');
   cobrarSaldoOP(opId,pago.monto,pago);
 }
@@ -2501,7 +2706,8 @@ function guardarOrden(){
       desc:'Anticipo OP #'+obj.id.slice(-6).toUpperCase()+' — '+obj.clienteNombre+(pagoAnt?' ('+pagoAnt.metodo+(pagoAnt.referencia?' Ref '+pagoAnt.referencia:'')+')':''),
       monto:obj.anticipo,fecha:pagoAnt?pagoAnt.fecha:hoy(),
       cat:'ventas',opId:obj.id,concepto:'anticipo',
-      metodo:pagoAnt?pagoAnt.metodo:'',referencia:pagoAnt?pagoAnt.referencia:''
+      metodo:pagoAnt?pagoAnt.metodo:'',referencia:pagoAnt?pagoAnt.referencia:'',
+      foto:pagoAnt&&pagoAnt.foto?pagoAnt.foto:''
     };
     movAnticipo.fondosAuditId=alimentarFondos(obj.anticipo,obj);
     var movsList=LS.g('crm_movimientos')||[];
@@ -2621,8 +2827,9 @@ function verOP(id){
 
   // PANEL FINANCIERO
   if(o.monto&&o.monto>0){
-    var saldo=o.monto-(o.anticipo||0);
-    var saldoCobrado=o.saldoCobrado||false;
+    var extraAb=extraCobradoOP(o);
+    var saldo=saldoPendienteOP(o);
+    var saldoCobrado=saldo<=0;
     // Desglose de costos desde presupuesto vinculado
     var costoProd=0,ganancia=0;
     if(o.presupuestoId){
@@ -2633,22 +2840,23 @@ function verOP(id){
     html+='<div style="font-size:10px;font-weight:700;color:var(--gt);letter-spacing:1px;margin-bottom:8px">💰 RESUMEN FINANCIERO</div>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">';
     html+='<div style="background:var(--s1);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--tm)">TOTAL OP</div><div style="font-size:16px;font-weight:700;color:var(--tp)">'+usd(o.monto)+'</div></div>';
-    html+='<div style="background:var(--gs);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--gt)">ANTICIPO COBRADO</div><div style="font-size:16px;font-weight:700;color:var(--gt)">'+usd(o.anticipo||0)+'</div>'+(o.anticipoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.anticipoPago.metodo)+(o.anticipoPago.referencia?' · Ref '+escHtml(o.anticipoPago.referencia):'')+' · '+fch(o.anticipoPago.fecha)+'</div>':'')+'</div>';
+    html+='<div style="background:var(--gs);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--gt)">ANTICIPO COBRADO</div><div style="font-size:16px;font-weight:700;color:var(--gt)">'+usd(o.anticipo||0)+'</div>'+(o.anticipoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.anticipoPago.metodo)+(o.anticipoPago.referencia?' · Ref '+escHtml(o.anticipoPago.referencia):'')+' · '+fch(o.anticipoPago.fecha)+(o.anticipoPago.foto?fotoChipBtn('verFotoOpPago(\''+id+'\',\'anticipo\')'):'')+'</div>':'')+'</div>';
     if(costoProd>0){
       html+='<div style="background:var(--ds);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--dt)">COSTO PRODUCCION</div><div style="font-size:16px;font-weight:700;color:var(--dt)">'+usd(costoProd)+'</div></div>';
       html+='<div style="background:var(--as);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--at)">GANANCIA EST.</div><div style="font-size:16px;font-weight:700;color:var(--at)">'+usd(ganancia)+'</div></div>';
     }
     html+='</div>';
+    if(extraAb>0){
+      html+='<div style="font-size:11px;color:var(--gt);margin-bottom:8px">Abonos posteriores: <strong>'+usd(extraAb)+'</strong>'+((o.abonos||[]).some(function(a){return a&&a.foto})||(o.saldoPago&&o.saldoPago.foto)?fotoChipBtn('verFotoOpPago(\''+id+'\',\'abono\')'):'')+'</div>';
+    }
     if(saldo>0){
-      html+='<div style="background:'+(saldoCobrado?'var(--gs)':'var(--ws)')+';border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center">';
-      html+='<div><div style="font-size:10px;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+';font-weight:700">'+(saldoCobrado?'✓ SALDO COBRADO':'SALDO PENDIENTE')+'</div>';
-      html+='<div style="font-size:20px;font-weight:700;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+'">'+usd(saldoCobrado&&o.saldoPago?o.saldoPago.monto:saldo)+'</div>'+(saldoCobrado&&o.saldoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.saldoPago.metodo)+(o.saldoPago.referencia?' · Ref '+escHtml(o.saldoPago.referencia):'')+' · '+fch(o.saldoPago.fecha)+'</div>':'')+'</div>';
-      if(!saldoCobrado&&(o.estado==='listo'||o.estado==='entregado')){
-        html+='<button class="btn btn-primary" style="font-size:12px" onclick="abrirCobroSaldo(&quot;'+id+'&quot;)">Cobrar saldo</button>';
-      }
+      html+='<div style="background:var(--ws);border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center">';
+      html+='<div><div style="font-size:10px;color:var(--wt);font-weight:700">SALDO PENDIENTE</div>';
+      html+='<div style="font-size:20px;font-weight:700;color:var(--wt)">'+usd(saldo)+'</div></div>';
+      html+='<button class="btn btn-primary" style="font-size:12px" onclick="abrirCobroSaldo(&quot;'+id+'&quot;)">'+(extraAb?'Abonar':'Cobrar saldo')+'</button>';
       html+='</div>';
     } else {
-      html+='<div style="font-size:12px;color:var(--gt);font-weight:600;text-align:center;padding:4px">✓ Monto totalmente cobrado</div>';
+      html+='<div style="font-size:12px;color:var(--gt);font-weight:600;text-align:center;padding:4px">✓ Monto totalmente cobrado'+(o.saldoPago&&o.saldoPago.foto?fotoChipBtn('verFotoOpPago(\''+id+'\',\'saldo\')'):'')+'</div>';
     }
     html+='</div>';
   }
@@ -2659,7 +2867,7 @@ function verOP(id){
   ESTADOS.forEach(function(e){
     var activo=o.estado===e.k;
     // Si hay saldo pendiente, bloquear botón "Entregado"
-    var saldoPend=(o.monto&&o.monto>0&&(o.monto-(o.anticipo||0))>0&&!o.saldoCobrado);
+    var saldoPend=saldoPendienteOP(o)>0;
     var bloqueado=e.k==='entregado'&&saldoPend;
     html+='<button style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--r);border:1.5px solid '+(activo?e.c:(bloqueado?'var(--bd)':'var(--bd)'))+';background:'+(activo?e.c:'transparent')+';color:'+(activo?'#fff':(bloqueado?'var(--tm)':e.c))+';font-weight:600;font-size:13px;cursor:'+(bloqueado?'not-allowed':'pointer')+';text-align:left;opacity:'+(bloqueado?'0.5':'1')+'" '+(bloqueado?'disabled':('onclick="setEstadoOP(&quot;'+id+'&quot;,&quot;'+e.k+'&quot;)"'))+'>';
     html+='<span style="width:8px;height:8px;border-radius:50%;background:'+(activo?'rgba(255,255,255,0.8)':e.c)+';flex-shrink:0"></span>';
@@ -2684,30 +2892,49 @@ function cobrarSaldoOP(id,saldo,pago){
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
   var o=lista[i];
-  // Registrar movimiento de saldo
+  var pend=saldoPendienteOP(o);
+  var monto=Math.min(parseFloat(saldo)||0,pend);
+  if(monto<=0)return;
+  if(pago)pago.monto=monto;
+  var esTotal=monto>=pend-0.009;
   var mov={
     id:uid(),tipo:'ingreso',
-    desc:'Saldo OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
-    monto:saldo,fecha:pago?pago.fecha:hoy(),
-    cat:'ventas',opId:o.id,concepto:'saldo',
-    metodo:pago?pago.metodo:'',referencia:pago?pago.referencia:''
+    desc:(esTotal?'Saldo':'Abono')+' OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
+    monto:monto,fecha:pago?pago.fecha:hoy(),
+    cat:'ventas',opId:o.id,concepto:esTotal?'saldo':'abono',
+    metodo:pago?pago.metodo:'',referencia:pago?pago.referencia:'',
+    foto:pago&&pago.foto?pago.foto:''
   };
-  mov.fondosAuditId=alimentarFondos(saldo,o);
+  mov.fondosAuditId=alimentarFondos(monto,o);
   var movsList=LS.g('crm_movimientos')||[];
   movsList.push(mov);
   LS.s('crm_movimientos',movsList);
-  // Marcar saldo como cobrado y pasar a entregado
-  lista[i].saldoCobrado=true;
-  lista[i].fechaCobroSaldo=pago?pago.fecha:hoy();
-  if(pago)lista[i].saldoPago=pago;
-  lista[i].estado='entregado';
+  if(!o.abonos||!o.abonos.length){
+    o.abonos=[];
+    if(o.saldoPago)o.abonos.push(o.saldoPago);
+  }
+  if(pago){
+    pago.id=pago.id||uid();
+    pago.movId=mov.id;
+    o.abonos.push(pago);
+    o.saldoPago=pago;
+  }
+  o.fechaCobroSaldo=pago?pago.fecha:hoy();
+  if(esTotal){
+    o.saldoCobrado=true;
+    o.estado='entregado';
+  }else{
+    o.saldoCobrado=false;
+  }
+  lista[i]=o;
   LS.s('crm_ordenes',lista);
   closeModal('modal-ver-op');
   renderOrdenes();
-  // Mostrar confirmación
+  renderConta();
+  renderDash();
   var cf=document.createElement('div');
   cf.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--gt);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
-  cf.textContent='✓ Saldo cobrado — OP entregada y registrada en contabilidad';
+  cf.textContent=esTotal?'✓ Saldo cobrado — OP entregada y registrada en contabilidad':'✓ Abono '+usd(monto)+' registrado. Queda '+usd(saldoPendienteOP(o));
   document.body.appendChild(cf);
   setTimeout(function(){cf.remove()},3500);
 }
@@ -2723,9 +2950,31 @@ var periodoConta='mes';
 var CONTA_CFG_DEFAULT={costoPct:35,impPct:10,negPct:80,ceoPct:15,operPct:5};
 var MOV_CAT_LABEL={ventas:'Ventas',servicios:'Servicios',insumos:'Insumos/Materiales',operativos:'Gastos operativos',equipo:'Equipo/Mantenimiento',salarios:'Salarios',otro:'Otro'};
 var _contaPctReady=false;
+function extraCobradoOP(o){
+  if(!o)return 0;
+  if(o.abonos&&o.abonos.length){
+    return o.abonos.reduce(function(s,a){return s+(parseFloat(a&&a.monto)||0)},0);
+  }
+  if(o.saldoPago)return parseFloat(o.saldoPago.monto)||0;
+  if(o.saldoCobrado)return Math.max(0,(parseFloat(o.monto)||0)-(parseFloat(o.anticipo)||0));
+  return 0;
+}
 function saldoPendienteOP(o){
-  if(!o||o.saldoCobrado)return 0;
-  return Math.max(0,(parseFloat(o.monto)||0)-(parseFloat(o.anticipo)||0));
+  if(!o)return 0;
+  return Math.max(0,(parseFloat(o.monto)||0)-(parseFloat(o.anticipo)||0)-extraCobradoOP(o));
+}
+function saldoCxp(c){
+  if(!c)return 0;
+  if(c.estado==='pagada')return 0;
+  var s=c.saldo!=null&&c.saldo!==''?parseFloat(c.saldo):parseFloat(c.monto);
+  if(isNaN(s))s=0;
+  return Math.max(0,s);
+}
+function totalPorPagar(){
+  return (LS.g('crm_cuentas_pagar')||[]).reduce(function(a,c){return a+saldoCxp(c)},0);
+}
+function cxpVencida(c){
+  return !!(c&&c.vencimiento&&saldoCxp(c)>0&&c.vencimiento<hoy());
 }
 function totalPorCobrar(){
   return (LS.g('crm_ordenes')||[]).reduce(function(a,o){return a+saldoPendienteOP(o)},0);
@@ -2740,7 +2989,9 @@ function movCatLabel(m){
   var extra='';
   var c=String(m&&m.cat||'').toLowerCase();
   if(m.concepto==='anticipo'||c==='anticipo')extra=' · Anticipo';
+  else if(m.concepto==='abono')extra=' · Abono';
   else if(m.concepto==='saldo'||c.indexOf('saldo')>=0)extra=' · Saldo';
+  else if(m.concepto==='pago-cxp'||m.cxpId)extra=' · CxP';
   return (MOV_CAT_LABEL[movCatKey(m)]||m.cat||'Otro')+extra;
 }
 function getContaCfg(){
@@ -2817,6 +3068,8 @@ function abrirMovimiento(id){
   document.getElementById('mov-monto').value=m?m.monto:0;
   document.getElementById('mov-fecha').value=m&&m.fecha?m.fecha:hoy();
   document.getElementById('mov-titulo').textContent=m?'Editar movimiento':'Registrar movimiento';
+  resetMovFoto();
+  if(m&&m.foto)setMovFoto(m.foto);
   openModal('modal-movimiento');
 }
 function abrirMovTap(ev,id){
@@ -2839,12 +3092,15 @@ function renderConta(){
   var ing=enPeriodo.filter(function(m){return m.tipo==='ingreso'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
   var gas=enPeriodo.filter(function(m){return m.tipo==='gasto'}).reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
   var cobrar=totalPorCobrar();
+  var pagar=totalPorPagar();
   document.getElementById('c-ingresos').textContent=usd(ing);
   document.getElementById('c-gastos2').textContent=usd(gas);
   document.getElementById('c-balance').textContent=usd(ing-gas);
   var balEl=document.getElementById('c-balance');
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
   document.getElementById('c-cobrar').textContent=usd(cobrar);
+  var cPagar=document.getElementById('c-pagar');
+  if(cPagar)cPagar.textContent=usd(pagar);
   document.getElementById('c-nmovs').textContent=String(fil.length);
   var costPct=parseFloat(document.getElementById('cd-costo-pct').value)||0;
   var impPct=parseFloat(document.getElementById('cd-imp-pct').value)||0;
@@ -2873,9 +3129,11 @@ function renderConta(){
   else{
     cxcEl.innerHTML=ops.slice(0,8).map(function(x){
       var o=x.o;
-      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(String(o.id).slice(-6).toUpperCase())+(o.estado?' · '+escHtml(o.estado):'')+'</div></div>';
+      var atrasada=o.fechaEntrega&&o.fechaEntrega<hoy();
+      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+(atrasada?' <span class="tag tag-red">VENCIDA</span>':'')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(String(o.id).slice(-6).toUpperCase())+(o.estado?' · '+escHtml(o.estado):'')+(o.fechaEntrega?' · Entrega '+fch(o.fechaEntrega):'')+'</div></div>';
     }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' OP más</div>':'');
   }
+  renderListaCxp();
   var byCat={};
   enPeriodo.forEach(function(m){
     var k=movCatKey(m);
@@ -2903,11 +3161,12 @@ function renderConta(){
   }
   el.innerHTML=fil.map(function(m){
     var extra=(m.metodo?' · '+m.metodo:'')+(m.referencia?' Ref '+m.referencia:'');
+    var cam=m.foto?fotoChipBtn('verFotoMov(\''+m.id+'\')'):'';
     return'<div class="swipe-wrap" data-id="'+m.id+'">'
       +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarMov(\''+m.id+'\')">'
       +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
       +'</button>'
-      +'<div class="list-item swipe-front" onclick="abrirMovTap(event,\''+m.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(m.desc)+'</span><span style="font-weight:700;color:'+(m.tipo==='ingreso'?'var(--gt)':'var(--dt)')+'">'+((m.tipo==='ingreso'?'+':'-'))+usd(m.monto)+'</span></div><div class="li-sub">'+fch(m.fecha)+' · '+escHtml(movCatLabel(m))+escHtml(extra)+(m.opId?' · OP':'')+'</div></div>'
+      +'<div class="list-item swipe-front" onclick="abrirMovTap(event,\''+m.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(m.desc)+cam+'</span><span style="font-weight:700;color:'+(m.tipo==='ingreso'?'var(--gt)':'var(--dt)')+'">'+((m.tipo==='ingreso'?'+':'-'))+usd(m.monto)+'</span></div><div class="li-sub">'+fch(m.fecha)+' · '+escHtml(movCatLabel(m))+escHtml(extra)+(m.opId?' · OP':'')+(m.cxpId?' · CxP':'')+'</div></div>'
       +'</div>';
   }).join('');
   bindSwipeDelete(el);
@@ -2929,16 +3188,18 @@ function guardarMovimiento(){
     var old=lista[i];
     if(old.fondosAuditId)revertirFondos(old.fondosAuditId);
     old.tipo=tipo;old.desc=desc;old.monto=monto;old.fecha=fecha;old.cat=cat;
+    old.foto=_movFoto||'';
     old.fondosAuditId=tipo==='ingreso'?alimentarFondos(monto):'';
     lista[i]=old;
   }else{
-    var m={id:uid(),tipo:tipo,desc:desc,monto:monto,fecha:fecha,cat:cat};
+    var m={id:uid(),tipo:tipo,desc:desc,monto:monto,fecha:fecha,cat:cat,foto:_movFoto||''};
     if(tipo==='ingreso')m.fondosAuditId=alimentarFondos(monto);
     lista.push(m);
   }
   LS.s('crm_movimientos',lista);
   closeModal('modal-movimiento');
   renderConta();
+  renderDash();
 }
 function eliminarMov(id){
   if(!requireTab('conta'))return;
@@ -2949,13 +3210,205 @@ function eliminarMov(id){
   if(m.fondosAuditId||m.tipo==='ingreso')msg='Eliminar este movimiento y revertir su aporte a fondos?';
   if(!confirmarBorrar(msg))return;
   if(m.fondosAuditId)revertirFondos(m.fondosAuditId);
-  if(m.opId&&m.concepto==='saldo'){
+  if(m.opId&&(m.concepto==='saldo'||m.concepto==='abono')){
     var ops=LS.g('crm_ordenes')||[];
     var oi=ops.findIndex(function(x){return x.id===m.opId});
-    if(oi>=0){ops[oi].saldoCobrado=false;delete ops[oi].fechaCobroSaldo;LS.s('crm_ordenes',ops)}
+    if(oi>=0){
+      var o=ops[oi];
+      if(o.abonos&&o.abonos.length){
+        o.abonos=o.abonos.filter(function(a){return a&&a.movId!==m.id});
+      }
+      if(o.saldoPago&&(o.saldoPago.movId===m.id||m.concepto==='saldo'))delete o.saldoPago;
+      o.saldoCobrado=false;
+      o.saldoCobrado=saldoPendienteOP(o)<=0.009;
+      if(!o.saldoCobrado&&o.estado==='entregado')o.estado='listo';
+      ops[oi]=o;
+      LS.s('crm_ordenes',ops);
+    }
   }
+  if(m.cxpId)revertirPagoCxp(m);
   LS.s('crm_movimientos',lista.filter(function(x){return x.id!==id}));
   renderConta();
+}
+
+function renderListaCxp(){
+  var el=document.getElementById('conta-cxp');
+  if(!el)return;
+  var lista=(LS.g('crm_cuentas_pagar')||[]).slice();
+  lista.sort(function(a,b){
+    var va=cxpVencida(a)?0:1,vb=cxpVencida(b)?0:1;
+    if(va!==vb)return va-vb;
+    return saldoCxp(b)-saldoCxp(a);
+  });
+  var abiertas=lista.filter(function(c){return saldoCxp(c)>0});
+  if(!abiertas.length){el.innerHTML='<div class="empty">Sin cuentas por pagar. Agrega facturas de proveedores.</div>';return}
+  el.innerHTML=abiertas.slice(0,12).map(function(c){
+    var venc=cxpVencida(c);
+    var tag=venc?'<span class="tag tag-red">VENCIDA</span>':(c.estado==='parcial'?'<span class="tag tag-orange">PARCIAL</span>':'<span class="tag tag-orange">ABIERTA</span>');
+    var cam=c.foto?fotoChipBtn('verFotoCxp(\''+c.id+'\')'):'';
+    return'<div class="list-item">'
+      +'<div class="li-top"><span class="li-name">'+escHtml(c.proveedor||'Proveedor')+cam+' '+tag+'</span><span style="font-weight:700;color:var(--dt)">'+usd(saldoCxp(c))+'</span></div>'
+      +'<div class="li-sub">'+escHtml(c.desc||MOV_CAT_LABEL[c.cat]||'')+(c.vencimiento?' · Vence '+fch(c.vencimiento):'')+(c.monto&&c.monto!==saldoCxp(c)?' · de '+usd(c.monto):'')+'</div>'
+      +'<div style="display:flex;gap:4px;margin-top:8px">'
+      +'<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();abrirPagoCxp(\''+c.id+'\')">Pagar</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirCxp(\''+c.id+'\')">Editar</button>'
+      +'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="event.stopPropagation();eliminarCxp(\''+c.id+'\')">X</button>'
+      +'</div></div>';
+  }).join('')+(abiertas.length>12?'<div class="li-sub" style="margin-top:4px">+'+(abiertas.length-12)+' más</div>':'');
+}
+function abrirCxp(id){
+  if(!requireTab('conta'))return;
+  var c=id?(LS.g('crm_cuentas_pagar')||[]).find(function(x){return x.id===id}):null;
+  document.getElementById('cxp-id').value=c?c.id:'';
+  document.getElementById('cxp-proveedor').value=c?c.proveedor:'';
+  document.getElementById('cxp-desc').value=c?c.desc:'';
+  document.getElementById('cxp-monto').value=c?c.monto:0;
+  document.getElementById('cxp-cat').value=c&&c.cat?c.cat:'insumos';
+  document.getElementById('cxp-fecha').value=c&&c.fecha?c.fecha:hoy();
+  document.getElementById('cxp-vence').value=c&&c.vencimiento?c.vencimiento:'';
+  document.getElementById('cxp-titulo').textContent=c?'Editar cuenta por pagar':'Nueva cuenta por pagar';
+  resetCxpFoto();
+  if(c&&c.foto)setCxpFoto(c.foto);
+  openModal('modal-cxp');
+}
+function guardarCxp(){
+  if(!requireTab('conta'))return;
+  var proveedor=(document.getElementById('cxp-proveedor').value||'').trim();
+  var desc=(document.getElementById('cxp-desc').value||'').trim();
+  var monto=parseFloat(document.getElementById('cxp-monto').value)||0;
+  if(!proveedor){alert('Escribe el proveedor.');return}
+  if(monto<=0){alert('El monto debe ser mayor a 0.');return}
+  var lista=LS.g('crm_cuentas_pagar')||[];
+  var id=document.getElementById('cxp-id').value;
+  var cat=document.getElementById('cxp-cat').value||'otro';
+  var fecha=document.getElementById('cxp-fecha').value||hoy();
+  var vence=document.getElementById('cxp-vence').value||'';
+  if(id){
+    var i=lista.findIndex(function(x){return x.id===id});
+    if(i<0)return;
+    var old=lista[i];
+    var pagado=(parseFloat(old.monto)||0)-(parseFloat(old.saldo)||0);
+    if(pagado<0)pagado=0;
+    old.proveedor=proveedor;old.desc=desc;old.cat=cat;old.fecha=fecha;old.vencimiento=vence;old.foto=_cxpFoto||'';
+    old.monto=monto;
+    old.saldo=Math.max(0,monto-pagado);
+    old.estado=old.saldo<=0?'pagada':(pagado>0?'parcial':'abierta');
+    lista[i]=old;
+  }else{
+    lista.push({
+      id:uid(),proveedor:proveedor,desc:desc,monto:monto,saldo:monto,
+      fecha:fecha,vencimiento:vence,cat:cat,foto:_cxpFoto||'',
+      estado:'abierta',pagos:[],creado:hoy()
+    });
+  }
+  LS.s('crm_cuentas_pagar',lista);
+  closeModal('modal-cxp');
+  renderConta();
+  renderDash();
+}
+function eliminarCxp(id){
+  if(!requireTab('conta'))return;
+  var lista=LS.g('crm_cuentas_pagar')||[];
+  var c=lista.find(function(x){return x.id===id});
+  if(!c)return;
+  var hayPagos=(c.pagos&&c.pagos.length)||((parseFloat(c.monto)||0)-(parseFloat(c.saldo)||0)>0.009);
+  if(hayPagos){
+    if(!confirmarBorrar('Esta cuenta tiene pagos. Se revertirán los gastos en contabilidad. Continuar?'))return;
+    var movs=LS.g('crm_movimientos')||[];
+    var ids=(c.pagos||[]).map(function(p){return p.movId}).filter(Boolean);
+    movs.forEach(function(m){
+      if(m.cxpId===id&&m.fondosAuditId)revertirFondos(m.fondosAuditId);
+    });
+    LS.s('crm_movimientos',movs.filter(function(m){return m.cxpId!==id&&ids.indexOf(m.id)<0}));
+  }else if(!confirmarBorrar('Eliminar esta cuenta por pagar?'))return;
+  LS.s('crm_cuentas_pagar',lista.filter(function(x){return x.id!==id}));
+  renderConta();
+  renderDash();
+}
+function abrirPagoCxp(id){
+  if(!requireTab('conta'))return;
+  var c=(LS.g('crm_cuentas_pagar')||[]).find(function(x){return x.id===id});
+  if(!c)return;
+  var saldo=saldoCxp(c);
+  if(saldo<=0){alert('Esta cuenta ya está pagada.');return}
+  document.getElementById('ant-pres-id').value='';
+  document.getElementById('ant-op-id').value='';
+  document.getElementById('ant-cxp-id').value=id;
+  document.getElementById('ant-modo').value='cxp';
+  document.getElementById('ant-titulo').textContent='Pagar a '+c.proveedor;
+  document.getElementById('ant-btn').textContent='✓ Confirmar pago';
+  document.getElementById('ant-monto').value=saldo.toFixed(2);
+  document.getElementById('ant-ref').value='';
+  document.getElementById('ant-nota').value='';
+  document.getElementById('ant-fecha').value=hoy();
+  document.getElementById('ant-metodo').value='';
+  document.getElementById('ant-error').style.display='none';
+  resetPagoFoto();
+  document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(c.proveedor)+'</div>'
+    +'<div style="color:var(--ts);font-size:12px;margin-top:2px">'+escHtml(c.desc||'')+'</div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:6px"><span style="color:var(--ts)">Factura</span><strong>'+usd(c.monto||0)+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Por pagar</span><strong style="color:var(--dt)">'+usd(saldo)+'</strong></div>'
+    +'<div style="font-size:11px;color:var(--tm);margin-top:6px">Puedes pagar menos (abono). El gasto entra a contabilidad ahora. Adjunta la foto del comprobante.</div>';
+  renderMetodosPago();
+  closeModal('modal-cxp');
+  openModal('modal-anticipo');
+}
+function confirmarPagoCxp(){
+  var pago=leerPagoForm();
+  if(!pago)return;
+  var id=document.getElementById('ant-cxp-id').value;
+  var lista=LS.g('crm_cuentas_pagar')||[];
+  var i=lista.findIndex(function(x){return x.id===id});
+  if(i<0)return;
+  var c=lista[i];
+  var pend=saldoCxp(c);
+  if(pago.monto>pend+0.009){
+    var err=document.getElementById('ant-error');
+    err.textContent='El monto no puede ser mayor a lo pendiente ('+usd(pend)+').';
+    err.style.display='block';
+    return;
+  }
+  var monto=Math.min(pago.monto,pend);
+  pago.monto=monto;
+  pago.id=uid();
+  var mov={
+    id:uid(),tipo:'gasto',
+    desc:'Pago '+c.proveedor+(c.desc?' — '+c.desc:'')+(pago.metodo?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
+    monto:monto,fecha:pago.fecha||hoy(),
+    cat:c.cat||'otro',cxpId:c.id,pagoId:pago.id,concepto:'pago-cxp',
+    metodo:pago.metodo||'',referencia:pago.referencia||'',foto:pago.foto||''
+  };
+  pago.movId=mov.id;
+  var movs=LS.g('crm_movimientos')||[];
+  movs.push(mov);
+  LS.s('crm_movimientos',movs);
+  c.pagos=c.pagos||[];
+  c.pagos.push(pago);
+  c.saldo=Math.max(0,pend-monto);
+  c.estado=c.saldo<=0?'pagada':(c.saldo<c.monto?'parcial':'abierta');
+  lista[i]=c;
+  LS.s('crm_cuentas_pagar',lista);
+  closeModal('modal-anticipo');
+  renderConta();
+  renderDash();
+  var cf=document.createElement('div');
+  cf.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--gt);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
+  cf.textContent=c.estado==='pagada'?'✓ Pagado a '+c.proveedor+' — gasto registrado':'✓ Abono '+usd(monto)+' a '+c.proveedor+'. Queda '+usd(c.saldo);
+  document.body.appendChild(cf);
+  setTimeout(function(){cf.remove()},3500);
+}
+function revertirPagoCxp(m){
+  if(!m||!m.cxpId)return;
+  var lista=LS.g('crm_cuentas_pagar')||[];
+  var i=lista.findIndex(function(x){return x.id===m.cxpId});
+  if(i<0)return;
+  var c=lista[i];
+  c.saldo=(parseFloat(c.saldo)||0)+(parseFloat(m.monto)||0);
+  if(c.saldo>c.monto)c.saldo=c.monto;
+  c.pagos=(c.pagos||[]).filter(function(p){return p&&p.movId!==m.id&&p.id!==m.pagoId});
+  c.estado=c.saldo<=0?'pagada':(c.saldo<c.monto?'parcial':'abierta');
+  lista[i]=c;
+  LS.s('crm_cuentas_pagar',lista);
 }
 
 // ===== FONDOS =====
@@ -3825,7 +4278,7 @@ function eliminarInsumo(id){
 }
 
 // ===== BACKUP =====
-var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals','crm_usuarios'];
+var CRM_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_cuentas_pagar','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals','crm_usuarios'];
 function abrirBackup(){
   if(!requireTab('backup'))return;
   openModal('modal-backup');
@@ -3910,17 +4363,46 @@ function safeMailto(email){
   if(!/^[^\s@<>"'\\]+@[^\s@<>"'\\]+\.[^\s@<>"'\\]+$/.test(email))return '';
   return 'mailto:'+encodeURIComponent(email).replace(/%40/g,'@');
 }
-function readImageFile(file,cb){
+function readImageFile(file,cb,maxDim,maxBytes){
   if(!file)return;
   if(!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)){alert('Usa una imagen PNG, JPG, GIF o WebP');return}
-  if(file.size>800*1024){alert('La imagen debe pesar menos de 800 KB');return}
   var reader=new FileReader();
   reader.onload=function(e){
-    var src=safeImgSrc(e.target.result);
-    if(!src){alert('Imagen no valida');return}
-    cb(src);
+    comprimirImagen(e.target.result,function(src){
+      src=safeImgSrc(src);
+      if(!src){alert('Imagen no valida');return}
+      cb(src);
+    },maxDim,maxBytes);
   };
   reader.readAsDataURL(file);
+}
+function comprimirImagen(dataUrl,cb,maxDim,maxBytes){
+  maxDim=maxDim||1280;
+  maxBytes=maxBytes||700*1024;
+  var img=new Image();
+  img.onload=function(){
+    var w=img.width,h=img.height;
+    if(!w||!h){cb(dataUrl);return}
+    if(w>maxDim||h>maxDim){
+      if(w>h){h=Math.round(h*maxDim/w);w=maxDim}
+      else{w=Math.round(w*maxDim/h);h=maxDim}
+    }
+    var canvas=document.createElement('canvas');
+    var ctx=canvas.getContext('2d');
+    var q=0.74,out='',i;
+    for(i=0;i<8;i++){
+      canvas.width=w;canvas.height=h;
+      ctx.drawImage(img,0,0,w,h);
+      try{out=canvas.toDataURL('image/jpeg',q)}catch(err){cb(dataUrl);return}
+      if(out.length<=maxBytes*1.37)break;
+      if(q>0.45)q-=0.12;
+      else{w=Math.max(480,Math.round(w*0.82));h=Math.max(360,Math.round(h*0.82));q=0.7}
+    }
+    if(!out||out.length>maxBytes*1.7){alert('La foto sigue siendo muy pesada. Recórtala o toma otra más cerca.');return}
+    cb(out);
+  };
+  img.onerror=function(){alert('Imagen no valida')};
+  img.src=dataUrl;
 }
 function confirmarBorrar(msg){return window.confirm(msg||'Eliminar este registro?')}
 function bindSwipeDelete(root){
@@ -4085,15 +4567,16 @@ function bindSwipeDelete(root){
 var SB_URL='__SB_URL__';
 var SB_KEY='__SB_KEY__';
 var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciado=false,CLOUD_ORG=null;
-var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'];
+var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_cuentas_pagar','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'];
 var CLOUD_KEY_ROLES={
   crm_clientes:['admin','ventas'],
   crm_presupuestos:['admin','ventas','diseno'],
-  crm_ordenes:['admin','ventas','operadora'],
+  crm_ordenes:['admin','ventas','operadora','conta'],
   crm_costos:['admin','operadora','diseno'],
   crm_catalogo:['admin','ventas','diseno'],
   crm_inventario:['admin','operadora'],
   crm_movimientos:['admin','conta'],
+  crm_cuentas_pagar:['admin','conta'],
   crm_fondos_config:['admin','conta'],
   crm_fondos_audit:['admin','conta'],
   crm_conta_config:['admin','conta'],
@@ -4150,7 +4633,7 @@ function cloudErr(e){
 function cloudSubirLocal(){
   if(!CLOUD_ON||!sb||!SB_USER||!CLOUD_ORG){alert('Entra primero con tu correo de la nube.');return}
   if(!authCanUsers())return;
-  if(!confirm('Esto copia lo de ESTE teléfono (clientes, presupuestos, OP, costos, inventario, contabilidad y fondos) a Supabase. Si ya hay datos en la nube, se reemplazan por los de este celular. Continuar?'))return;
+  if(!confirm('Esto copia lo de ESTE teléfono (clientes, presupuestos, OP, costos, inventario, contabilidad, cuentas por pagar y fondos) a Supabase. Si ya hay datos en la nube, se reemplazan por los de este celular. Continuar?'))return;
   var p={};
   CLOUD_DATA_KEYS.forEach(function(k){if(cloudCanKey(k))p[k]=1});
   _sbSetPend(p);
