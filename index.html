@@ -1147,21 +1147,36 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Usuarios y roles</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
     <div id="lista-usuarios"></div>
-    <div class="st" style="margin-top:14px" id="nu-nuevo-st">Nuevo usuario</div>
-    <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
-    <div class="fg" id="nu-email-wrap" style="display:none"><label class="fl">Correo de la persona</label><input class="fi" type="email" id="nu-email" placeholder="maria@correo.com" autocomplete="off"></div>
+    <div id="nu-local-block">
+      <div class="st" style="margin-top:14px">Nuevo usuario</div>
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
       <div class="fg" id="nu-usuario-wrap"><label class="fl" id="nu-usuario-lbl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
-    <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
-    <div class="fg"><label class="fl">Rol</label>
-      <select class="fi" id="nu-rol">
-        <option value="ventas">Ventas</option>
-        <option value="operadora">Produccion</option>
-        <option value="conta">Contabilidad</option>
-        <option value="diseno">Diseno</option>
-        <option value="admin">Dueño / Admin</option>
-      </select>
+      <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
+      <div class="fg"><label class="fl">Rol</label>
+        <select class="fi" id="nu-rol">
+          <option value="ventas">Ventas</option>
+          <option value="operadora">Produccion</option>
+          <option value="conta">Contabilidad</option>
+          <option value="diseno">Diseno</option>
+          <option value="admin">Dueño / Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px" id="nu-crear-btn" onclick="crearUsuario()">Crear usuario</button>
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:8px" id="nu-crear-btn" onclick="crearUsuario()">Crear usuario</button>
+    <div id="nu-cloud-block" style="display:none">
+      <div class="st" style="margin-top:14px">Invitar al equipo</div>
+      <div class="fg"><label class="fl">Correo de quien vas a invitar</label><input class="fi" type="email" id="nu-email" placeholder="maria@correo.com" autocomplete="off" onkeydown="if(event.key==='Enter')crearUsuario()"></div>
+      <div class="fg"><label class="fl">Rol</label>
+        <select class="fi" id="nu-rol-cloud">
+          <option value="ventas">Ventas</option>
+          <option value="operadora">Produccion</option>
+          <option value="conta">Contabilidad</option>
+          <option value="diseno">Diseno</option>
+          <option value="admin">Dueño / Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center" id="nu-enviar-btn" onclick="crearUsuario()">Enviar</button>
+    </div>
     <div id="nu-invite-out" style="display:none;margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;font-size:13px;line-height:1.5"></div>
     <div id="nu-cloud-cfg" style="display:none;margin-top:16px">
       <div class="st">Conectar nube (Supabase)</div>
@@ -1433,21 +1448,16 @@ function abrirUsuarios(){
   document.getElementById('nu-nombre').value='';
   document.getElementById('nu-usuario').value='';
   document.getElementById('nu-clave').value='';
-  var em=document.getElementById('nu-email'); if(em)em.value='';
   document.getElementById('nu-rol').value='ventas';
+  var em=document.getElementById('nu-email'); if(em)em.value='';
+  var rc=document.getElementById('nu-rol-cloud'); if(rc)rc.value='ventas';
   var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
-  var uw=document.getElementById('nu-usuario-wrap');
-  var cw=document.getElementById('nu-clave-wrap');
-  var ew=document.getElementById('nu-email-wrap');
-  var btn=document.getElementById('nu-crear-btn');
+  var localB=document.getElementById('nu-local-block');
+  var cloudB=document.getElementById('nu-cloud-block');
   var out=document.getElementById('nu-invite-out');
   var cfg=document.getElementById('nu-cloud-cfg');
-  var st=document.getElementById('nu-nuevo-st');
-  if(uw)uw.style.display=cloud?'none':'';
-  if(cw)cw.style.display=cloud?'none':'';
-  if(ew)ew.style.display=cloud?'':'none';
-  if(st)st.textContent=cloud?'Invitar al equipo':'Nuevo usuario';
-  if(btn)btn.textContent=cloud?'Crear invitación y abrir correo':'Crear usuario';
+  if(localB)localB.style.display=cloud?'none':'';
+  if(cloudB)cloudB.style.display=cloud?'':'none';
   if(out){out.style.display='none';out.innerHTML=''}
   if(cfg){
     cfg.style.display=(!cloud&&authCanUsers())?'':'none';
@@ -4332,13 +4342,16 @@ function cloudWhatsAppInvitacion(code,nombre,rol){
 }
 function cloudCrearInvitacion(){
   if(!CLOUD_ORG||!sb)return;
-  var nombre=(document.getElementById('nu-nombre').value||'').trim();
-  var email=(document.getElementById('nu-email')&&document.getElementById('nu-email').value||'').trim().toLowerCase();
-  var rol=document.getElementById('nu-rol').value||'ventas';
+  var email=((document.getElementById('nu-email')&&document.getElementById('nu-email').value)||'').trim().toLowerCase();
+  var rol=(document.getElementById('nu-rol-cloud')&&document.getElementById('nu-rol-cloud').value)||'ventas';
   if(!ROLES[rol])rol='ventas';
-  if(!email||email.indexOf('@')<1){alert('Escribe el correo de la persona para enviarle la invitación.');return}
+  if(!email||email.indexOf('@')<1){alert('Escribe el correo de quien vas a invitar.');return}
+  var nombre=email.split('@')[0];
   var code=cloudInviteCode();
-  var row={org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre||null,created_by:SB_USER.id,email:email};
+  var row={org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre,created_by:SB_USER.id,email:email};
+  var btn=document.getElementById('nu-enviar-btn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.6'}
+  var fin=function(){if(btn){btn.disabled=false;btn.style.opacity='1'}};
   sb.from('cromat_invites').insert(row).then(function(r){
     if(r.error&&/email/i.test(r.error.message||'')){
       delete row.email;
@@ -4346,25 +4359,18 @@ function cloudCrearInvitacion(){
     }
     return r;
   }).then(function(r){
+    fin();
     if(r.error){alert(cloudErr(r.error));return}
+    if(document.getElementById('nu-email'))document.getElementById('nu-email').value='';
+    if(document.getElementById('nu-rol-cloud'))document.getElementById('nu-rol-cloud').value='ventas';
     var out=document.getElementById('nu-invite-out');
-    var link=cloudInviteLink(code);
     if(out){
       out.style.display='';
-      out.innerHTML='<div style="font-weight:700;margin-bottom:6px">Invitación para '+escHtml(authRol(rol).l)+'</div>'
-        +'<div style="margin-bottom:6px">'+escHtml(nombre||email)+' · '+escHtml(email)+'</div>'
-        +'<div style="font-size:12px;word-break:break-all;margin-bottom:8px">Código: <strong>'+escHtml(code)+'</strong><br>'+escHtml(link)+'</div>'
-        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        +'<button class="btn btn-primary btn-sm" type="button" onclick="cloudAbrirCorreoInvitacion(\''+escHtml(email)+'\',\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">Abrir correo</button>'
-        +'<button class="btn btn-teal btn-sm" type="button" onclick="cloudWhatsAppInvitacion(\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">WhatsApp</button>'
-        +'<button class="btn btn-ghost btn-sm" type="button" onclick="cloudCopiarInvitacion(\''+escHtml(code)+'\',\''+escHtml(nombre)+'\',\''+escHtml(rol)+'\')">Copiar</button>'
-        +'</div>';
+      out.innerHTML='Invitación de '+escHtml(authRol(rol).l)+' enviada a <strong>'+escHtml(email)+'</strong>. Se abrió tu correo; dale enviar. Si no abre, usa WhatsApp o Copiar en la lista de abajo.';
     }
-    document.getElementById('nu-nombre').value='';
-    if(document.getElementById('nu-email'))document.getElementById('nu-email').value='';
     cloudRenderUsuarios();
     cloudAbrirCorreoInvitacion(email,code,nombre,rol);
-  });
+  },function(){fin();alert('Sin conexion')});
 }
 function cloudRenderUsuarios(){
   var el=document.getElementById('lista-usuarios');
