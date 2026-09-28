@@ -267,11 +267,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <input class="fi" type="date" id="conta-hasta" style="max-width:140px" onchange="renderConta()">
   </div>
   <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
-    <div class="kpi green"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos cobrados</div></div>
-    <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos</div></div>
+    <div class="kpi green"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos mes</div></div>
+    <div class="kpi" style="border-left:3px solid var(--dt)"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos mes</div></div>
     <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
   </div>
-  <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Lo cobrado en el periodo (anticipos, saldos y extras)</div>
+  <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Cifras del mes: lo cobrado y los gastos</div>
   <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
     <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
     <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
@@ -282,7 +282,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="st">Reparto de ganancia</div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Estimación sobre los ingresos cobrados del periodo. El 80 / 15 / 5 se aplica a la ganancia estimada (después de costo e impuesto). Los gastos reales están en el resultado de arriba; los fondos se reservan aparte con cada cobro.</div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Montos sobre lo cobrado este mes. El 80 / 15 / 5 se aplica a la ganancia estimada (después de costo e impuesto). Lo por cobrar no entra hasta que se cobre. Los gastos reales están en el resultado de arriba.</div>
     <div id="conta-dist">
       <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-costo">$0</span></span></div>
       <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-imp">$0</span></span></div>
@@ -305,7 +305,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="dist-row" style="margin-top:8px;border-bottom:none"><span class="result-label">Fijos + agregados</span><span style="font-size:12px;font-weight:700" id="conta-gastos-split">$0</span></div>
   </div>
   <div class="card" style="margin-bottom:10px">
-    <div class="st">Por categoria (periodo)</div>
+    <div class="st">Por categoria (mes)</div>
     <div id="conta-cats"><div class="empty">Sin desglose</div></div>
   </div>
   <div class="btn-row">
@@ -1619,7 +1619,10 @@ function goTab(id){
   if(id==='clientes')renderClientes();
   if(id==='presupuestos')renderPresupuestos();
   if(id==='ordenes')renderOrdenes();
-  if(id==='conta')renderConta();
+  if(id==='conta'){
+    if(periodoConta!=='mes')setPeriodo('mes');
+    else renderConta();
+  }
   if(id==='fondos')renderFondos();
   if(id==='costos')renderCostos();
   if(id==='catalogo')renderCatalogo();
@@ -3063,10 +3066,11 @@ function renderConta(){
     if(catFil&&movCatKey(m)!==catFil)return false;
     return true;
   });
-  var cob=periodoConta==='mes'?cobrosDelPeriodo(movs,hoy().slice(0,7)):cobrosDelPeriodo(movs,null,r.desde,r.hasta);
+  var ym=hoy().slice(0,7);
+  var cob=cobrosDelPeriodo(movs,ym);
   var ing=cob.total;
-  var extra=gastosAgregados(enPeriodo,r.desde,r.hasta);
-  var fijos=fijosEnRango(r.desde,r.hasta,periodoConta);
+  var extra=gastosAgregados(movs,null,null,ym);
+  var fijos=totalGastosFijos();
   var gas=fijos+extra;
   var cobrar=totalPorCobrar();
   document.getElementById('c-ingresos').textContent=usd(ing);
@@ -3075,7 +3079,10 @@ function renderConta(){
   var split=document.getElementById('conta-gastos-split');
   if(split)split.textContent=usd(fijos)+' + '+usd(extra)+' = '+usd(gas);
   var ingSplit=document.getElementById('conta-ing-split');
-  if(ingSplit)ingSplit.textContent='Lo cobrado: OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total);
+  if(ingSplit){
+    var nota=periodoConta==='mes'?'':'Hoy / Semana / Rango filtra la lista de abajo. ';
+    ingSplit.textContent=nota+'Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+' · Gastos '+usd(gas)+' · Resultado '+usd(ing-gas);
+  }
   renderGastosFijos();
   var balEl=document.getElementById('c-balance');
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'';
@@ -3112,18 +3119,17 @@ function renderConta(){
     }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' OP más</div>':'');
   }
   var byCat={};
-  enPeriodo.forEach(function(m){
+  var movsMes=movs.filter(function(m){return m.fecha&&String(m.fecha).startsWith(ym)});
+  movsMes.forEach(function(m){
     var k=movCatKey(m);
     if(!byCat[k])byCat[k]={ing:0,gas:0};
     if(m.tipo==='ingreso')byCat[k].ing+=(parseFloat(m.monto)||0);
     else byCat[k].gas+=(parseFloat(m.monto)||0);
   });
-  var totF=totalGastosFijos();
-  var factorF=totF?fijos/totF:0;
   getGastosFijos().forEach(function(f){
     var k=f.cat&&MOV_CAT_LABEL[f.cat]?f.cat:'operativos';
     if(!byCat[k])byCat[k]={ing:0,gas:0};
-    byCat[k].gas+=(parseFloat(f.monto)||0)*factorF;
+    byCat[k].gas+=(parseFloat(f.monto)||0);
   });
   if(cob.backfill){
     if(!byCat.ventas)byCat.ventas={ing:0,gas:0};
