@@ -188,7 +188,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div class="st" style="margin-top:14px">Stock bajo</div>
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div style="margin-top:16px">
-    <div style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
+    <div id="dash-local-note" style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
     <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="abrirBackup()">&#128190; Exportar / Importar datos</button>
   </div>
 </div>
@@ -1124,8 +1124,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div id="lista-usuarios"></div>
     <div class="st" style="margin-top:14px">Nuevo usuario</div>
     <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
-    <div class="fg"><label class="fl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
-    <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 4 caracteres" autocomplete="new-password"></div>
+      <div class="fg" id="nu-usuario-wrap"><label class="fl" id="nu-usuario-lbl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
+    <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
     <div class="fg"><label class="fl">Rol</label>
       <select class="fi" id="nu-rol">
         <option value="ventas">Ventas</option>
@@ -1135,7 +1135,15 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <option value="admin">Dueño / Admin</option>
       </select>
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="crearUsuario()">Crear usuario</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" id="nu-crear-btn" onclick="crearUsuario()">Crear usuario</button>
+    <div id="nu-invite-out" style="display:none;margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;font-size:13px"></div>
+    <div id="nu-cloud-cfg" style="display:none;margin-top:16px">
+      <div class="st">Conectar nube</div>
+      <p style="font-size:12px;color:var(--ts);margin-bottom:8px">Pega la URL y la clave anon de Supabase. Luego recarga e inicia sesion con correo.</p>
+      <div class="fg"><label class="fl">Project URL</label><input class="fi" type="url" id="sb-url" placeholder="https://xxxx.supabase.co"></div>
+      <div class="fg"><label class="fl">anon public</label><input class="fi" type="text" id="sb-key" placeholder="eyJ..." autocomplete="off"></div>
+      <button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="guardarConfigNube()">Guardar y recargar</button>
+    </div>
   </div>
 </div>
 
@@ -1273,19 +1281,31 @@ function authMsg(txt,err){
   m.style.color=err?'var(--dt)':'var(--gt)';
 }
 function authShowLogin(){
-  var setup=!authUsers().length;
+  var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
+  var setup=!cloud&&!authUsers().length;
   var titulo=document.getElementById('login-titulo');
   var sub=document.getElementById('login-sub');
   var nom=document.getElementById('login-nombre-wrap');
+  var inv=document.getElementById('login-invite-wrap');
   var btn=document.getElementById('login-btn');
   var pass=document.getElementById('login-pass');
   var scr=document.getElementById('login-screen');
+  var lbl=document.getElementById('login-email-lbl');
+  var links=document.getElementById('login-cloud-links');
+  var note=document.getElementById('login-local-note');
   if(!scr)return;
-  if(titulo)titulo.textContent=setup?'Crear administrador':'Iniciar sesión';
-  if(sub)sub.textContent=setup?'Primera vez: crea el usuario dueño (clave de 8 caracteres o más) y luego invita al equipo.':'Entra con tu usuario y clave.';
-  if(nom)nom.style.display=setup?'':'none';
-  if(btn)btn.textContent=setup?'Crear y entrar':'Entrar';
-  if(pass)pass.autocomplete=setup?'new-password':'current-password';
+  if(cloud&&typeof cloudSetModo==='function'){cloudSetModo(window._sbModo||'login')}
+  else{
+    if(titulo)titulo.textContent=setup?'Crear administrador':'Iniciar sesión';
+    if(sub)sub.textContent=setup?'Primera vez: crea el usuario dueño (clave de 8 caracteres o más) y luego invita al equipo.':'Entra con tu usuario y clave.';
+    if(nom)nom.style.display=setup?'':'none';
+    if(inv)inv.style.display='none';
+    if(btn)btn.textContent=setup?'Crear y entrar':'Entrar';
+    if(lbl)lbl.textContent='Usuario';
+    if(links)links.style.display='none';
+    if(note)note.textContent='Los datos se guardan en este dispositivo. Quien use este teléfono ve la misma información. Aún no hay nube activa.';
+  }
+  if(pass)pass.autocomplete=setup||(cloud&&window._sbModo!=='login')?'new-password':'current-password';
   scr.style.display='flex';
   var salir=document.getElementById('btn-salir');if(salir)salir.style.display='none';
   var us=document.getElementById('btn-usuarios');if(us)us.style.display='none';
@@ -1305,6 +1325,8 @@ function authApplyUI(){
     var b=document.getElementById('nb-'+id);
     if(b)b.style.display=authCan(id)?'':'none';
   });
+  var dn=document.getElementById('dash-local-note');
+  if(dn)dn.textContent=(typeof CLOUD_ON!=='undefined'&&CLOUD_ON)?'Datos de la empresa en la nube. Cada quien ve solo lo de su rol.':'Los datos se guardan en este dispositivo. Aún no hay nube activa.';
 }
 function authSetSession(u){
   AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,rol:u.rol,t:Date.now()};
@@ -1313,6 +1335,7 @@ function authSetSession(u){
   goTab(authFirstTab());
 }
 function authLogin(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudAuth==='function'){cloudAuth();return}
   var usuario=(document.getElementById('login-email').value||'').trim().toLowerCase();
   var pass=document.getElementById('login-pass').value||'';
   var btn=document.getElementById('login-btn');
@@ -1349,9 +1372,7 @@ function authLogin(){
   }).catch(function(){authMsg('Este navegador no permite comprobar la clave.',true);fin()});
 }
 function authLogout(){
-  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof sb!=='undefined'&&sb){
-    try{sb.auth.signOut()}catch(e){}
-  }
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudLogout==='function'){cloudLogout();return}
   AUTH=null;
   localStorage.removeItem('cromat_session');
   document.getElementById('login-email').value='';
@@ -1360,6 +1381,7 @@ function authLogout(){
   authShowLogin();
 }
 function authBoot(){
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON){authShowLogin();return}
   var raw=localStorage.getItem('cromat_session');
   var ses=null;
   try{ses=raw?JSON.parse(raw):null}catch(e){ses=null}
@@ -1380,12 +1402,24 @@ function abrirUsuarios(){
   document.getElementById('nu-usuario').value='';
   document.getElementById('nu-clave').value='';
   document.getElementById('nu-rol').value='ventas';
+  var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
+  var uw=document.getElementById('nu-usuario-wrap');
+  var cw=document.getElementById('nu-clave-wrap');
+  var btn=document.getElementById('nu-crear-btn');
+  var out=document.getElementById('nu-invite-out');
+  var cfg=document.getElementById('nu-cloud-cfg');
+  if(uw)uw.style.display=cloud?'none':'';
+  if(cw)cw.style.display=cloud?'none':'';
+  if(btn)btn.textContent=cloud?'Crear codigo de invitacion':'Crear usuario';
+  if(out){out.style.display='none';out.textContent=''}
+  if(cfg)cfg.style.display=(!cloud&&authCanUsers())?'':'none';
   renderUsuarios();
   openModal('modal-usuarios');
 }
 function renderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el)return;
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudRenderUsuarios==='function'){cloudRenderUsuarios();return}
   var lista=authUsers();
   el.innerHTML=lista.map(function(u){
     var yo=AUTH&&u.id===AUTH.id;
@@ -1400,6 +1434,7 @@ function renderUsuarios(){
 }
 function crearUsuario(){
   if(!authCanUsers())return;
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudCrearInvitacion==='function'){cloudCrearInvitacion();return}
   var nombre=(document.getElementById('nu-nombre').value||'').trim();
   var usuario=(document.getElementById('nu-usuario').value||'').trim().toLowerCase();
   var pass=document.getElementById('nu-clave').value||'';
@@ -1421,6 +1456,7 @@ function crearUsuario(){
 }
 function cambiarRolUsuario(id,rol){
   if(!authCanUsers()||!ROLES[rol])return;
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudCambiarRol==='function'){cloudCambiarRol(id,rol);return}
   var lista=authUsers();
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
@@ -1435,6 +1471,7 @@ function cambiarRolUsuario(id,rol){
 }
 function eliminarUsuario(id){
   if(!authCanUsers())return;
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudDesactivarUsuario==='function'){cloudDesactivarUsuario(id);return}
   var lista=authUsers();
   var u=lista.find(function(x){return x.id===id});
   if(!u)return;
@@ -3779,22 +3816,60 @@ function bindSwipeDelete(root){
       <div id="login-titulo" style="font-weight:700;font-size:16px;margin-bottom:8px;color:var(--tp)">Iniciar sesión</div>
       <div id="login-sub" style="font-size:12px;color:var(--ts);margin-bottom:12px"></div>
       <div class="fg" id="login-nombre-wrap" style="display:none"><label class="fl">Tu nombre</label><input class="fi" type="text" id="login-nombre" placeholder="Ej: Luis Mata" autocomplete="name"></div>
-      <div class="fg"><label class="fl">Usuario</label><input class="fi" type="text" id="login-email" autocomplete="username"></div>
+      <div class="fg" id="login-invite-wrap" style="display:none"><label class="fl">Codigo de invitacion</label><input class="fi" type="text" id="login-invite" placeholder="Ej: 7K2M9QPA" autocomplete="off" style="text-transform:uppercase"></div>
+      <div class="fg"><label class="fl" id="login-email-lbl">Usuario</label><input class="fi" type="text" id="login-email" autocomplete="username"></div>
       <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()"></div>
       <div id="login-msg" style="font-size:12px;margin-bottom:10px;display:none"></div>
       <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:12px" onclick="authLogin()">Entrar</button>
-      <div style="font-size:11px;color:#888;margin-top:12px;line-height:1.45">Los datos se guardan en este dispositivo. Quien use este teléfono ve la misma información. Aún no hay nube activa.</div>
+      <div id="login-cloud-links" style="display:none;margin-top:10px;font-size:12px;text-align:center;line-height:1.7">
+        <a href="#" onclick="cloudSetModo('login');return false" id="login-link-in">Ya tengo cuenta</a>
+        <span style="color:#888"> · </span>
+        <a href="#" onclick="cloudSetModo('signup');return false" id="login-link-up">Crear empresa</a>
+        <span style="color:#888"> · </span>
+        <a href="#" onclick="cloudSetModo('invite');return false" id="login-link-inv">Me invitaron</a>
+      </div>
+      <div id="login-local-note" style="font-size:11px;color:#888;margin-top:12px;line-height:1.45">Los datos se guardan en este dispositivo. Quien use este teléfono ve la misma información. Aún no hay nube activa.</div>
     </div>
   </div>
 </div>
 
 <script>
 // ===== NUBE (Supabase) =====
-// Datos: tabla public.cromat_data (user_id, key, value jsonb). localStorage queda como caché local.
+// Empresa compartida: public.cromat_data (org_id, key, value). RLS por rol.
 var SB_URL='__SB_URL__';
 var SB_KEY='__SB_KEY__';
-var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login';
-var CLOUD_ON=SB_URL.indexOf('https://')===0&&!!(window.supabase&&window.supabase.createClient);
+var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciado=false,CLOUD_ORG=null;
+var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','imp_vals'];
+var CLOUD_KEY_ROLES={
+  crm_clientes:['admin','ventas'],
+  crm_presupuestos:['admin','ventas','diseno'],
+  crm_ordenes:['admin','ventas','operadora'],
+  crm_costos:['admin','operadora','diseno'],
+  crm_catalogo:['admin','ventas','diseno'],
+  crm_inventario:['admin','operadora'],
+  crm_movimientos:['admin','conta'],
+  crm_fondos_config:['admin','conta'],
+  crm_fondos_audit:['admin','conta'],
+  imp_vals:['admin','operadora','diseno']
+};
+function leerCfgNube(){
+  if(SB_URL.indexOf('https://')===0&&SB_KEY&&SB_KEY.indexOf('__')!==0)return{url:SB_URL,key:SB_KEY};
+  try{
+    var c=JSON.parse(localStorage.getItem('cromat_sb_cfg')||'null');
+    if(c&&c.url&&c.key&&String(c.url).indexOf('https://')===0)return{url:c.url,key:c.key};
+  }catch(e){}
+  return null;
+}
+(function applyCfgNube(){
+  var c=leerCfgNube();
+  if(c){SB_URL=c.url;SB_KEY=c.key}
+})();
+var CLOUD_ON=SB_URL.indexOf('https://')===0&&!!SB_KEY&&SB_KEY.indexOf('__')!==0&&!!(window.supabase&&window.supabase.createClient);
+function cloudCanKey(k){
+  if(!AUTH)return false;
+  var roles=CLOUD_KEY_ROLES[k];
+  return !!(roles&&roles.indexOf(AUTH.rol)>=0);
+}
 
 function _sbPend(){try{return JSON.parse(localStorage.getItem('cromat_pending'))||{}}catch(e){return{}}}
 function _sbSetPend(o){try{localStorage.setItem('cromat_pending',JSON.stringify(o))}catch(e){}}
@@ -3805,124 +3880,285 @@ function syncEstado(tipo,txt){
   document.getElementById('sync-txt').textContent=txt||'';
   w.title=txt||'';
 }
-// Cada guardado local se encola para subir a la nube
 (function(){
   var set=LS.s;
   LS.s=function(k,v){
     set(k,v);
-    if(!CLOUD_ON||!_sbReady||CRM_KEYS.indexOf(k)<0)return;
+    if(!CLOUD_ON||!_sbReady||!cloudCanKey(k))return;
     var p=_sbPend();p[k]=1;_sbSetPend(p);
     syncEstado('pend','Guardando…');
     clearTimeout(_sbTimer);_sbTimer=setTimeout(function(){cloudFlush()},700);
   };
 })();
+function cloudErr(e){
+  var m=(e&&(e.message||e.details||e.code))||'';
+  if(/invite_required/i.test(m))return 'Esta empresa ya existe. Pide un codigo de invitacion.';
+  if(/invalid_invite/i.test(m))return 'Codigo invalido o ya usado.';
+  if(/Invalid login/i.test(m))return 'Correo o clave incorrectos.';
+  if(/not confirmed/i.test(m))return 'Confirma tu correo (revisa la bandeja) o desactiva Confirm email en Supabase.';
+  if(/already registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesion.';
+  if(/Password should/i.test(m))return 'La clave debe tener al menos 6 caracteres (Supabase).';
+  return m||'Error de nube';
+}
 function cloudFlush(cb){
   var done=function(){if(cb)cb()};
-  if(!CLOUD_ON||!SB_USER){done();return}
-  var p=_sbPend(),keys=Object.keys(p);
-  if(!keys.length){syncEstado('ok','Sincronizado');done();return}
+  if(!CLOUD_ON||!SB_USER||!CLOUD_ORG){done();return}
+  var p=_sbPend(),keys=Object.keys(p).filter(cloudCanKey);
+  if(!keys.length){syncEstado('ok','Sincronizado');_sbSetPend({});done();return}
   var now=new Date().toISOString();
-  var rows=keys.map(function(k){return{user_id:SB_USER.id,key:k,value:LS.g(k),updated_at:now}});
-  sb.from('cromat_data').upsert(rows,{onConflict:'user_id,key'}).then(function(r){
+  var rows=keys.map(function(k){return{org_id:CLOUD_ORG,key:k,value:LS.g(k),updated_at:now,updated_by:SB_USER.id}});
+  sb.from('cromat_data').upsert(rows,{onConflict:'org_id,key'}).then(function(r){
     if(r.error){syncEstado('err','Sin sincronizar');done();return}
     var p2=_sbPend();keys.forEach(function(k){delete p2[k]});_sbSetPend(p2);
     syncEstado(Object.keys(p2).length?'pend':'ok',Object.keys(p2).length?'Guardando…':'Sincronizado');
     done();
   },function(){syncEstado('err','Sin conexión');done()});
 }
-// Baja los datos de la nube al iniciar sesión
+function cloudClearLocal(){
+  CLOUD_DATA_KEYS.concat(['crm_usuarios']).forEach(function(k){localStorage.removeItem(k)});
+  _sbSetPend({});
+}
 function cloudPull(){
+  if(!CLOUD_ORG){syncEstado('err','Sin empresa');return}
   syncEstado('pend','Cargando…');
   var owner=localStorage.getItem('cromat_owner');
-  if(owner&&owner!==SB_USER.id){
-    // Datos locales de otro usuario: limpiar
-    CRM_KEYS.forEach(function(k){localStorage.removeItem(k)});_sbSetPend({});
-  }
+  if(owner&&owner!==CLOUD_ORG)cloudClearLocal();
   sb.from('cromat_data').select('key,value').then(function(r){
     if(r.error){_sbReady=true;syncEstado('err','Sin conexión');return}
     var rows=r.data||[];
-    localStorage.setItem('cromat_owner',SB_USER.id);
+    localStorage.setItem('cromat_owner',CLOUD_ORG);
+    CLOUD_DATA_KEYS.forEach(function(k){
+      if(!cloudCanKey(k))localStorage.removeItem(k);
+    });
+    localStorage.removeItem('crm_usuarios');
     _sbReady=true;
     if(!rows.length){
-      // Primera vez: subir lo que haya en este dispositivo
-      var p={};CRM_KEYS.forEach(function(k){if(localStorage.getItem(k)!==null)p[k]=1});
+      var p={};
+      CLOUD_DATA_KEYS.forEach(function(k){if(cloudCanKey(k)&&localStorage.getItem(k)!==null)p[k]=1});
       _sbSetPend(p);cloudFlush();return;
     }
     var pend=_sbPend(),cambio=false,enNube={};
     rows.forEach(function(row){
       enNube[row.key]=1;
-      if(pend[row.key]||CRM_KEYS.indexOf(row.key)<0)return; // cambios locales sin subir mandan
+      if(!cloudCanKey(row.key))return;
+      if(pend[row.key])return;
       var nuevo=JSON.stringify(row.value);
       if(localStorage.getItem(row.key)!==nuevo){localStorage.setItem(row.key,nuevo);cambio=true}
     });
-    CRM_KEYS.forEach(function(k){
-      if(!enNube[k]&&!pend[k]&&localStorage.getItem(k)!==null){localStorage.removeItem(k);cambio=true}
+    CLOUD_DATA_KEYS.forEach(function(k){
+      if(!enNube[k]&&!pend[k]&&localStorage.getItem(k)!==null&&!cloudCanKey(k)){localStorage.removeItem(k);cambio=true}
     });
     if(Object.keys(pend).length)cloudFlush();else syncEstado('ok','Sincronizado');
     if(cambio){
-      // Recargar una vez para que toda la app use los datos de la nube
       var last=+sessionStorage.getItem('cromat_reload')||0;
       if(Date.now()-last>15000){sessionStorage.setItem('cromat_reload',Date.now());location.reload()}
     }
   },function(){_sbReady=true;syncEstado('err','Sin conexión')});
 }
-function cloudMostrarLogin(on){
-  // El acceso lo controla el login local + roles
-  if(on)return;
-  if(AUTH)document.getElementById('login-screen').style.display='none';
+function cloudSetModo(m){
+  _sbModo=m==='signup'||m==='invite'?m:'login';
+  var titulo=document.getElementById('login-titulo');
+  var sub=document.getElementById('login-sub');
+  var nom=document.getElementById('login-nombre-wrap');
+  var inv=document.getElementById('login-invite-wrap');
+  var btn=document.getElementById('login-btn');
+  var lbl=document.getElementById('login-email-lbl');
+  var links=document.getElementById('login-cloud-links');
+  var note=document.getElementById('login-local-note');
+  if(lbl)lbl.textContent='Correo';
+  if(links)links.style.display='';
+  if(note)note.textContent='Los datos de Cromat viven en la nube. Cada persona entra con su correo y ve solo lo de su rol.';
+  if(nom)nom.style.display=_sbModo==='login'?'none':'';
+  if(inv)inv.style.display=_sbModo==='invite'?'':'none';
+  if(titulo)titulo.textContent=_sbModo==='signup'?'Crear empresa':_sbModo==='invite'?'Unirme al equipo':'Iniciar sesión';
+  if(sub)sub.textContent=_sbModo==='signup'?'Primer dueño: crea la empresa con tu correo. Luego invita al equipo.':_sbModo==='invite'?'Usa el codigo que te dio el dueño.': 'Entra con el correo de la empresa.';
+  if(btn)btn.textContent=_sbModo==='signup'?'Crear y entrar':_sbModo==='invite'?'Unirme':'Entrar';
 }
-function cloudMsg(txt,err){
-  var m=document.getElementById('login-msg');
-  m.style.display=txt?'block':'none';m.textContent=txt||'';
-  m.style.color=err?'var(--dt)':'var(--gt)';
-}
-function cloudToggleModo(){ /* el alta de usuarios la hace el admin en Usuarios */ }
-function cloudLogin(){
-  var email=(document.getElementById('login-email').value||'').trim();
+function cloudAuth(){
+  var email=(document.getElementById('login-email').value||'').trim().toLowerCase();
   var pass=document.getElementById('login-pass').value||'';
-  if(!email||!pass){cloudMsg('Escribe tu correo y tu clave.',true);return}
-  if(_sbModo==='signup'&&pass.length<6){cloudMsg('La clave debe tener al menos 6 caracteres.',true);return}
+  var nombre=(document.getElementById('login-nombre').value||'').trim();
+  var code=(document.getElementById('login-invite').value||'').trim();
+  if(!email||!pass){authMsg('Escribe correo y clave.',true);return}
+  if(_sbModo!=='login'&&claveCorta(pass)){authMsg('La clave debe tener al menos 8 caracteres.',true);return}
+  if(_sbModo==='invite'&&!code){authMsg('Escribe el codigo de invitacion.',true);return}
+  if(_sbModo!=='login'&&!nombre){authMsg('Escribe tu nombre.',true);return}
+  if(!sb){authMsg('Nube no disponible.',true);return}
   var btn=document.getElementById('login-btn');btn.disabled=true;btn.style.opacity='0.6';
   var fin=function(){btn.disabled=false;btn.style.opacity='1'};
-  var req=_sbModo==='signup'?sb.auth.signUp({email:email,password:pass}):sb.auth.signInWithPassword({email:email,password:pass});
-  req.then(function(r){
-    fin();
-    if(r.error){
-      var e=r.error.message||'';
-      var msg=/Invalid login/i.test(e)?'Correo o clave incorrectos.':/not confirmed/i.test(e)?'Confirma tu correo antes de entrar (revisa tu bandeja).':/already registered/i.test(e)?'Ese correo ya tiene cuenta. Inicia sesión.':e;
-      cloudMsg(msg,true);return;
+  if(SB_USER){
+    cloudEntrar(nombre,code).then(fin,function(e){authMsg(cloudErr(e),true);fin()});
+    return;
+  }
+  var after=function(session){
+    if(!session){authMsg('Cuenta creada. Confirma el correo o desactiva Confirm email en Supabase.',false);fin();return}
+    SB_USER=session.user;
+    cloudEntrar(nombre,code).then(fin,function(e){authMsg(cloudErr(e),true);fin()});
+  };
+  if(_sbModo==='login'){
+    sb.auth.signInWithPassword({email:email,password:pass}).then(function(r){
+      if(r.error){authMsg(cloudErr(r.error),true);fin();return}
+      after(r.data&&r.data.session);
+    },function(){authMsg('Sin conexion.',true);fin()});
+    return;
+  }
+  sb.auth.signUp({email:email,password:pass}).then(function(r){
+    if(r.error){authMsg(cloudErr(r.error),true);fin();return}
+    after(r.data&&r.data.session);
+  },function(){authMsg('Sin conexion.',true);fin()});
+}
+function cloudEntrar(nombre,code){
+  return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
+    if(r.error)throw r.error;
+    if(r.data&&r.data.activo===false)throw {message:'Tu usuario esta inactivo.'};
+    if(r.data)return cloudSesion(r.data);
+    if(_sbModo==='invite'||code){
+      return sb.rpc('cromat_redeem_invite',{p_code:code,p_nombre:nombre||''}).then(function(x){
+        if(x.error)throw x.error;
+        return cloudCargarPerfil();
+      });
     }
-    if(_sbModo==='signup'&&!r.data.session){cloudMsg('Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.');cloudToggleModo();return}
-  },function(){fin();cloudMsg('Sin conexión. Intenta de nuevo.',true)});
+    return sb.rpc('cromat_bootstrap',{p_nombre:nombre||''}).then(function(x){
+      if(x.error)throw x.error;
+      return cloudCargarPerfil();
+    });
+  });
+}
+function cloudCargarPerfil(){
+  return sb.from('cromat_profiles').select('user_id,org_id,nombre,usuario,rol,activo').eq('user_id',SB_USER.id).maybeSingle().then(function(r){
+    if(r.error)throw r.error;
+    if(!r.data)throw {message:'No hay perfil. Pide un codigo de invitacion.'};
+    if(r.data.activo===false)throw {message:'Tu usuario esta inactivo.'};
+    return cloudSesion(r.data);
+  });
+}
+function cloudSesion(p){
+  CLOUD_ORG=p.org_id;
+  AUTH={id:p.user_id,nombre:p.nombre,usuario:p.usuario|| (SB_USER.email||'').split('@')[0],rol:p.rol,t:Date.now(),orgId:p.org_id};
+  authTouch();
+  authApplyUI();
+  cloudPull();
+  goTab(authFirstTab());
 }
 function cloudLogout(){
-  cloudFlush(function(){
-    sb.auth.signOut().then(function(){
-      CRM_KEYS.forEach(function(k){localStorage.removeItem(k)});
-      localStorage.removeItem('cromat_owner');_sbSetPend({});
+  var fin=function(){
+    if(sb)sb.auth.signOut().finally(function(){
+      AUTH=null;SB_USER=null;CLOUD_ORG=null;_sbReady=false;_sbIniciado=false;
+      cloudClearLocal();
+      localStorage.removeItem('cromat_session');
+      localStorage.removeItem('cromat_owner');
       location.reload();
+    });
+    else location.reload();
+  };
+  cloudFlush(fin);
+}
+function guardarConfigNube(){
+  if(!authCanUsers())return;
+  var url=(document.getElementById('sb-url').value||'').trim();
+  var key=(document.getElementById('sb-key').value||'').trim();
+  if(url.indexOf('https://')!==0||!key){alert('Pega la URL https y la clave anon');return}
+  localStorage.setItem('cromat_sb_cfg',JSON.stringify({url:url,key:key}));
+  location.reload();
+}
+function cloudInviteCode(){
+  var a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';
+  for(var i=0;i<8;i++)s+=a.charAt(Math.floor(Math.random()*a.length));
+  return s;
+}
+function cloudCrearInvitacion(){
+  if(!CLOUD_ORG||!sb)return;
+  var nombre=(document.getElementById('nu-nombre').value||'').trim();
+  var rol=document.getElementById('nu-rol').value||'ventas';
+  if(!ROLES[rol])rol='ventas';
+  var code=cloudInviteCode();
+  sb.from('cromat_invites').insert({org_id:CLOUD_ORG,code:code,rol:rol,nombre_sugerido:nombre||null,created_by:SB_USER.id}).then(function(r){
+    if(r.error){alert(cloudErr(r.error));return}
+    var out=document.getElementById('nu-invite-out');
+    if(out){
+      out.style.display='';
+      out.textContent='Codigo para '+authRol(rol).l+(nombre?(' ('+nombre+')'):'')+': '+code+'  —  esa persona elige Me invitaron e ingresa este codigo.';
+    }
+    document.getElementById('nu-nombre').value='';
+    cloudRenderUsuarios();
+  });
+}
+function cloudRenderUsuarios(){
+  var el=document.getElementById('lista-usuarios');
+  if(!el||!sb)return;
+  Promise.all([
+    sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre'),
+    sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,used_at').is('used_at',null).order('created_at',{ascending:false})
+  ]).then(function(res){
+    if(res[0].error){el.textContent=cloudErr(res[0].error);return}
+    var html=(res[0].data||[]).map(function(u){
+      var yo=AUTH&&u.user_id===AUTH.id;
+      var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
+        +'<div class="li-sub">'+escHtml(u.usuario||'')+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+'</div>'
+        +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+        +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.user_id+'\',this.value)">'+opts+'</select>'
+        +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.user_id+'\')">'+(u.activo===false?'Activar':'Quitar')+'</button>')
+        +'</div></div>';
+    }).join('');
+    var invs=(!res[1].error&&res[1].data)||[];
+    if(invs.length){
+      html+='<div class="st" style="margin-top:12px">Codigos sin usar</div>';
+      html+=invs.map(function(i){
+        return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.code)+'</span><span class="tag tag-teal">'+escHtml(authRol(i.rol).l)+'</span></div>'
+          +'<div class="li-sub">'+(i.nombre_sugerido?escHtml(i.nombre_sugerido)+' · ':'')+'Pendiente</div></div>';
+      }).join('');
+    }
+    el.innerHTML=html||'<div class="empty">Sin usuarios</div>';
+  });
+}
+function cloudCambiarRol(id,rol){
+  if(!sb||!ROLES[rol])return;
+  sb.from('cromat_profiles').update({rol:rol}).eq('user_id',id).then(function(r){
+    if(r.error){alert(cloudErr(r.error));cloudRenderUsuarios();return}
+    if(AUTH&&AUTH.id===id){AUTH.rol=rol;authApplyUI()}
+    cloudRenderUsuarios();
+  });
+}
+function cloudDesactivarUsuario(id){
+  if(!sb)return;
+  sb.from('cromat_profiles').select('activo').eq('user_id',id).maybeSingle().then(function(r){
+    if(r.error||!r.data)return;
+    var next=!r.data.activo;
+    if(r.data.activo&&!confirm('Quitar el acceso de esta persona?'))return;
+    sb.from('cromat_profiles').update({activo:next}).eq('user_id',id).then(function(x){
+      if(x.error)alert(cloudErr(x.error));
+      cloudRenderUsuarios();
     });
   });
 }
 (function cloudInit(){
   if(!CLOUD_ON){
-    if(SB_URL.indexOf('https://')===0)syncEstado('err','Nube no disponible');
+    syncEstado('off','Local');
+    if(typeof authBoot==='function')authBoot();
     return;
   }
+  syncEstado('pend','Nube…');
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
-  var iniciado=false;
   sb.auth.onAuthStateChange(function(ev,session){
     if(session&&session.user){
-      SB_USER=session.user;cloudMostrarLogin(false);
-      if(!iniciado){iniciado=true;setTimeout(cloudPull,0)}
+      SB_USER=session.user;
+      if(!_sbIniciado){
+        _sbIniciado=true;
+        cloudCargarPerfil().catch(function(e){
+          authMsg(cloudErr(e),true);
+          authShowLogin();
+        });
+      }
     } else {
-      SB_USER=null;iniciado=false;_sbReady=false;cloudMostrarLogin(true);
+      SB_USER=null;CLOUD_ORG=null;_sbReady=false;_sbIniciado=false;AUTH=null;
+      authShowLogin();
     }
   });
   window.addEventListener('online',function(){cloudFlush()});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')cloudFlush()});
+  authShowLogin();
 })();
-if(typeof authBoot==='function')authBoot();
 </script>
 
 </body>
