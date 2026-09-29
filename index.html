@@ -1368,17 +1368,6 @@ function presCostoProdDe(items){
     return a+(parseFloat(c.costo)||0)*presItemQty(it);
   },0);
 }
-function presRepararTotales(p){
-  if(!p||!(p.items||[]).length)return false;
-  var sub=presSubtotalDe(p);
-  var tot=presTotalDe(p);
-  var costo=presCostoProdDe(p.items);
-  var cambio=false;
-  if(Math.abs((+p.subtotal||0)-sub)>0.009){p.subtotal=Math.round(sub*100)/100;cambio=true}
-  if(Math.abs((+p.total||0)-tot)>0.009){p.total=Math.round(tot*100)/100;p.saldo=Math.round((tot-(+p.anticipo||0))*100)/100;cambio=true}
-  if(costo>0&&Math.abs((+p.costoProd||0)-costo)>0.009){p.costoProd=Math.round(costo*100)/100;cambio=true}
-  return cambio;
-}
 function opHayPrendas(o){
   return (o&&o.opItems||[]).some(function(it){
     if(!it)return false;
