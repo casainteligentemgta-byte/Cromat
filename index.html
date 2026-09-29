@@ -4064,7 +4064,7 @@ function renderCostos(){
   if(res&&+res.precio>0){
     actual='<div class="card" style="margin-bottom:10px"><div class="st">Cálculo actual (calculadora)</div>'
       +'<div class="result-row"><span class="result-label">Impresion</span><span class="result-val coral">'+usd(res.precio)+'</span></div>'
-      +'<button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="guardarAnalisis(\'Impresion\')">Guardar en la lista y en la nube</button></div>';
+      +'<button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="guardarAnalisis(\'Impresion\')">Guardar</button></div>';
   }
   if(!lista.length){
     el.innerHTML=actual+'<div class="empty">Aún no hay análisis en esta lista. En Calculadoras toca <strong>Guardar este analisis</strong>; queda aquí y en la nube.</div>';
