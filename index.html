@@ -6225,6 +6225,23 @@ function cloudPedirCodigo(msg){
   if(inv)try{inv.focus()}catch(e){}
   authMsg(msg||'Tu correo ya está. Pega el código de Usuarios → invitaciones pendientes y pulsa Unirme.',true);
 }
+function conTope(promesa, ms, msg){
+  var hecho=false;
+  return new Promise(function(ok,mal){
+    var t=setTimeout(function(){
+      if(hecho)return;
+      hecho=true;
+      mal({message:msg||'Tardó demasiado. Vuelve a pulsar.'});
+    }, ms||12000);
+    Promise.resolve(promesa).then(function(v){
+      if(hecho)return;
+      hecho=true;clearTimeout(t);ok(v);
+    },function(e){
+      if(hecho)return;
+      hecho=true;clearTimeout(t);mal(e);
+    });
+  });
+}
 function cloudAuth(){
   var email=(document.getElementById('login-email').value||'').trim().toLowerCase();
   var pass=document.getElementById('login-pass').value||'';
@@ -6235,8 +6252,16 @@ function cloudAuth(){
   if(_sbModo!=='login'&&claveCorta(pass)){authMsg('La clave debe tener al menos 8 caracteres.',true);return}
   if(_sbModo==='signup'&&!nombre){authMsg('Escribe tu nombre.',true);return}
   if(!sb){authMsg('Nube no disponible.',true);return}
-  var btn=document.getElementById('login-btn');btn.disabled=true;btn.style.opacity='0.6';
-  var fin=function(){btn.disabled=false;btn.style.opacity='1'};
+  var btn=document.getElementById('login-btn');
+  var prev=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.textContent='Entrando…'}
+  authMsg('Entrando…',false);
+  var cerrado=false;
+  var fin=function(){
+    if(cerrado)return;
+    cerrado=true;
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||(_sbModo==='invite'?'Unirme':'Entrar')}
+  };
   var fallar=function(e){
     if(cloudAuthNoConfirmada(e)||cloudAuthEsLimite(e))cloudMostrarSql(email);
     if(/invite_required|invalid_invite|need_invite_code|no hay perfil/i.test(String((e&&e.message)||''))){
@@ -6249,29 +6274,32 @@ function cloudAuth(){
   var entrar=function(session){
     if(!session){cloudMostrarSql(email);authMsg('La cuenta existe. Corre el SQL de abajo y luego pulsa Ya tengo cuenta.',true);fin();return}
     SB_USER=session.user;
-    cloudEntrar(nombre,code).then(fin,function(e){fallar(e)});
+    conTope(cloudEntrar(nombre,code),15000,'La invitación no respondió. Revisa el código (son 8 letras) y pulsa Unirme otra vez.').then(function(){fin()},fallar);
   };
   var iniciar=function(){return sb.auth.signInWithPassword({email:email,password:pass})};
   var registrar=function(){return sb.auth.signUp({email:email,password:pass,options:{emailRedirectTo:String(location.origin||'').replace(/\/$/,'')}})};
   var desbloquear=function(){
-    return sb.rpc('cromat_unlock_login',{p_email:email}).then(function(){},function(){});
+    return conTope(sb.rpc('cromat_unlock_login',{p_email:email}),5000,'skip').then(function(){},function(){});
   };
   if(SB_USER){
-    cloudEntrar(nombre,code).then(fin,function(e){fallar(e)});
+    conTope(cloudEntrar(nombre,code),15000,'La invitación no respondió. Revisa el código y pulsa Unirme otra vez.').then(function(){fin()},fallar);
     return;
   }
-  desbloquear().then(function(){return iniciar()}).then(function(r){
+  desbloquear().then(function(){
+    return conTope(iniciar(),12000,'Supabase no respondió. Revisa internet y pulsa Unirme otra vez.');
+  }).then(function(r){
     if(r&&r.data&&r.data.session){entrar(r.data.session);return}
     var err=r&&r.error;
     if(err&&cloudAuthNoConfirmada(err)){fallar(err);return}
-    return registrar().then(function(u){
+    if(_sbModo==='login'){fallar(err||{message:'Correo o clave incorrectos.'});return}
+    return conTope(registrar(),8000,'Supabase se quedó enviando el correo de confirmación. Corre el SQL y entra con Ya tengo cuenta.').then(function(u){
       if(u&&u.data&&u.data.session){entrar(u.data.session);return}
-      return iniciar().then(function(r2){
+      return conTope(iniciar(),10000,'No se pudo entrar.').then(function(r2){
         if(r2&&r2.data&&r2.data.session){entrar(r2.data.session);return}
-        fallar((u&&u.error&&(cloudAuthEsLimite(u.error)||cloudAuthNoConfirmada(u.error))?u.error:null)||err||(u&&u.error)||(r2&&r2.error)||{message:'No se pudo entrar'});
-      },function(){fallar(err||(u&&u.error)||{message:'Sin conexion'})});
-    },function(){fallar(err||{message:'Sin conexion'})});
-  },function(){authMsg('Sin conexion.',true);fin()});
+        fallar((u&&u.error&&(cloudAuthEsLimite(u.error)||cloudAuthNoConfirmada(u.error))?u.error:null)||err||(u&&u.error)||(r2&&r2.error)||{message:'No se pudo entrar. Revisa la clave o corre el SQL.'});
+      },fallar);
+    },function(e){fallar(err||e)});
+  },fallar);
 }
 function cloudEntrar(nombre,code){
   var cargar=function(){
