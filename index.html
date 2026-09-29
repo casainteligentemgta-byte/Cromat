@@ -126,14 +126,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .estado-btn.active-rec{border-color:var(--dt);background:var(--ds);color:var(--dt)}
 /* PRESUPUESTO FORMAL */
 .pres-doc{background:#fff;color:#1a1a18;border:1px solid #e0e0d8;border-radius:8px;margin-bottom:14px;overflow:hidden}
-.pres-doc-head{background:#0A0A0A;padding:14px 14px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:3px solid #FF6B35}
-.pres-doc-brand{font-size:24px;font-weight:800;letter-spacing:0.6px;line-height:1}
+.pres-doc-head{background:#0A0A0A;padding:16px 14px 14px;text-align:center;border-bottom:3px solid #FF6B35}
+.pres-doc-brand{font-size:26px;font-weight:800;letter-spacing:0.8px;line-height:1}
 .pres-doc-brand .c1{color:#FF6B35}.pres-doc-brand .c2{color:#5ec8d4}
-.pres-doc-tag{font-size:9px;letter-spacing:1.5px;color:#b8b8b0;text-transform:uppercase;margin-top:6px}
-.pres-doc-web{font-size:11px;color:#5ec8d4;font-weight:600;margin-top:3px}
-.pres-doc-meta{text-align:right;font-size:11px;color:#d0d0c8;line-height:1.55}
-.pres-doc-kind{font-size:10px;font-weight:800;letter-spacing:2px;color:#FF6B35;text-transform:uppercase}
-.pres-doc-num{font-size:14px;font-weight:700;color:#fff;margin-top:2px}
+.pres-doc-web{font-size:12px;color:#5ec8d4;font-weight:600;margin-top:7px;letter-spacing:0.4px}
+.pres-doc-id{padding:10px 0 12px;border-bottom:0.5px solid #e8e8e0;margin-bottom:12px}
+.pres-doc-num{font-size:15px;font-weight:800;color:#028090;white-space:nowrap;letter-spacing:0.2px}
+.pres-doc-dates{font-size:11px;color:#666;margin-top:4px;line-height:1.45}
 .pres-doc-body{padding:14px}
 .pres-doc-sec{font-size:10px;font-weight:700;letter-spacing:1.4px;color:#028090;text-transform:uppercase;margin:12px 0 6px}
 .pres-partes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
@@ -2471,17 +2470,15 @@ function htmlPresupuestoFormal(p){
     return arr.map(function(r){return '<div class="pres-fila"><span>'+escHtml(r.k)+'</span><b>'+escHtml(r.v)+'</b></div>';}).join('');
   }
   var html='<div class="pres-doc">';
-  html+='<div class="pres-doc-head"><div>';
+  html+='<div class="pres-doc-head">';
   html+='<div class="pres-doc-brand"><span class="c1">CRO</span><span class="c2">MAT</span></div>';
-  html+='<div class="pres-doc-tag">Impresion · Sublimacion · Textil</div>';
-  html+='<div class="pres-doc-web">cromat.xyz</div></div>';
-  html+='<div class="pres-doc-meta"><div class="pres-doc-kind">Presupuesto</div>';
-  html+='<div class="pres-doc-num">'+escHtml(d.numero)+'</div>';
-  html+='<div>Fecha: '+fch(d.fecha)+'</div>';
-  html+='<div>Valido '+escHtml(String(d.validez))+' dias</div>';
-  if(d.vence)html+='<div>Vence: '+fch(d.vence)+'</div>';
-  html+='</div></div>';
+  html+='<div class="pres-doc-web">cromat.xyz</div>';
+  html+='</div>';
   html+='<div class="pres-doc-body">';
+  html+='<div class="pres-doc-id"><div class="pres-doc-num">N° '+escHtml(d.numero)+'</div>';
+  html+='<div class="pres-doc-dates">Fecha: '+fch(d.fecha);
+  if(d.vence)html+=' · Vence: '+fch(d.vence);
+  html+=' · Valido '+escHtml(String(d.validez))+' dias</div></div>';
   html+='<div class="pres-partes">';
   html+='<div class="pres-parte"><div class="k">De / Cromat</div>'+filas(d.emisor)+'</div>';
   html+='<div class="pres-parte"><div class="k">Datos del cliente</div>'+filas(d.cliente)+'</div>';
@@ -4045,31 +4042,32 @@ function construirPdfPresupuesto(p){
   function need(h){if(y+h>maxY){pdf.addPage();y=18}}
   function txt(s,x,yy,opt){pdf.text(pdfTxt(s),x,yy,opt||{})}
   pdf.setFillColor(10,10,10);
-  pdf.rect(0,0,W,32,'F');
+  pdf.rect(0,0,W,24,'F');
   pdf.setFillColor(255,107,53);
-  pdf.rect(0,32,W,2.4,'F');
+  pdf.rect(0,24,W,2.2,'F');
   pdf.setFont('helvetica','bold');
-  pdf.setFontSize(20);
+  pdf.setFontSize(22);
   pdf.setTextColor(255,107,53);
-  pdf.text('CRO',M,14);
-  var croW=pdf.getTextWidth('CRO');
+  var logoW=pdf.getTextWidth('CROMAT');
+  var logoX=(W-logoW)/2;
+  pdf.text('CRO',logoX,12);
   pdf.setTextColor(94,200,212);
-  pdf.text('MAT',M+croW,14);
-  pdf.setFontSize(10);
-  pdf.setTextColor(255,107,53);
-  pdf.text('PRESUPUESTO',W-M,12,{align:'right'});
-  pdf.setFontSize(12);
-  pdf.setTextColor(255);
-  pdf.text(pdfTxt(d.numero),W-M,18,{align:'right'});
+  pdf.text('MAT',logoX+pdf.getTextWidth('CRO'),12);
   pdf.setFont('helvetica','normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(180);
-  pdf.text(pdfTxt('Impresion  ·  Sublimacion  ·  Textil'),M,21);
-  pdf.text('cromat.xyz',M,26);
-  pdf.setTextColor(200);
-  pdf.text('Fecha: '+fch(d.fecha),W-M,24,{align:'right'});
-  pdf.text(pdfTxt('Valido '+String(d.validez)+' dias'+(d.vence?'  ·  Vence '+fch(d.vence):'')),W-M,29,{align:'right'});
-  y=42;
+  pdf.setFontSize(10);
+  pdf.setTextColor(94,200,212);
+  pdf.text('cromat.xyz',W/2,19,{align:'center'});
+  y=34;
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(13);
+  pdf.setTextColor(2,128,144);
+  pdf.text('No. '+pdfTxt(d.numero),M,y);
+  y+=6;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(80);
+  pdf.text(pdfTxt('Fecha: '+fch(d.fecha)+(d.vence?'  ·  Vence: '+fch(d.vence):'')+'  ·  Valido '+String(d.validez)+' dias'),M,y);
+  y+=8;
   var colW=(W-2*M-4)/2;
   var boxH=Math.max(14+d.emisor.length*5.4,14+d.cliente.length*5.4)+8;
   need(boxH+6);
