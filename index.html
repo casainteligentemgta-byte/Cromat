@@ -1337,14 +1337,47 @@ function esNombreMetrosTextil(s){
 function presItemEsMetros(it){
   return !!(it&&(esNombreMetrosTextil(it.desc)||esNombreMetrosTextil(it.productoNombre)));
 }
+function presItemQty(it){return +it.qty||1}
 function presItemMonto(it){
-  var p=+it.precio||0;
-  if(presItemEsMetros(it))return p;
-  return p*(+it.qty||1);
+  return (+it.precio||0)*presItemQty(it);
 }
 function presItemQtyTxt(it){
-  if(presItemEsMetros(it))return (it.qty||0)+' ml';
-  return 'x'+(it.qty||1);
+  if(presItemEsMetros(it))return presItemQty(it)+' ml';
+  return 'x'+presItemQty(it);
+}
+function presItemLineaTxt(it){
+  var nom=it.desc||it.productoNombre||'';
+  if(presItemEsMetros(it))return nom+' · '+presItemQty(it)+' ml × '+usd(it.precio||0);
+  return nom+' '+presItemQtyTxt(it);
+}
+function presSubtotalDe(p){
+  return (p&&p.items||[]).reduce(function(a,it){return a+presItemMonto(it)},0);
+}
+function presTotalDe(p){
+  var desc=parseFloat(p&&p.desc)||0;
+  return presSubtotalDe(p)*(1-desc/100);
+}
+function presCostoProdDe(items){
+  return (items||[]).reduce(function(a,it){
+    if(!it.productoId)return a;
+    var id=it.productoId.split(':')[1];
+    var tipo=it.productoId.split(':')[0];
+    if(tipo!=='c')return a;
+    var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
+    if(!c)return a;
+    return a+(parseFloat(c.costo)||0)*presItemQty(it);
+  },0);
+}
+function presRepararTotales(p){
+  if(!p||!(p.items||[]).length)return false;
+  var sub=presSubtotalDe(p);
+  var tot=presTotalDe(p);
+  var costo=presCostoProdDe(p.items);
+  var cambio=false;
+  if(Math.abs((+p.subtotal||0)-sub)>0.009){p.subtotal=Math.round(sub*100)/100;cambio=true}
+  if(Math.abs((+p.total||0)-tot)>0.009){p.total=Math.round(tot*100)/100;p.saldo=Math.round((tot-(+p.anticipo||0))*100)/100;cambio=true}
+  if(costo>0&&Math.abs((+p.costoProd||0)-costo)>0.009){p.costoProd=Math.round(costo*100)/100;cambio=true}
+  return cambio;
 }
 function opHayPrendas(o){
   return (o&&o.opItems||[]).some(function(it){
@@ -1877,7 +1910,7 @@ function renderDash(){
   var rec=presup.slice().sort(function(a,b){return b.fecha>a.fecha?1:-1}).slice(0,3);
   var rEl=document.getElementById('dash-recent');
   if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aun</div>'}
-  else{rEl.innerHTML=rec.map(function(p){return'<div class="list-item" onclick="verPresupuesto(\''+p.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span>'+usd(p.total)+'</span></div><div class="li-sub">'+fch(p.fecha)+'</div></div>'}).join('')}
+  else{rEl.innerHTML=rec.map(function(p){return'<div class="list-item" onclick="verPresupuesto(\''+p.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span>'+usd(presTotalDe(p))+'</span></div><div class="li-sub">'+fch(p.fecha)+'</div></div>'}).join('')}
   var bajo=inv.filter(function(i){var min=parseFloat(i.min)||0;return min>0&&(parseFloat(i.stock)||0)<=min});
   var sEl=document.getElementById('dash-stock');
   if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
@@ -2059,7 +2092,7 @@ function renderPresupuestos(){
         var c={pendiente:'#888',enviado:'var(--teal)',aprobado:'var(--gt)',rechazado:'var(--dt)'}[e];
         return'<button style="font-size:10px;padding:3px 8px;border-radius:20px;border:1.5px solid '+(on?c:'var(--bd)')+';background:'+(on?c:'transparent')+';color:'+(on?'#fff':c)+';font-weight:600;cursor:pointer" onclick="setEstadoPres(\''+p.id+'\',\''+e+'\')">'+eLbl[e]+'</button>';
       }).join('')+'</div>';
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(eColor[est]||'tag-gray')+'">'+eLbl[est]+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(p.total)+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
+    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(eColor[est]||'tag-gray')+'">'+eLbl[est]+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(presTotalDe(p))+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
   }).join('');
 }
 function abrirPresupuesto(id){
@@ -2229,7 +2262,8 @@ function renderPresItems(){
       +'<input class="fi" type="number" placeholder="Precio $" value="'+(it.precio||0)+'" oninput="presItems['+i+'].precio=+this.value;recalcPres()" style="max-width:90px">'
       +'</div>'
       +'<div style="display:flex;gap:4px;align-items:center">'
-      +(sinTalla?'<input class="fi" type="number" placeholder="Cant" value="'+(it.qty||1)+'" oninput="presItems['+i+'].qty=+this.value;recalcPres()" style="max-width:70px">':'')
+      +(sinTalla?'<input class="fi" type="number" placeholder="'+(presItemEsMetros(it)?'ml':'Cant')+'" value="'+(it.qty||1)+'" min="0" step="0.1" oninput="presItems['+i+'].qty=+this.value;recalcPres()" style="max-width:70px">':'')
+      +'<span style="font-size:11px;color:var(--ts)">'+usd(it.precio||0)+' × '+escHtml(presItemQtyTxt(it))+' = <strong style="color:var(--tp)">'+usd(presItemMonto(it))+'</strong></span>'
       +'<button class="btn btn-ghost btn-sm" style="color:var(--dt);margin-left:auto" onclick="elimItemPres('+i+')">✕</button>'
       +'</div></div>'
   }).join('');
@@ -2245,17 +2279,7 @@ function recalcPres(){
   var total=sub-descMonto;
 
   // Costo de produccion sin ganancia (suma de costos de los items con analisis)
-  var costosProd=presItems.reduce(function(a,it){
-    if(!it.productoId)return a;
-    var id=it.productoId.split(':')[1];
-    var tipo=it.productoId.split(':')[0];
-    var costo=0;
-    if(tipo==='c'){
-      var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
-      if(c)costo=presItemEsMetros(it)?(parseFloat(c.costo)||0):(parseFloat(c.costo)||0)*(parseFloat(it.qty)||1);
-    }
-    return a+costo;
-  },0);
+  var costosProd=presCostoProdDe(presItems);
 
   // Anticipo sugerido
   var antPct=parseFloat(document.getElementById('p-ant-pct').value)||0;
@@ -2289,7 +2313,7 @@ function guardarPresupuesto(){
   var sub=presItems.reduce(function(a,it){return a+presItemMonto(it)},0);
   var total=sub*(1-desc/100);
   var antRec=parseFloat(document.getElementById('p-anticipo').value)||0;
-  var obj={id:id||uid(),clienteId:cId,clienteNombre:cNom?cNom.nombre:'Sin cliente',fecha:document.getElementById('p-fecha').value,validez:document.getElementById('p-validez').value,items:presItems,desc:desc,subtotal:sub,total:total,anticipo:antRec,antPct:parseFloat(document.getElementById('p-ant-pct').value)||50,saldo:total-antRec,notas:document.getElementById('p-notas').value,estado:id?undefined:'pendiente'};
+  var obj={id:id||uid(),clienteId:cId,clienteNombre:cNom?cNom.nombre:'Sin cliente',fecha:document.getElementById('p-fecha').value,validez:document.getElementById('p-validez').value,items:presItems,desc:desc,subtotal:sub,total:total,costoProd:presCostoProdDe(presItems),anticipo:antRec,antPct:parseFloat(document.getElementById('p-ant-pct').value)||50,saldo:total-antRec,notas:document.getElementById('p-notas').value,estado:id?undefined:'pendiente'};
   if(!id)obj.estado='pendiente';
   if(id){var i=lista.findIndex(function(x){return x.id===id});if(i>=0){obj.estado=lista[i].estado;obj.creadoPor=lista[i].creadoPor;obj.hist=lista[i].hist;obj.editadoPor=actorAhora();pushHist(obj,'pres_editar',obj.clienteNombre||'');lista[i]=obj}else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}}
   else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}
@@ -2304,8 +2328,8 @@ function verPresupuesto(id){
   var colores={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
   var html='<div><div style="display:flex;justify-content:space-between;margin-bottom:12px"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(colores[p.estado]||'tag-gray')+'">'+((estados[p.estado])||'PENDIENTE')+'</span></div>';
   html+='<div style="font-size:12px;color:var(--tm);margin-bottom:10px">'+fch(p.fecha)+' &bull; Valido '+p.validez+' dias'+(p.creadoPor?' &bull; Creado por '+escHtml(fmtActor(p.creadoPor)):'')+'</div>';
-  html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(it.desc||it.productoNombre||'')+(presItemEsMetros(it)?' · ':' ')+presItemQtyTxt(it)+'</span><span>'+usd(presItemMonto(it))+'</span></div>'}).join('')+'</div>';
-  html+='<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:12px"><span>TOTAL</span><span>'+usd(p.total)+'</span></div>';
+  html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(presItemLineaTxt(it))+'</span><span>'+usd(presItemMonto(it))+'</span></div>'}).join('')+'</div>';
+  html+='<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:12px"><span>TOTAL</span><span>'+usd(presTotalDe(p))+'</span></div>';
   html+='<div class="st">Estado</div><div class="estado-grid">';
   ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
     var labels={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado'};
@@ -2364,7 +2388,7 @@ function abrirAnticipo(presId){
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(p.clienteNombre||'')+'</div>'
-    +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total presupuesto</span><strong>'+usd(p.total||0)+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total presupuesto</span><strong>'+usd(presTotalDe(p))+'</strong></div>'
     +(sug?'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo sugerido</span><strong style="color:var(--coral)">'+usd(sug)+'</strong></div>':'');
   renderMetodosPago();
   openModal('modal-anticipo');
@@ -2674,7 +2698,7 @@ function abrirOrden(id,desdePresup){
   document.getElementById('op-arte-aprobado').checked=o?o.arteAprobado:false;
   document.getElementById('op-muestra').checked=o?o.muestra:false;
   document.getElementById('op-archivos').checked=o?o.archivos:false;
-  document.getElementById('op-monto').value=o?o.monto:(desdePresup?desdePresup.total:0);
+  document.getElementById('op-monto').value=o?o.monto:(desdePresup?presTotalDe(desdePresup):0);
   document.getElementById('op-anticipo').value=o?o.anticipo:(desdePresup?desdePresup.anticipo:0);
   document.getElementById('op-estado').value=o?o.estado:'pendiente';
   document.getElementById('op-obs').value=o?o.obs:'';
