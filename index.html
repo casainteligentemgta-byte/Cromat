@@ -124,6 +124,29 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .estado-btn.active-env{border-color:var(--teal);background:#E0F4F7;color:var(--teal)}
 .estado-btn.active-apr{border-color:var(--gt);background:var(--gs);color:var(--gt)}
 .estado-btn.active-rec{border-color:var(--dt);background:var(--ds);color:var(--dt)}
+/* PRESUPUESTO FORMAL */
+.pres-doc{background:#fff;color:#1a1a18;border:1px solid #e0e0d8;border-radius:8px;padding:16px 14px;margin-bottom:14px}
+.pres-doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-bottom:10px;border-bottom:2.5px solid #FF6B35;margin-bottom:12px}
+.pres-doc-brand{font-size:22px;font-weight:800;letter-spacing:0.5px;line-height:1}
+.pres-doc-brand .c1{color:#FF6B35}.pres-doc-brand .c2{color:#028090}
+.pres-doc-tag{font-size:9px;letter-spacing:1.4px;color:#888;text-transform:uppercase;margin-top:5px}
+.pres-doc-web{font-size:11px;color:#028090;font-weight:600;margin-top:2px}
+.pres-doc-meta{text-align:right;font-size:11px;color:#555;line-height:1.55}
+.pres-doc-num{font-size:13px;font-weight:700;color:#028090}
+.pres-doc-sec{font-size:10px;font-weight:700;letter-spacing:1.4px;color:#028090;text-transform:uppercase;margin:12px 0 6px}
+.pres-cli{font-size:12px;line-height:1.55;color:#222}
+.pres-cli strong{font-size:14px;display:block;margin-bottom:2px}
+.pres-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.pres-tbl{width:100%;min-width:300px;border-collapse:collapse;font-size:12px}
+.pres-tbl th{background:#028090;color:#fff;font-weight:600;text-align:left;padding:6px;font-size:10px;letter-spacing:0.4px;text-transform:uppercase}
+.pres-tbl td{padding:7px 6px;border-bottom:0.5px solid #e8e8e0;vertical-align:top;color:#222}
+.pres-tbl .r{text-align:right;white-space:nowrap}
+.pres-tbl .c{text-align:center;white-space:nowrap}
+.pres-tot{margin-top:8px;max-width:220px;margin-left:auto}
+.pres-tot-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#444}
+.pres-tot-row.grand{font-size:15px;font-weight:800;color:#0A0A0A;border-top:2px solid #0A0A0A;margin-top:4px;padding-top:8px}
+.pres-cond{font-size:11px;color:#555;line-height:1.55}
+.pres-foot{margin-top:14px;padding-top:8px;border-top:0.5px solid #e0e0d8;font-size:10px;color:#888;text-align:center;line-height:1.5}
 /* FONDOS */
 .fondo-card{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px}
 .fondo-bar{height:6px;border-radius:3px;background:var(--bd);margin:6px 0 4px;overflow:hidden}
@@ -934,7 +957,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- MODAL VER PRESUPUESTO -->
 <div class="modal-bg" id="modal-ver-pres">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Presupuesto</span><button class="close-btn" onclick="closeModal('modal-ver-pres')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="modal-ver-pres-title">Presupuesto</span><button class="close-btn" onclick="closeModal('modal-ver-pres')">&#x2715;</button></div>
     <div id="pres-contenido"></div>
   </div>
 </div>
@@ -1356,6 +1379,82 @@ function presSubtotalDe(p){
 function presTotalDe(p){
   var desc=parseFloat(p&&p.desc)||0;
   return presSubtotalDe(p)*(1-desc/100);
+}
+function clienteDePres(p){
+  var lista=LS.g('crm_clientes')||[];
+  if(p&&p.clienteId){
+    var c=lista.find(function(x){return x.id===p.clienteId});
+    if(c)return c;
+  }
+  if(p&&p.clienteNombre){
+    var k=nombreClienteKey(p.clienteNombre);
+    return lista.find(function(x){return nombreClienteKey(x.nombre)===k})||null;
+  }
+  return null;
+}
+function clienteDocTxt(c){
+  if(!c)return '';
+  if(c.tipo==='Juridica'&&c.rif)return (c.rifTipo||'J')+'-'+c.rif;
+  if(c.ci)return (c.ciTipo||'V')+'-'+c.ci;
+  if(c.rif)return (c.rifTipo||'J')+'-'+c.rif;
+  return '';
+}
+function clienteDirTxt(c){
+  if(!c)return '';
+  return [c.dir,c.ciudad,c.estadoDir].filter(Boolean).join(', ');
+}
+function clientePagoTxt(c,p){
+  var map={contado:'Contado',anticipo50:'Anticipo 50%',credito15:'Credito 15 dias',credito30:'Credito 30 dias',credito60:'Credito 60 dias'};
+  if(c&&c.pago&&map[c.pago])return map[c.pago];
+  var pct=parseFloat(p&&p.antPct)||50;
+  return 'Anticipo '+pct+'% para iniciar produccion';
+}
+function siguienteNumeroPres(){
+  var lista=LS.g('crm_presupuestos')||[];
+  var y=hoy().slice(0,4);
+  var max=0;
+  lista.forEach(function(p){
+    var m=String(p&&p.numero||'').match(/^PRES-(\d{4})-(\d+)$/i);
+    if(m&&m[1]===y)max=Math.max(max,parseInt(m[2],10)||0);
+  });
+  return 'PRES-'+y+'-'+String(max+1).padStart(4,'0');
+}
+function presNumero(p){
+  if(p&&p.numero)return p.numero;
+  var y=String((p&&p.fecha)||hoy()).slice(0,4);
+  var n=String((p&&p.id)||'0000').replace(/[^a-z0-9]/gi,'').slice(-4).toUpperCase()||'0000';
+  return 'PRES-'+y+'-'+n;
+}
+function presFechaVence(p){
+  var d=p&&p.fecha;
+  var dias=parseInt(p&&p.validez,10);
+  if(!d||!dias)return '';
+  var dt=new Date(d+'T12:00:00');
+  if(isNaN(dt.getTime()))return '';
+  dt.setDate(dt.getDate()+dias);
+  var mm=('0'+(dt.getMonth()+1)).slice(-2);
+  var dd=('0'+dt.getDate()).slice(-2);
+  return dt.getFullYear()+'-'+mm+'-'+dd;
+}
+function presItemTallasTxt(it){
+  if(!it||!it.tallasDetalle)return '';
+  return PRES_TALLAS.filter(function(t){return +it.tallasDetalle[t]>0}).map(function(t){return t+'x'+it.tallasDetalle[t]}).join(', ');
+}
+function presItemDesc(it){
+  var nom=String((it&&(it.productoNombre||it.nombre))||'').trim();
+  var extra=String((it&&it.desc)||'').trim();
+  var out=nom||extra||'Item';
+  if(nom&&extra&&extra!==nom)out=nom+' — '+extra;
+  if(it&&it.medidas)out+=' · '+it.medidas;
+  var tallas=presItemTallasTxt(it);
+  if(tallas)out+=' · Tallas: '+tallas;
+  return out;
+}
+function presItemUnd(it){
+  return presItemEsMetros(it)?'ml':'und';
+}
+function pdfTxt(s){
+  return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[–—•·]/g,'-').replace(/[“”«»]/g,'"').replace(/[‘’]/g,"'");
 }
 function presCostoProdDe(items){
   return (items||[]).reduce(function(a,it){
@@ -1865,7 +1964,7 @@ function goTab(id){
   if(id==='dash'||id==='clientes'||id==='presupuestos'||id==='ordenes')repararFichasComerciales();
   if(id==='dash')renderDash();
   if(id==='clientes')renderClientes();
-  if(id==='presupuestos')renderPresupuestos();
+  if(id==='presupuestos'){renderPresupuestos();precargarHtml2Pdf()}
   if(id==='ordenes')renderOrdenes();
   if(id==='conta'){
     if(periodoConta!=='mes')setPeriodo('mes');
@@ -2081,7 +2180,7 @@ function renderPresupuestos(){
         var c={pendiente:'#888',enviado:'var(--teal)',aprobado:'var(--gt)',rechazado:'var(--dt)'}[e];
         return'<button style="font-size:10px;padding:3px 8px;border-radius:20px;border:1.5px solid '+(on?c:'var(--bd)')+';background:'+(on?c:'transparent')+';color:'+(on?'#fff':c)+';font-weight:600;cursor:pointer" onclick="setEstadoPres(\''+p.id+'\',\''+e+'\')">'+eLbl[e]+'</button>';
       }).join('')+'</div>';
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(eColor[est]||'tag-gray')+'">'+eLbl[est]+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(presTotalDe(p))+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
+    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(eColor[est]||'tag-gray')+'">'+eLbl[est]+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+escHtml(presNumero(p))+' · '+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(presTotalDe(p))+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-teal btn-sm" onclick="enviarPresupuestoPdf(\''+p.id+'\')">PDF</button><button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
   }).join('');
 }
 function abrirPresupuesto(id){
@@ -2302,32 +2401,88 @@ function guardarPresupuesto(){
   var antRec=parseFloat(document.getElementById('p-anticipo').value)||0;
   var obj={id:id||uid(),clienteId:cId,clienteNombre:cNom?cNom.nombre:'Sin cliente',fecha:document.getElementById('p-fecha').value,validez:document.getElementById('p-validez').value,items:presItems,desc:desc,subtotal:sub,total:total,costoProd:presCostoProdDe(presItems),anticipo:antRec,antPct:parseFloat(document.getElementById('p-ant-pct').value)||50,saldo:total-antRec,notas:document.getElementById('p-notas').value,estado:id?undefined:'pendiente'};
   if(!id)obj.estado='pendiente';
-  if(id){var i=lista.findIndex(function(x){return x.id===id});if(i>=0){obj.estado=lista[i].estado;obj.creadoPor=lista[i].creadoPor;obj.hist=lista[i].hist;obj.editadoPor=actorAhora();pushHist(obj,'pres_editar',obj.clienteNombre||'');lista[i]=obj}else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}}
-  else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}
+  if(id){var i=lista.findIndex(function(x){return x.id===id});if(i>=0){obj.estado=lista[i].estado;obj.creadoPor=lista[i].creadoPor;obj.hist=lista[i].hist;obj.numero=lista[i].numero||siguienteNumeroPres();obj.editadoPor=actorAhora();pushHist(obj,'pres_editar',obj.clienteNombre||'');lista[i]=obj}else{obj.numero=siguienteNumeroPres();obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}}
+  else{obj.numero=siguienteNumeroPres();obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}
   LS.s('crm_presupuestos',lista);
   closeModal('modal-presupuesto');
   renderPresupuestos();
+}
+function htmlPresupuestoFormal(p){
+  var c=clienteDePres(p);
+  var num=presNumero(p);
+  var vence=presFechaVence(p);
+  var sub=presSubtotalDe(p);
+  var desc=parseFloat(p.desc)||0;
+  var descMonto=sub*desc/100;
+  var total=presTotalDe(p);
+  var antPct=parseFloat(p.antPct)||50;
+  var antSug=total*antPct/100;
+  var doc=c?clienteDocTxt(c):'';
+  var dir=c?clienteDirTxt(c):'';
+  var html='<div class="pres-doc">';
+  html+='<div class="pres-doc-head"><div>';
+  html+='<div class="pres-doc-brand"><span class="c1">CRO</span><span class="c2">MAT</span></div>';
+  html+='<div class="pres-doc-tag">Impresion · Sublimacion · Textil</div>';
+  html+='<div class="pres-doc-web">cromat.xyz</div></div>';
+  html+='<div class="pres-doc-meta"><div class="pres-doc-num">'+escHtml(num)+'</div>';
+  html+='<div>Fecha: '+fch(p.fecha)+'</div>';
+  html+='<div>Valido '+escHtml(String(p.validez||15))+' dias</div>';
+  if(vence)html+='<div>Vence: '+fch(vence)+'</div>';
+  html+='</div></div>';
+  html+='<div class="pres-doc-sec">Datos del cliente</div>';
+  html+='<div class="pres-cli"><strong>'+escHtml((c&&c.nombre)||p.clienteNombre||'Sin cliente')+'</strong>';
+  if(c&&c.empresa)html+='<div>Nombre comercial: '+escHtml(c.empresa)+'</div>';
+  if(c&&c.tipo)html+='<div>Tipo: '+(c.tipo==='Juridica'?'Persona juridica':'Persona natural')+'</div>';
+  if(doc)html+='<div>'+(c&&c.tipo==='Juridica'?'RIF: ':'Cedula: ')+escHtml(doc)+'</div>';
+  if(c&&(c.tel||c.tel2))html+='<div>WhatsApp: '+escHtml([c.tel,c.tel2].filter(Boolean).join(' / '))+'</div>';
+  if(c&&c.email)html+='<div>Email: '+escHtml(c.email)+'</div>';
+  if(dir)html+='<div>Direccion: '+escHtml(dir)+'</div>';
+  html+='</div>';
+  html+='<div class="pres-doc-sec">Detalle</div>';
+  html+='<div class="pres-tbl-wrap"><table class="pres-tbl"><thead><tr><th>Descripcion</th><th class="c">Cant.</th><th class="c">Und.</th><th class="r">P. unit.</th><th class="r">Importe</th></tr></thead><tbody>';
+  (p.items||[]).forEach(function(it){
+    html+='<tr><td>'+escHtml(presItemDesc(it))+'</td><td class="c">'+presItemQty(it)+'</td><td class="c">'+presItemUnd(it)+'</td><td class="r">'+usd(it.precio||0)+'</td><td class="r">'+usd(presItemMonto(it))+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div class="pres-tot">';
+  html+='<div class="pres-tot-row"><span>Subtotal</span><span>'+usd(sub)+'</span></div>';
+  if(desc>0)html+='<div class="pres-tot-row"><span>Descuento ('+desc+'%)</span><span>-'+usd(descMonto)+'</span></div>';
+  html+='<div class="pres-tot-row grand"><span>TOTAL</span><span>'+usd(total)+'</span></div>';
+  html+='</div>';
+  html+='<div class="pres-doc-sec">Condiciones</div>';
+  html+='<div class="pres-cond">';
+  html+='<div>Validez: '+escHtml(String(p.validez||15))+' dias a partir de la fecha de emision'+(vence?' (hasta el '+fch(vence)+')':'')+'.</div>';
+  html+='<div>Precios expresados en dolares de los Estados Unidos (USD).</div>';
+  html+='<div>Condicion de pago: '+escHtml(clientePagoTxt(c,p))+'. Anticipo sugerido ('+antPct+'%): '+usd(antSug)+'. Saldo: '+usd(Math.max(0,total-antSug))+'.</div>';
+  var notas=String((p&&p.notas)||'').trim();
+  if(notas)html+='<div>Notas: '+escHtml(notas)+'</div>';
+  html+='</div>';
+  html+='<div class="pres-foot">CROMAT · Impresion, sublimacion y textil · cromat.xyz<br>Este documento es una cotizacion y no constituye factura.</div>';
+  html+='</div>';
+  return html;
 }
 function verPresupuesto(id){
   var p=(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===id});
   if(!p)return;
   var estados={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En produccion'};
   var colores={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
-  var html='<div><div style="display:flex;justify-content:space-between;margin-bottom:12px"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(colores[p.estado]||'tag-gray')+'">'+((estados[p.estado])||'PENDIENTE')+'</span></div>';
-  html+='<div style="font-size:12px;color:var(--tm);margin-bottom:10px">'+fch(p.fecha)+' &bull; Valido '+p.validez+' dias'+(p.creadoPor?' &bull; Creado por '+escHtml(fmtActor(p.creadoPor)):'')+'</div>';
-  html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(presItemLineaTxt(it))+'</span><span>'+usd(presItemMonto(it))+'</span></div>'}).join('')+'</div>';
-  html+='<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:12px"><span>TOTAL</span><span>'+usd(presTotalDe(p))+'</span></div>';
-  html+='<div class="st">Estado</div><div class="estado-grid">';
+  var tit=document.getElementById('modal-ver-pres-title');
+  if(tit)tit.textContent=presNumero(p);
+  var html=htmlPresupuestoFormal(p);
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0 8px"><span class="st" style="margin:0">Estado interno</span><span class="tag '+(colores[p.estado]||'tag-gray')+'">'+((estados[p.estado])||'PENDIENTE')+'</span></div>';
+  if(p.creadoPor)html+='<div style="font-size:11px;color:var(--tm);margin-bottom:8px">Creado por '+escHtml(fmtActor(p.creadoPor))+'</div>';
+  html+='<div class="estado-grid">';
   ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
     var labels={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado'};
     var actClases={'pendiente':'active-ne','enviado':'active-env','aprobado':'active-apr','rechazado':'active-rec'};
     html+='<button class="estado-btn'+(p.estado===e?' '+actClases[e]:'')+'" onclick="setEstadoPres(&quot;'+id+'&quot;,&quot;'+e+'&quot;)">'+labels[e]+'</button>';
   });
   html+='</div>';
-  html+='<button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
-  html+='</div>';
+  html+='<button class="btn btn-primary" id="btn-pres-pdf" style="width:100%;margin-top:4px;justify-content:center" onclick="enviarPresupuestoPdf(&quot;'+id+'&quot;)">Enviar PDF</button>';
+  html+='<button class="btn btn-teal" style="width:100%;margin-top:8px;justify-content:center" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
   document.getElementById('pres-contenido').innerHTML=html;
   openModal('modal-ver-pres');
+  precargarHtml2Pdf();
 }
 function setEstadoPres(id,estado){
   if(!requireTab('presupuestos'))return;
@@ -3713,16 +3868,22 @@ function descargarBlob(blob,nombre){
   a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);
 }
-function entregarPdf(blob,nombre){
+function entregarPdf(blob,nombre,shareOpts){
   var file;
+  var titulo=(shareOpts&&shareOpts.title)||('Cromat '+nombreCalcActiva());
+  var texto=(shareOpts&&shareOpts.text)||'Analisis de costos Cromat';
   try{file=new File([blob],nombre,{type:'application/pdf'})}catch(e){file=null}
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
-    return navigator.share({title:'Cromat '+nombreCalcActiva(),text:'Analisis de costos Cromat',files:[file]}).catch(function(e){
-      if(e&&e.name==='AbortError')return;
+    return navigator.share({title:titulo,text:texto,files:[file]}).then(function(){
+      return {ok:true,via:'share'};
+    }).catch(function(e){
+      if(e&&e.name==='AbortError')return {ok:false,aborted:true};
       descargarBlob(blob,nombre);
+      return {ok:true,via:'download'};
     });
   }
   descargarBlob(blob,nombre);
+  return Promise.resolve({ok:true,via:'download'});
 }
 function valorCampoPdf(el){
   if(!el)return '';
@@ -3823,6 +3984,197 @@ function enviarCostosPdf(){
   }).then(function(blob){
     if(!blob||blob.size<80)throw new Error('El PDF salio vacio');
     return entregarPdf(blob,nombre);
+  }).catch(function(e){
+    alert((e&&e.message)||'No se pudo crear el PDF. Revisa la conexion e intentalo de nuevo.');
+  }).then(function(){
+    if(btn){btn.disabled=false;btn.textContent=prev||'Enviar PDF'}
+  });
+}
+function construirPdfPresupuesto(p){
+  var JsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+  if(!JsPDF)throw new Error('PDF no disponible');
+  var pdf=new JsPDF({unit:'mm',format:'a4'});
+  var W=210,M=16,y=18,maxY=278;
+  var c=clienteDePres(p);
+  var num=presNumero(p);
+  var vence=presFechaVence(p);
+  var sub=presSubtotalDe(p);
+  var desc=parseFloat(p.desc)||0;
+  var descMonto=sub*desc/100;
+  var total=presTotalDe(p);
+  var antPct=parseFloat(p.antPct)||50;
+  var antSug=total*antPct/100;
+  function need(h){if(y+h>maxY){pdf.addPage();y=18}}
+  function txt(s,x,yy,opt){pdf.text(pdfTxt(s),x,yy,opt||{})}
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(20);
+  pdf.setTextColor(255,107,53);
+  pdf.text('CRO',M,y);
+  var croW=pdf.getTextWidth('CRO');
+  pdf.setTextColor(2,128,144);
+  pdf.text('MAT',M+croW,y);
+  pdf.setFontSize(11);
+  pdf.text(pdfTxt(num),W-M,y,{align:'right'});
+  y+=6;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(120);
+  pdf.text(pdfTxt('Impresion  ·  Sublimacion  ·  Textil'),M,y);
+  pdf.setFontSize(9);
+  pdf.setTextColor(80);
+  pdf.text('Fecha: '+fch(p.fecha),W-M,y,{align:'right'});
+  y+=5;
+  pdf.setTextColor(2,128,144);
+  pdf.text('cromat.xyz',M,y);
+  pdf.setTextColor(80);
+  pdf.text(pdfTxt('Valido '+String(p.validez||15)+' dias'+(vence?'  ·  Vence '+fch(vence):'')),W-M,y,{align:'right'});
+  y+=5;
+  pdf.setDrawColor(255,107,53);
+  pdf.setLineWidth(0.8);
+  pdf.line(M,y,W-M,y);
+  y+=8;
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(13);
+  pdf.setTextColor(10);
+  pdf.text('PRESUPUESTO',M,y);
+  y+=8;
+  pdf.setFontSize(8);
+  pdf.setTextColor(2,128,144);
+  pdf.text('DATOS DEL CLIENTE',M,y);
+  y+=5;
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(20);
+  txt((c&&c.nombre)||p.clienteNombre||'Sin cliente',M,y);
+  y+=5;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(60);
+  if(c&&c.empresa){txt('Nombre comercial: '+c.empresa,M,y);y+=4.5}
+  if(c&&c.tipo){txt(c.tipo==='Juridica'?'Persona juridica':'Persona natural',M,y);y+=4.5}
+  var doc=c?clienteDocTxt(c):'';
+  if(doc){txt((c&&c.tipo==='Juridica'?'RIF: ':'Cedula: ')+doc,M,y);y+=4.5}
+  if(c&&(c.tel||c.tel2)){txt('WhatsApp: '+[c.tel,c.tel2].filter(Boolean).join(' / '),M,y);y+=4.5}
+  if(c&&c.email){txt('Email: '+c.email,M,y);y+=4.5}
+  var dir=c?clienteDirTxt(c):'';
+  if(dir){
+    var dirLines=pdf.splitTextToSize(pdfTxt('Direccion: '+dir),W-2*M);
+    dirLines.forEach(function(ln){need(5);pdf.text(ln,M,y);y+=4.5});
+  }
+  y+=4;
+  need(12);
+  var colDesc=78,colCant=18,colUnd=16,colPu=28;
+  var xCant=M+colDesc,xUnd=xCant+colCant,xPu=xUnd+colUnd,xImp=W-M;
+  pdf.setFillColor(2,128,144);
+  pdf.rect(M,y-4.5,W-2*M,7,'F');
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(255);
+  pdf.text('DESCRIPCION',M+1.5,y);
+  pdf.text('CANT.',xUnd-2,y,{align:'right'});
+  pdf.text('UND.',xPu-2,y,{align:'right'});
+  pdf.text('P. UNIT.',xImp-30,y,{align:'right'});
+  pdf.text('IMPORTE',xImp,y,{align:'right'});
+  y+=6;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(9);
+  (p.items||[]).forEach(function(it,idx){
+    var descLines=pdf.splitTextToSize(pdfTxt(presItemDesc(it)),colDesc-3);
+    var h=Math.max(6.5,descLines.length*4.2+2.2);
+    need(h+2);
+    if(idx%2===0){
+      pdf.setFillColor(248,248,244);
+      pdf.rect(M,y-3.5,W-2*M,h,'F');
+    }
+    pdf.setTextColor(30);
+    descLines.forEach(function(ln,li){pdf.text(ln,M+1.5,y+li*4.2)});
+    pdf.text(String(presItemQty(it)),xUnd-2,y,{align:'right'});
+    pdf.text(presItemUnd(it),xPu-2,y,{align:'right'});
+    pdf.text(usd(it.precio||0),xImp-30,y,{align:'right'});
+    pdf.setFont('helvetica','bold');
+    pdf.text(usd(presItemMonto(it)),xImp,y,{align:'right'});
+    pdf.setFont('helvetica','normal');
+    y+=h;
+  });
+  y+=4;
+  need(28);
+  function totRow(lab,val,bold){
+    pdf.setFont('helvetica',bold?'bold':'normal');
+    pdf.setFontSize(bold?12:10);
+    pdf.setTextColor(bold?10:80);
+    pdf.text(pdfTxt(lab),W-M-42,y,{align:'right'});
+    pdf.text(val,W-M,y,{align:'right'});
+    y+=6;
+  }
+  totRow('Subtotal',usd(sub),false);
+  if(desc>0)totRow('Descuento ('+desc+'%)','-'+usd(descMonto),false);
+  pdf.setDrawColor(10);
+  pdf.setLineWidth(0.6);
+  pdf.line(W-M-70,y-3,W-M,y-3);
+  totRow('TOTAL',usd(total),true);
+  y+=4;
+  need(36);
+  pdf.setFont('helvetica','bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(2,128,144);
+  pdf.text('CONDICIONES',M,y);
+  y+=5;
+  pdf.setFont('helvetica','normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(70);
+  var conds=[
+    'Validez: '+String(p.validez||15)+' dias a partir de la fecha de emision'+(vence?' (hasta el '+fch(vence)+')':'')+'.',
+    'Precios expresados en dolares de los Estados Unidos (USD).',
+    'Condicion de pago: '+clientePagoTxt(c,p)+'. Anticipo sugerido ('+antPct+'%): '+usd(antSug)+'. Saldo: '+usd(Math.max(0,total-antSug))+'.'
+  ];
+  var notas=String((p&&p.notas)||'').trim();
+  if(notas)conds.push('Notas: '+notas);
+  conds.forEach(function(line){
+    var ls=pdf.splitTextToSize(pdfTxt(line),W-2*M);
+    ls.forEach(function(ln){need(5);pdf.text(ln,M,y);y+=4.5});
+  });
+  y+=8;
+  need(16);
+  pdf.setDrawColor(224,224,216);
+  pdf.setLineWidth(0.4);
+  pdf.line(M,y,W-M,y);
+  y+=6;
+  pdf.setFontSize(8);
+  pdf.setTextColor(120);
+  pdf.text(pdfTxt('CROMAT  ·  Impresion, sublimacion y textil  ·  cromat.xyz'),W/2,y,{align:'center'});
+  y+=4;
+  pdf.text(pdfTxt('Este documento es una cotizacion y no constituye factura.'),W/2,y,{align:'center'});
+  return pdf.output('blob');
+}
+function marcarPresEnviado(id){
+  var lista=LS.g('crm_presupuestos')||[];
+  var i=lista.findIndex(function(x){return x.id===id});
+  if(i<0||lista[i].opId)return;
+  var est=lista[i].estado||'pendiente';
+  if(est!=='pendiente')return;
+  lista[i].estado='enviado';
+  lista[i].estadoPor=actorAhora();
+  pushHist(lista[i],'pres_estado','enviado');
+  LS.s('crm_presupuestos',lista);
+  renderPresupuestos();
+  var modal=document.getElementById('modal-ver-pres');
+  if(modal&&modal.classList.contains('open'))verPresupuesto(id);
+}
+function enviarPresupuestoPdf(id){
+  if(!requireTab('presupuestos'))return;
+  var p=(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===id});
+  if(!p)return;
+  var btn=document.getElementById('btn-pres-pdf');
+  var prev=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Preparando PDF…'}
+  var nombre='Cromat-'+presNumero(p)+'.pdf';
+  precargarHtml2Pdf().then(function(){
+    return construirPdfPresupuesto(p);
+  }).then(function(blob){
+    if(!blob||blob.size<80)throw new Error('El PDF salio vacio');
+    return entregarPdf(blob,nombre,{title:'Presupuesto '+presNumero(p),text:'Presupuesto Cromat '+presNumero(p)+' — '+(p.clienteNombre||'')});
+  }).then(function(r){
+    if(r&&r.ok)marcarPresEnviado(id);
   }).catch(function(e){
     alert((e&&e.message)||'No se pudo crear el PDF. Revisa la conexion e intentalo de nuevo.');
   }).then(function(){
