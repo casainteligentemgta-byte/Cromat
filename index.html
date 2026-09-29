@@ -198,11 +198,12 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .period-tabs{display:flex;gap:4px;margin-bottom:12px}
 .ptab{padding:5px 10px;border-radius:20px;font-size:11px;border:0.5px solid var(--bd);background:var(--s2);color:var(--ts);cursor:pointer;font-weight:500}
 .ptab.on{background:var(--teal);color:#fff;border-color:var(--teal)}
-.dist-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--bd)}
+.dist-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--bd);flex-wrap:nowrap}
 .dist-row:last-child{border-bottom:none}
 .dist-row.sub{padding-left:14px}
 .dist-row.sub .result-label{color:var(--ts);font-weight:500;font-size:12px}
-.dist-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;font-weight:600}
+.dist-row .result-label{flex:1;min-width:0}
+.dist-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;font-weight:600;flex-shrink:0}
 /* ITEM SELECTOR */
 .prod-tag{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--at);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px}
 @media print{.bnav,.nb,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
@@ -3509,7 +3510,7 @@ function partidaNormLabel(label){
   if(/electric|luz/.test(s))return 'Electricidad';
   if(/deprec/.test(s))return 'Depreciación';
   if(/mano/.test(s))return 'Mano de obra';
-  if(/gasto\s*fijo/.test(s))return 'Gastos fijos (análisis)';
+  if(/gastos?\s*fijos?/.test(s))return 'Gastos fijos (prorrateo)';
   if(/otros insumo/.test(s))return 'Otros insumos';
   if(/^tela/.test(s))return 'Tela';
   if(/film/.test(s))return 'Film';
@@ -3522,7 +3523,7 @@ function partidaNormLabel(label){
   if(/^impres/.test(s))return 'Impresión';
   return String(label||'Partida').trim()||'Partida';
 }
-var PARTIDA_ORDEN=['Tinta','Papel','Electricidad','Depreciación','Mano de obra','Tela','Film','Polvo','Costura','Material','Acabado','Ajuste por fallo','Costo base (horas)','Impresión','Gastos fijos (análisis)','Otros insumos','Costo catálogo','Costo de producción','Sin análisis (estimado)'];
+var PARTIDA_ORDEN=['Tinta','Papel','Electricidad','Depreciación','Mano de obra','Tela','Film','Polvo','Costura','Material','Acabado','Ajuste por fallo','Costo base (horas)','Impresión','Gastos fijos (prorrateo)','Otros insumos','Costo catálogo','Costo de producción','Sin análisis (estimado)'];
 function desgloseCostoCobrado(cob,costPct){
   var costos=LS.g('crm_costos')||[];
   var catalogo=LS.g('crm_catalogo')||[];
