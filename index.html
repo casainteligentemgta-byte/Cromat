@@ -4071,7 +4071,7 @@ function construirPdfPresupuesto(p){
   pdf.text(pdfTxt('Valido '+String(d.validez)+' dias'+(d.vence?'  ·  Vence '+fch(d.vence):'')),W-M,29,{align:'right'});
   y=42;
   var colW=(W-2*M-4)/2;
-  var boxH=Math.max(8+d.emisor.length*5,8+d.cliente.length*5);
+  var boxH=Math.max(14+d.emisor.length*5.4,14+d.cliente.length*5.4)+8;
   need(boxH+6);
   pdf.setDrawColor(224,224,216);
   pdf.setFillColor(250,250,247);
