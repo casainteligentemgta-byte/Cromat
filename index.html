@@ -2534,7 +2534,6 @@ function renderOrdenes(){
   } else {
     var el=document.getElementById('lista-ordenes');
     if(!lista.length){el.innerHTML='<div class="empty">Sin ordenes</div>';return}
-    var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
       var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?OP_TALLAS.reduce(function(s,t){return s+(it.tallasDetalle[t]||0)},0):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
       return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+opEstadoColor(o.estado)+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
