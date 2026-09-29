@@ -200,6 +200,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .ptab.on{background:var(--teal);color:#fff;border-color:var(--teal)}
 .dist-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--bd)}
 .dist-row:last-child{border-bottom:none}
+.dist-row.sub{padding-left:14px}
+.dist-row.sub .result-label{color:var(--ts);font-weight:500;font-size:12px}
+.dist-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;font-weight:600}
 /* ITEM SELECTOR */
 .prod-tag{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--at);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px}
 @media print{.bnav,.nb,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
@@ -322,14 +325,14 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="st">Reparto de ganancia</div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Montos sobre lo cobrado este mes. El 80 / 15 / 5 se aplica a la ganancia estimada (después de costo e impuesto). Lo por cobrar no entra hasta que se cobre. Los gastos reales están en el resultado de arriba.</div>
-    <div id="conta-dist">
-      <div class="dist-row"><span class="result-label">Costo produccion</span><span><input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-costo">$0</span></span></div>
-      <div class="dist-row"><span class="result-label">Impuesto (ISLR/IVA)</span><span><input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-imp">$0</span></span></div>
-      <div class="dist-row"><span class="result-label">Ganancia neta est.</span><span id="cd-gan" style="font-weight:600;color:var(--gt)">$0</span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Negocio</span><span><input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-neg">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- CEO</span><span><input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-ceo">$0</span></span></div>
-      <div class="dist-row" style="padding-left:12px"><span class="result-label">- Operadora</span><span><input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:45px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">% = <span id="cd-oper">$0</span></span></div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Ingreso bruto = lo cobrado este mes. El costo de producción se desglosa por partida (tinta, papel, electricidad, depreciación, etc.) según los análisis de las OP cobradas. Lo por cobrar no entra hasta que se cobre. Negocio / CEO / Operadora reparte la ganancia neta. Los gastos reales del mes están en el resultado de arriba.</div>
+    <div id="conta-dist"></div>
+    <div id="conta-pcts" style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--ts)">
+      <span>Costo sin análisis <input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+      <span>Impuesto <input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+      <span>Negocio <input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+      <span>CEO <input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+      <span>Operadora <input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
     </div>
     <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
   </div>
@@ -3456,13 +3459,18 @@ function tipoCobroMov(m){
 }
 function cobrosDelPeriodo(movs,ym,desde,hasta){
   movs=movs||LS.g('crm_movimientos')||[];
-  var op=0,otros=0,seen={},backfill=0;
+  var op=0,otros=0,seen={},backfill=0,byOp={},opSinId=0;
+  function addOp(id,n){
+    if(!id){opSinId+=n;return}
+    byOp[id]=(byOp[id]||0)+n;
+  }
   movs.forEach(function(m){
     if(m.tipo!=='ingreso'||!fechaEnPeriodo(m.fecha,ym,desde,hasta))return;
     var n=parseFloat(m.monto)||0;
     var t=tipoCobroMov(m);
     if(t){
       op+=n;
+      addOp(m.opId,n);
       if(m.opId){
         seen[m.opId+'|'+t]=1;
         if(t==='op'){seen[m.opId+'|anticipo']=1;seen[m.opId+'|saldo']=1}
@@ -3473,16 +3481,148 @@ function cobrosDelPeriodo(movs,ym,desde,hasta){
     var ant=parseFloat(o.anticipo)||0;
     var antF=o.anticipoPago&&o.anticipoPago.fecha;
     if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&!seen[o.id+'|anticipo']&&!seen[o.id+'|op']){
-      op+=ant;backfill+=ant;seen[o.id+'|anticipo']=1;
+      op+=ant;backfill+=ant;addOp(o.id,ant);seen[o.id+'|anticipo']=1;
     }
     if(!o.saldoCobrado)return;
     var sal=o.saldoPago?parseFloat(o.saldoPago.monto)||0:Math.max(0,(parseFloat(o.monto)||0)-ant);
     var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
     if(sal>0&&fechaEnPeriodo(salF,ym,desde,hasta)&&!seen[o.id+'|saldo']&&!seen[o.id+'|op']){
-      op+=sal;backfill+=sal;
+      op+=sal;backfill+=sal;addOp(o.id,sal);
     }
   });
-  return {op:op,otros:otros,total:op+otros,backfill:backfill};
+  return {op:op,otros:otros,total:op+otros,backfill:backfill,byOp:byOp,opSinId:opSinId};
+}
+function presDeOP(o){
+  if(!o)return null;
+  var lista=LS.g('crm_presupuestos')||[];
+  var pid=o.presupuestoId||o.presId||'';
+  if(pid){
+    var p=lista.find(function(x){return x.id===pid});
+    if(p)return p;
+  }
+  return lista.find(function(x){return x.opId===o.id})||null;
+}
+function partidaNormLabel(label){
+  var s=String(label||'').toLowerCase();
+  if(/tinta/.test(s))return 'Tinta';
+  if(/papel|sustrato/.test(s))return 'Papel';
+  if(/electric|luz/.test(s))return 'Electricidad';
+  if(/deprec/.test(s))return 'Depreciación';
+  if(/mano/.test(s))return 'Mano de obra';
+  if(/gasto\s*fijo/.test(s))return 'Gastos fijos (análisis)';
+  if(/otros insumo/.test(s))return 'Otros insumos';
+  if(/^tela/.test(s))return 'Tela';
+  if(/film/.test(s))return 'Film';
+  if(/polvo/.test(s))return 'Polvo';
+  if(/costura/.test(s))return 'Costura';
+  if(/^material/.test(s))return 'Material';
+  if(/acabado/.test(s))return 'Acabado';
+  if(/fallo/.test(s))return 'Ajuste por fallo';
+  if(/costo base|horas/.test(s))return 'Costo base (horas)';
+  if(/^impres/.test(s))return 'Impresión';
+  return String(label||'Partida').trim()||'Partida';
+}
+var PARTIDA_ORDEN=['Tinta','Papel','Electricidad','Depreciación','Mano de obra','Tela','Film','Polvo','Costura','Material','Acabado','Ajuste por fallo','Costo base (horas)','Impresión','Gastos fijos (análisis)','Otros insumos','Costo catálogo','Costo de producción','Sin análisis (estimado)'];
+function desgloseCostoCobrado(cob,costPct){
+  var costos=LS.g('crm_costos')||[];
+  var catalogo=LS.g('crm_catalogo')||[];
+  var ops=LS.g('crm_ordenes')||[];
+  var map={},estimado=0,sinAnalisis=(cob.otros||0)+(cob.opSinId||0),conDetalle=0;
+  function addPartida(label,monto){
+    if(!(monto>0.0005))return;
+    var k=partidaNormLabel(label);
+    map[k]=(map[k]||0)+monto;
+  }
+  function costoDeId(id){return costos.find(function(x){return x.id===id})}
+  Object.keys(cob.byOp||{}).forEach(function(opId){
+    var paid=cob.byOp[opId]||0;
+    if(!(paid>0))return;
+    var o=ops.find(function(x){return x.id===opId});
+    var p=presDeOP(o);
+    var jobPrice=Math.max(0,parseFloat(o&&o.monto)||0);
+    if(!(jobPrice>0)&&p)jobPrice=parseFloat(p.total)||presTotalDe(p)||0;
+    if(!(jobPrice>0)){sinAnalisis+=paid;return}
+    var ratio=Math.min(1,paid/jobPrice);
+    var items=(p&&p.items)||[];
+    var got=false;
+    items.forEach(function(it){
+      if(!it||!it.productoId)return;
+      var tipo=String(it.productoId).split(':')[0];
+      var id=String(it.productoId).split(':')[1];
+      var qty=presItemQty(it);
+      var factor=ratio*qty;
+      if(tipo==='c'){
+        var c=costoDeId(id);
+        if(!c)return;
+        var gastos=(c.detalle&&c.detalle.gastos)||[];
+        var gSum=gastos.reduce(function(a,g){return a+(parseFloat(g.monto)||0)},0);
+        var cCost=parseFloat(c.costo)||0;
+        if(gastos.length&&gSum>0){
+          var adj=(cCost>0)?(cCost/gSum):1;
+          gastos.forEach(function(g){addPartida(g.label,(parseFloat(g.monto)||0)*adj*factor)});
+          got=true;
+        }else if(cCost>0){
+          addPartida(c.nombre||'Costo de producción',cCost*factor);
+          got=true;
+        }
+      }else if(tipo==='p'){
+        var prod=catalogo.find(function(x){return x.id===id});
+        var pCost=prod?parseFloat(prod.costo)||0:0;
+        if(pCost>0){addPartida('Costo catálogo',pCost*factor);got=true}
+      }
+    });
+    if(!got&&p&&(parseFloat(p.costoProd)||0)>0){
+      addPartida('Costo de producción',(parseFloat(p.costoProd)||0)*ratio);
+      got=true;
+    }
+    if(got)conDetalle+=paid;
+    else sinAnalisis+=paid;
+  });
+  if(sinAnalisis>0&&costPct>0){
+    estimado=sinAnalisis*costPct/100;
+    addPartida('Sin análisis (estimado)',estimado);
+  }
+  var partidas=Object.keys(map).map(function(k){return {label:k,monto:map[k]}});
+  partidas.sort(function(a,b){
+    var ia=PARTIDA_ORDEN.indexOf(a.label),ib=PARTIDA_ORDEN.indexOf(b.label);
+    if(ia<0)ia=50;if(ib<0)ib=50;
+    if(ia!==ib)return ia-ib;
+    return a.label.localeCompare(b.label);
+  });
+  var costo=partidas.reduce(function(a,p){return a+p.monto},0);
+  return {partidas:partidas,costo:costo,estimado:estimado,sinAnalisis:sinAnalisis,conDetalle:conDetalle};
+}
+function renderContaDist(ing,desg,cfg,impPct,negPct,ceoPct,operPct){
+  var el=document.getElementById('conta-dist');
+  if(!el)return;
+  var impuesto=ing*impPct/100;
+  var gan=ing-desg.costo-impuesto;
+  var hayPartidas=desg.partidas.some(function(p){return p.label!=='Sin análisis (estimado)'});
+  function row(label,right,cls,id){
+    return '<div class="dist-row'+(cls?' '+cls:'')+'"><span class="result-label">'+label+'</span><span class="dist-amt"'+(id?' id="'+id+'"':'')+'>'+right+'</span></div>';
+  }
+  var html='';
+  html+=row('Ingreso bruto','<span style="color:var(--gt)">'+usd(ing)+'</span>','','cd-bruto');
+  html+=row('Costo de producción total','<span style="color:var(--coral)">'+usd(desg.costo)+'</span>','','cd-costo');
+  if(hayPartidas){
+    desg.partidas.forEach(function(p){
+      var col=p.label==='Sin análisis (estimado)'?'var(--tm)':'var(--coral)';
+      html+=row(escHtml(p.label),'<span style="color:'+col+'">'+usd(p.monto)+'</span>','sub');
+    });
+  }
+  html+=row('Impuesto (ISLR/IVA) '+impPct.toFixed(0)+'%','<span style="color:var(--coral)">'+usd(impuesto)+'</span>','','cd-imp');
+  html+=row('Ganancia neta est.','<span style="color:var(--gt);font-weight:700">'+usd(gan)+'</span>','','cd-gan');
+  html+=row('- Negocio '+negPct.toFixed(0)+'%','<span style="color:var(--teal)">'+usd(gan*negPct/100)+'</span>','sub','cd-neg');
+  html+=row('- CEO '+ceoPct.toFixed(0)+'%','<span style="color:var(--teal)">'+usd(gan*ceoPct/100)+'</span>','sub','cd-ceo');
+  html+=row('- Operadora '+operPct.toFixed(0)+'%','<span style="color:var(--teal)">'+usd(gan*operPct/100)+'</span>','sub','cd-oper');
+  if(desg.conDetalle>0&&desg.sinAnalisis>0){
+    html+='<div style="font-size:11px;color:var(--tm);line-height:1.4;margin-top:8px">Cobrado con análisis '+usd(desg.conDetalle)+'. Sin análisis '+usd(desg.sinAnalisis)+' (el % de costo se aplica solo a esa parte).</div>';
+  }else if(hayPartidas){
+    html+='<div style="font-size:11px;color:var(--tm);line-height:1.4;margin-top:8px">Partidas según análisis de las OP cobradas, prorrateadas por lo pagado.</div>';
+  }else{
+    html+='<div style="font-size:11px;color:var(--tm);line-height:1.4;margin-top:8px">Sin análisis vinculado: el costo se estima con el porcentaje de abajo.</div>';
+  }
+  el.innerHTML=html;
 }
 var _skipFijosUi=false;
 function renderGastosFijos(){
@@ -3528,15 +3668,17 @@ function agregarGastoFijo(){
 }
 function applyContaCfg(){
   var cfg=getContaCfg();
-  document.getElementById('cd-costo-pct').value=cfg.costoPct;
-  document.getElementById('cd-imp-pct').value=cfg.impPct;
-  document.getElementById('cd-pct-neg').value=cfg.negPct;
-  document.getElementById('cd-pct-ceo').value=cfg.ceoPct;
-  document.getElementById('cd-pct-oper').value=cfg.operPct;
+  var set=function(id,v){var el=document.getElementById(id);if(el)el.value=v};
+  set('cd-costo-pct',cfg.costoPct);
+  set('cd-imp-pct',cfg.impPct);
+  set('cd-pct-neg',cfg.negPct);
+  set('cd-pct-ceo',cfg.ceoPct);
+  set('cd-pct-oper',cfg.operPct);
   _contaPctReady=true;
 }
 function pctInput(id){
   var el=document.getElementById(id);
+  if(!el)return 0;
   var n=parseFloat(el.value);
   if(isNaN(n))n=0;
   n=Math.max(0,Math.min(100,n));
@@ -3632,24 +3774,29 @@ function renderConta(){
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'var(--gt)';
   document.getElementById('c-cobrar').textContent=usd(cobrar);
   document.getElementById('c-nmovs').textContent=String(fil.length);
-  var costPct=parseFloat(document.getElementById('cd-costo-pct').value)||0;
-  var impPct=parseFloat(document.getElementById('cd-imp-pct').value)||0;
-  var negPct=parseFloat(document.getElementById('cd-pct-neg').value)||0;
-  var ceoPct=parseFloat(document.getElementById('cd-pct-ceo').value)||0;
-  var operPct=parseFloat(document.getElementById('cd-pct-oper').value)||0;
-  var costo=ing*costPct/100;
-  var impuesto=ing*impPct/100;
-  var gan=ing-costo-impuesto;
-  document.getElementById('cd-costo').textContent=usd(costo);
-  document.getElementById('cd-imp').textContent=usd(impuesto);
-  document.getElementById('cd-gan').textContent=usd(gan);
-  document.getElementById('cd-neg').textContent=usd(gan*negPct/100);
-  document.getElementById('cd-ceo').textContent=usd(gan*ceoPct/100);
-  document.getElementById('cd-oper').textContent=usd(gan*operPct/100);
+  var cfg=getContaCfg();
+  var costEl=document.getElementById('cd-costo-pct');
+  var costPct=costEl?parseFloat(costEl.value):cfg.costoPct;
+  if(isNaN(costPct))costPct=cfg.costoPct;
+  var impEl=document.getElementById('cd-imp-pct');
+  var impPct=impEl?parseFloat(impEl.value):cfg.impPct;
+  if(isNaN(impPct))impPct=cfg.impPct;
+  var negEl=document.getElementById('cd-pct-neg');
+  var negPct=negEl?parseFloat(negEl.value):cfg.negPct;
+  if(isNaN(negPct))negPct=cfg.negPct;
+  var ceoEl=document.getElementById('cd-pct-ceo');
+  var ceoPct=ceoEl?parseFloat(ceoEl.value):cfg.ceoPct;
+  if(isNaN(ceoPct))ceoPct=cfg.ceoPct;
+  var operEl=document.getElementById('cd-pct-oper');
+  var operPct=operEl?parseFloat(operEl.value):cfg.operPct;
+  if(isNaN(operPct))operPct=cfg.operPct;
+  var desg=desgloseCostoCobrado(cob,costPct);
+  renderContaDist(ing,desg,cfg,impPct,negPct,ceoPct,operPct);
   var warn=document.getElementById('cd-warn');
   var msgs=[];
   if(Math.abs(negPct+ceoPct+operPct-100)>0.05)msgs.push('Negocio + CEO + Operadora suman '+(negPct+ceoPct+operPct)+'%. Debería ser 100.');
-  if(costPct+impPct>100)msgs.push('Costo e impuesto suman más del 100% del ingreso.');
+  if(!desg.partidas.length&&costPct+impPct>100)msgs.push('Costo e impuesto suman más del 100% del ingreso.');
+  if(desg.costo+ing*impPct/100>ing+0.005)msgs.push('Costo e impuesto superan el ingreso bruto cobrado.');
   if(msgs.length){warn.style.display='block';warn.textContent=msgs.join(' ')}
   else{warn.style.display='none';warn.textContent=''}
   var ops=(LS.g('crm_ordenes')||[]).map(function(o){return {o:o,saldo:saldoPendienteOP(o)}}).filter(function(x){return x.saldo>0});
