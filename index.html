@@ -518,7 +518,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="result-row"><span class="result-label">Tinta (incl. purgas)</span><span class="result-val" id="ir-tinta-res">-</span></div>
     <div class="result-row"><span class="result-label">Papel / sustrato</span><span class="result-val" id="ir-pap-res">-</span></div>
     <div class="result-row"><span class="result-label">Electricidad (impr.+calandra)</span><span class="result-val" id="ir-luz-res">-</span></div>
-    <div class="result-row"><span class="result-label">Depreciacion</span><span class="result-val" id="ir-dep-res">-</span></div>
+    <div class="result-row"><span class="result-label">Depreciacion / ml</span><span class="result-val" id="ir-dep-res">-</span></div>
     <div class="result-row"><span class="result-label">Mano de obra</span><span class="result-val" id="ir-mano-res">-</span></div>
     <div class="result-row"><span class="result-label">Gastos fijos (prorrateo)</span><span class="result-val" id="ir-prorr">-</span></div>
     <div class="result-row"><span class="result-label">Otros insumos</span><span class="result-val" id="ir-otros-res">-</span></div>
@@ -526,6 +526,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <span style="font-size:12px;font-weight:700">Costo total / m²</span>
       <span style="font-size:13px;font-weight:700;color:var(--teal)" id="ir-costo">-</span>
     </div>
+    <div class="result-row"><span class="result-label" style="font-weight:700">Costo total / ml</span><span class="result-val" id="ir-costo-ml" style="font-weight:700;color:var(--teal)">-</span></div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia neta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
     <div style="border-top:0.5px solid var(--bd);margin:8px 0 4px"></div>
     <div class="st" style="margin:0 0 6px">Reparto del precio</div>
@@ -3506,7 +3507,7 @@ function lineasCostosPdf(){
   });
   [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
    ['ir-luz','Electricidad total / m2'],['ir-dep','Depreciacion / ml'],['ir-mano','Mano de obra / m2'],
-   ['ir-costo','Costo total / m2'],['ir-gan','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
+   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / ml'],['ir-gan','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
    ['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],['ir-total','PRECIO TOTAL DEL TRABAJO'],
    ['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
     var n=document.getElementById(p[0]);
@@ -3611,10 +3612,11 @@ function calcImpresion(passN){
   var comis_m2=precio_m2*(ceoPct+operPct)/100;
   var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100,neg_m2=precio_m2*negPct/100;
   var precio_ml=precio_m2*ancho;
+  var costo_ml=costo_m2*ancho;
   var total_trabajo=precio_ml*largo;
   var sin_fijos=precio_m2-prorr_m2;
   var margen=precio_m2>0?gan_m2/precio_m2*100:0;
-  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
+  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,costo_ml:costo_ml,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
 }
 function calcDTFUnit(){
   var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
@@ -3782,11 +3784,13 @@ function cImp(){
   document.getElementById('ir-tinta-res').textContent=usd(r.tinta_m2)+'/m²';
   document.getElementById('ir-pap-res').textContent=usd(r.papel_m2)+'/m²';
   document.getElementById('ir-luz-res').textContent=usd(r.luz_m2)+'/m²';
-  document.getElementById('ir-dep-res').textContent=usd(r.dep_m2)+'/m²';
+  document.getElementById('ir-dep-res').textContent=usd(r.dep_ml)+'/ml';
   document.getElementById('ir-mano-res').textContent=usd(r.mano_m2)+'/m²';
   document.getElementById('ir-prorr').textContent=usd(r.prorr_m2)+'/m²';
   document.getElementById('ir-otros-res').textContent=usd(r.otros)+'/m²';
   document.getElementById('ir-costo').textContent=usd(r.costo_m2)+'/m²';
+  var costoMlEl=document.getElementById('ir-costo-ml');
+  if(costoMlEl)costoMlEl.textContent=usd(r.costo_ml)+'/ml';
   document.getElementById('ir-gan').textContent=usd(r.gan_m2)+'/m²';
   document.getElementById('ir-pct-neg').textContent=r.negPct.toFixed(0)+'%';
   function setRepartoPct(id,n){var el=document.getElementById(id);if(el)el.textContent=n.toFixed(0)}
