@@ -3496,8 +3496,36 @@ var _contaPctReady=false;
 function saldoPendienteOP(o){
   return opPendienteDe(o);
 }
+function filasPorCobrar(){
+  var ops=LS.g('crm_ordenes')||[];
+  var groups={},solos=[],rows=[];
+  ops.forEach(function(o){
+    var k=o.presupuestoId||o.presId||'';
+    if(k){(groups[k]=groups[k]||[]).push(o)}
+    else solos.push(o);
+  });
+  function pushGrupo(g){
+    if(!g||!g.length)return;
+    var tope=0,cob=0,cods=[];
+    g.forEach(function(o){
+      tope=Math.max(tope,opMontoDe(o));
+      cob=money2(cob+opCobradoDe(o));
+      if(o.id)cods.push(String(o.id).slice(-6).toUpperCase());
+    });
+    var p=presDeOP(g[0]);
+    if(p)tope=Math.max(tope,parseFloat(p.total)||presTotalDe(p)||0);
+    var pend=Math.max(0,money2(tope-Math.min(cob,tope)));
+    if(pend<=0.009)return;
+    var o=g.filter(function(x){return opPendienteDe(x)>0.009}).sort(function(a,b){return opPendienteDe(b)-opPendienteDe(a)})[0]||g[0];
+    rows.push({o:o,saldo:pend,cods:cods,dup:g.length>1});
+  }
+  Object.keys(groups).forEach(function(k){pushGrupo(groups[k])});
+  solos.forEach(function(o){pushGrupo([o])});
+  rows.sort(function(a,b){return b.saldo-a.saldo});
+  return rows;
+}
 function totalPorCobrar(){
-  return (LS.g('crm_ordenes')||[]).reduce(function(a,o){return a+saldoPendienteOP(o)},0);
+  return filasPorCobrar().reduce(function(a,x){return a+x.saldo},0);
 }
 function movCatKey(m){
   var c=String(m&&m.cat||'').toLowerCase();
@@ -4030,15 +4058,15 @@ function renderConta(){
   if(desg.costo+ing*impPct/100>ing+0.005)msgs.push('Costo e impuesto superan el ingreso bruto cobrado.');
   if(msgs.length){warn.style.display='block';warn.textContent=msgs.join(' ')}
   else{warn.style.display='none';warn.textContent=''}
-  var ops=(LS.g('crm_ordenes')||[]).map(function(o){return {o:o,saldo:saldoPendienteOP(o)}}).filter(function(x){return x.saldo>0});
-  ops.sort(function(a,b){return b.saldo-a.saldo});
+  var ops=filasPorCobrar();
   var cxcEl=document.getElementById('conta-cxc');
   if(!ops.length){cxcEl.innerHTML='<div class="empty">Sin saldos pendientes en OP</div>'}
   else{
     cxcEl.innerHTML=ops.slice(0,8).map(function(x){
       var o=x.o;
-      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(String(o.id).slice(-6).toUpperCase())+(o.estado?' · '+escHtml(o.estado):'')+'</div></div>';
-    }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' OP más</div>':'');
+      var cods=(x.cods&&x.cods.length)?x.cods:[(o.id||'').slice(-6).toUpperCase()];
+      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(cods.join(' · #'))+(o.estado?' · '+escHtml(o.estado):'')+(x.dup?' · mismo presupuesto':'')+'</div></div>';
+    }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' más</div>':'');
   }
   var byCat={};
   var movsMes=movs.filter(function(m){return m.fecha&&String(m.fecha).startsWith(ym)});
