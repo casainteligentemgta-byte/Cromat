@@ -994,8 +994,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div id="ant-resumen" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
     <div class="fg">
       <label class="fl">Monto recibido ($)</label>
-      <input class="fi" type="number" id="ant-monto" min="0" step="0.01" inputmode="decimal" oninput="onAntMontoInput()">
-      <div id="ant-cero-hint" style="display:none;font-size:11px;color:var(--ts);margin-top:6px;line-height:1.4">Poner <b>0</b> o <b>0000</b> autoriza crear la OP sin anticipo.</div>
+      <input class="fi" type="text" id="ant-monto" inputmode="decimal" autocomplete="off" oninput="onAntMontoInput()">
+      <div id="ant-cero-hint" style="display:none;font-size:11px;color:var(--ts);margin-top:6px;line-height:1.4">Solo <b>0000</b> autoriza crear la OP sin anticipo.</div>
     </div>
     <div class="fg">
       <label class="fl">Método de pago</label>
@@ -2712,20 +2712,17 @@ function confirmarPago(){
   if(document.getElementById('ant-modo').value==='saldo')confirmarSaldo();
   else confirmarAnticipo();
 }
-function antMontoEsCero(){
-  var raw=(document.getElementById('ant-monto').value||'').trim();
-  if(!raw)return false;
-  var n=parseFloat(raw);
-  return !isNaN(n)&&n<=0.009;
+function antMontoEs0000(){
+  return (document.getElementById('ant-monto').value||'').trim()==='0000';
 }
 function onAntMontoInput(){
   var modo=document.getElementById('ant-modo').value;
-  var cero=antMontoEsCero();
+  var clave=antMontoEs0000();
   var hint=document.getElementById('ant-cero-hint');
   if(hint)hint.style.display=(modo==='anticipo')?'block':'none';
   var btn=document.getElementById('ant-btn');
   if(modo==='anticipo'){
-    btn.textContent=cero?'✓ Crear OP sin anticipo':'✓ Confirmar anticipo y crear OP';
+    btn.textContent=clave?'✓ Crear OP sin anticipo':'✓ Confirmar anticipo y crear OP';
   }
   var err=document.getElementById('ant-error');
   if(err)err.style.display='none';
@@ -2736,11 +2733,11 @@ function leerPagoForm(){
   var metodo=document.getElementById('ant-metodo').value;
   var ref=(document.getElementById('ant-ref').value||'').trim();
   var modo=document.getElementById('ant-modo').value;
-  var sinAnt=modo==='anticipo'&&antMontoEsCero();
+  var sinAnt=modo==='anticipo'&&antMontoEs0000();
   var msg='';
-  if(raw===''||isNaN(monto)||monto<0)msg='Indica el monto recibido.';
-  else if(sinAnt)msg='';
-  else if(monto<=0)msg='Indica el monto recibido.';
+  if(sinAnt)msg='';
+  else if(raw===''||isNaN(monto)||monto<0)msg='Indica el monto recibido.';
+  else if(monto<=0)msg=modo==='anticipo'?'Para crear sin anticipo escribe 0000.':'Indica el monto recibido.';
   else if(!metodo)msg='Selecciona el método de pago.';
   else if(metodo!=='Efectivo'&&!ref)msg='Coloca la referencia del '+metodo+' como constancia.';
   var err=document.getElementById('ant-error');
