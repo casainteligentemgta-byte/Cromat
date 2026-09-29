@@ -1302,6 +1302,98 @@ function productollevaTalla(nombre){
   return LLEVA_TALLA_KWORDS.some(function(k){return n.indexOf(k)>=0});
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function nombreClienteKey(n){return String(n||'').trim().toLowerCase().replace(/\s+/g,' ')}
+function repararFichasComerciales(){
+  var clientes=cloudAsList(LS.g('crm_clientes'));
+  var presup=cloudAsList(LS.g('crm_presupuestos'));
+  var ordenes=cloudAsList(LS.g('crm_ordenes'));
+  var movs=cloudAsList(LS.g('crm_movimientos'));
+  var byId={},byNom={};
+  var cambioCli=false,cambioPre=false;
+  clientes.forEach(function(c){
+    if(!c||typeof c!=='object')return;
+    if(c.id)byId[c.id]=c;
+    var k=nombreClienteKey(c.nombre);
+    if(k)byNom[k]=c;
+  });
+  function ensureCliente(id,nombre,fecha){
+    nombre=String(nombre||'').trim();
+    if(!nombre||nombre==='Sin cliente')return null;
+    var k=nombreClienteKey(nombre);
+    if(id&&byId[id]){
+      if(!byId[id].nombre){byId[id].nombre=nombre;cambioCli=true}
+      return byId[id];
+    }
+    if(k&&byNom[k]){
+      if(id&&!byNom[k].id){byNom[k].id=id;byId[id]=byNom[k];cambioCli=true}
+      return byNom[k];
+    }
+    var c={id:id||uid(),nombre:nombre,tipo:'Natural',ci:'',ciTipo:'V',rif:'',rifTipo:'J',empresa:'',tel:'',email:'',dir:'',ciudad:'',fechaCreacion:fecha||hoy()};
+    clientes.push(c);
+    byId[c.id]=c;
+    byNom[k]=c;
+    cambioCli=true;
+    return c;
+  }
+  presup.forEach(function(p){if(p)ensureCliente(p.clienteId,p.clienteNombre,p.fecha)});
+  ordenes.forEach(function(o){if(o)ensureCliente(o.clienteId,o.clienteNombre,o.fecha)});
+  movs.forEach(function(m){
+    if(!m||m.tipo!=='ingreso')return;
+    var d=String(m.desc||'');
+    var cut=d.split(' — ')[1]||d.split(' - ')[1]||'';
+    cut=cut.replace(/\s*\(.*\)$/,'').trim();
+    if(cut)ensureCliente('',cut,m.fecha);
+  });
+  var presById={},presOp={};
+  presup.forEach(function(p){
+    if(!p||typeof p!=='object')return;
+    if(p.id)presById[p.id]=p;
+    if(p.opId)presOp[p.opId]=p;
+  });
+  ordenes.forEach(function(o){
+    if(!o||typeof o!=='object')return;
+    var pid=o.presupuestoId||o.presId||'';
+    if(pid&&presById[pid])return;
+    if(o.id&&presOp[o.id])return;
+    var gemelo=presup.find(function(p){
+      return p&&nombreClienteKey(p.clienteNombre)===nombreClienteKey(o.clienteNombre)
+        && Math.abs((+p.total||0)-(+o.monto||0))<0.02
+        && String(p.fecha||'')===String(o.fecha||'');
+    });
+    if(gemelo){
+      if(!gemelo.opId){gemelo.opId=o.id;cambioPre=true}
+      if(o.id)presOp[o.id]=gemelo;
+      return;
+    }
+    var items=(o.opItems&&o.opItems.length)?o.opItems.map(function(it){
+      return {desc:it.nombre||it.desc||'Item',productoNombre:it.nombre||'',qty:it.qty||1,precio:0};
+    }):[{desc:o.servicio||o.resumen||'Trabajo',qty:1,precio:+o.monto||0}];
+    var p={
+      id:pid||('rec-'+o.id),
+      clienteId:o.clienteId||'',
+      clienteNombre:o.clienteNombre||'Sin cliente',
+      fecha:o.fecha||hoy(),
+      validez:15,
+      items:items,
+      desc:0,
+      subtotal:+o.monto||0,
+      total:+o.monto||0,
+      anticipo:+o.anticipo||0,
+      antPct:0,
+      saldo:Math.max(0,(+o.monto||0)-(+o.anticipo||0)),
+      notas:'Recuperado desde OP',
+      estado:o.estado&&o.estado!=='pendiente'?'produccion':'pendiente',
+      opId:o.id||''
+    };
+    presup.push(p);
+    presById[p.id]=p;
+    if(o.id)presOp[o.id]=p;
+    cambioPre=true;
+  });
+  if(cambioCli)LS.s('crm_clientes',clientes);
+  if(cambioPre)LS.s('crm_presupuestos',presup);
+  return {clientes:cambioCli,presupuestos:cambioPre};
+}
 function calcFechaEntrega(servicio,desde){
   // Días hábiles según servicio
   var dias=servicio==='Sublimacion Textil'?5:3;
@@ -1623,6 +1715,7 @@ function goTab(id){
   var s=document.getElementById('s-'+id); if(s)s.classList.add('on');
   var b=document.getElementById('nb-'+id); if(b)b.classList.add('on');
   window.scrollTo(0,0);
+  if(id==='dash'||id==='clientes'||id==='presupuestos'||id==='ordenes')repararFichasComerciales();
   if(id==='dash')renderDash();
   if(id==='clientes')renderClientes();
   if(id==='presupuestos')renderPresupuestos();
@@ -4483,6 +4576,7 @@ function bindSwipeDelete(root){
     ]);
   }
   asegurarTelasInventario();
+  repararFichasComerciales();
   // Run calcs
   setPass(4);  // default 4 pass
   fillTxImpSelect();
@@ -4630,6 +4724,9 @@ function cloudSyncTap(){
 }
 function cloudWriteKey(k){
   var val=LS.g(k);
+  if(CLOUD_LIST_KEYS.indexOf(k)>=0&&!cloudAsList(val).length){
+    return Promise.resolve({skippedEmpty:true});
+  }
   var row={org_id:CLOUD_ORG,key:k,value:val,updated_at:new Date().toISOString(),updated_by:SB_USER&&SB_USER.id||null};
   var viaTabla=function(){
     return sb.from('cromat_data').upsert(row,{onConflict:'org_id,key'}).then(function(u){
@@ -4764,22 +4861,20 @@ function cloudApplyRow(k,remote,pend){
 function cloudPull(){
   if(!CLOUD_ORG){syncEstado('err','Sin empresa');return}
   syncEstado('pend','Cargando…');
-  var stash=null;
-  var owner=localStorage.getItem('cromat_owner');
-  if(owner&&owner!==CLOUD_ORG){
-    stash={};
-    CLOUD_LIST_KEYS.forEach(function(k){
-      var v=LS.g(k);
-      if(v&&v.length)stash[k]=v;
-    });
-  }
+  var stash={};
+  CLOUD_LIST_KEYS.forEach(function(k){
+    var v=LS.g(k);
+    if(v&&v.length)stash[k]=v;
+  });
   sb.from('cromat_data').select('key,value').then(function(r){
     if(r.error){_sbReady=true;_sbLastErr=cloudErrNube(r.error);syncEstado('err','Sin conexión');return}
     var rows=r.data||[];
     localStorage.setItem('cromat_owner',CLOUD_ORG);
-    CLOUD_DATA_KEYS.forEach(function(k){
-      if(!cloudCanKey(k))localStorage.removeItem(k);
-    });
+    if(AUTH){
+      CLOUD_DATA_KEYS.forEach(function(k){
+        if(!cloudCanKey(k))localStorage.removeItem(k);
+      });
+    }
     localStorage.removeItem('crm_usuarios');
     _sbReady=true;
     var pend=_sbPend(),cambio=false,enNube={};
@@ -4794,15 +4889,18 @@ function cloudPull(){
       if(!cloudCanKey(k))return;
       if(!enNube[k]&&localStorage.getItem(k)!==null)pend[k]=1;
     });
-    if(stash){
-      CLOUD_LIST_KEYS.forEach(function(k){
-        if(!stash[k]||!cloudCanKey(k))return;
-        var merged=cloudMergeLists(stash[k],LS.g(k));
-        var nuevo=JSON.stringify(merged);
-        if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);cambio=true}
-        pend[k]=1;
-      });
-    }
+    CLOUD_LIST_KEYS.forEach(function(k){
+      if(!stash[k]||!cloudCanKey(k))return;
+      var merged=cloudMergeLists(stash[k],LS.g(k));
+      var nuevo=JSON.stringify(merged);
+      if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);cambio=true}
+      if(merged.length)pend[k]=1;
+    });
+    var rec=repararFichasComerciales();
+    if(rec&&(rec.clientes||rec.presupuestos))cambio=true;
+    Object.keys(pend).forEach(function(k){
+      if(CLOUD_LIST_KEYS.indexOf(k)>=0&&!cloudAsList(LS.g(k)).length)delete pend[k];
+    });
     _sbSetPend(pend);
     if(Object.keys(pend).filter(cloudCanKey).length)cloudFlush();else{_sbLastErr='';syncEstado('ok','Sincronizado')}
     if(cambio){
