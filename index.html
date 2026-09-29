@@ -1605,7 +1605,7 @@ function repararFichasComerciales(){
   var ordenes=cloudAsList(LS.g('crm_ordenes'));
   var movs=cloudAsList(LS.g('crm_movimientos'));
   var byId={},byNom={};
-  var cambioCli=false,cambioPre=false;
+  var cambioCli=false,cambioPre=false,cambioOp=false;
   clientes.forEach(function(c){
     if(!c||typeof c!=='object')return;
     if(c.id)byId[c.id]=c;
@@ -1649,7 +1649,12 @@ function repararFichasComerciales(){
   ordenes.forEach(function(o){
     if(!o||typeof o!=='object')return;
     var pid=o.presupuestoId||o.presId||'';
-    if(pid&&presById[pid])return;
+    if(pid&&presById[pid]){
+      var pp=presById[pid];
+      if(!pp.opId){pp.opId=o.id;cambioPre=true}
+      if(o.id)presOp[o.id]=pp;
+      return;
+    }
     if(o.id&&presOp[o.id])return;
     var gemelo=presup.find(function(p){
       return p&&nombreClienteKey(p.clienteNombre)===nombreClienteKey(o.clienteNombre)
@@ -1658,6 +1663,7 @@ function repararFichasComerciales(){
     });
     if(gemelo){
       if(!gemelo.opId){gemelo.opId=o.id;cambioPre=true}
+      if(!o.presupuestoId){o.presupuestoId=gemelo.id;cambioOp=true}
       if(o.id)presOp[o.id]=gemelo;
       return;
     }
@@ -1688,7 +1694,8 @@ function repararFichasComerciales(){
   });
   if(cambioCli)LS.s('crm_clientes',clientes);
   if(cambioPre)LS.s('crm_presupuestos',presup);
-  return {clientes:cambioCli,presupuestos:cambioPre};
+  if(cambioOp)LS.s('crm_ordenes',ordenes);
+  return {clientes:cambioCli,presupuestos:cambioPre,ordenes:cambioOp};
 }
 function calcFechaEntrega(servicio,desde){
   // Días hábiles según servicio
@@ -2213,6 +2220,38 @@ function eliminarCliente(id){
 
 // ===== PRESUPUESTOS =====
 var presItems=[];
+function opsDePresupuesto(presId){
+  if(!presId)return [];
+  return (LS.g('crm_ordenes')||[]).filter(function(o){
+    return o&&(o.presupuestoId===presId||o.presId===presId);
+  });
+}
+function opDePresupuesto(p){
+  if(!p)return null;
+  var ops=LS.g('crm_ordenes')||[];
+  if(p.opId){
+    var porId=ops.find(function(o){return o.id===p.opId});
+    if(porId)return porId;
+  }
+  return ops.find(function(o){return o.presupuestoId===p.id||o.presId===p.id})||null;
+}
+function vincularPresupuestoOP(presId,opId){
+  if(!presId||!opId)return;
+  var lista=LS.g('crm_presupuestos')||[];
+  var i=lista.findIndex(function(x){return x.id===presId});
+  if(i<0)return;
+  var p=lista[i];
+  var cambio=false;
+  if(p.opId!==opId){p.opId=opId;cambio=true}
+  if(p.estado!=='produccion'&&p.estado!=='rechazado'){p.estado='produccion';cambio=true}
+  var ops=LS.g('crm_ordenes')||[];
+  var oi=ops.findIndex(function(o){return o.id===opId});
+  if(oi>=0&&ops[oi].presupuestoId!==presId){
+    ops[oi].presupuestoId=presId;
+    LS.s('crm_ordenes',ops);
+  }
+  if(cambio)LS.s('crm_presupuestos',lista);
+}
 function renderPresupuestos(){
   var lista=LS.g('crm_presupuestos')||[];
   var q=(document.getElementById('pres-buscar').value||'').toLowerCase();
@@ -2224,7 +2263,7 @@ function renderPresupuestos(){
     var eColor={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
     var eLbl={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En produccion'};
     var est=p.estado||'pendiente';
-    var tieneOP=!!p.opId;
+    var tieneOP=!!opDePresupuesto(p);
     var ap=p.anticipoPago;
     var bloqueAnt='';
     if(ap){
@@ -2246,6 +2285,7 @@ function renderPresupuestos(){
 }
 function abrirPresupuesto(id){
   var p=id?(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===id}):null;
+  if(id&&p&&opDePresupuesto(p)){verPresupuesto(id);return;}
   presItems=p?JSON.parse(JSON.stringify(p.items||[])):[{desc:'',qty:1,precio:0}];
   document.getElementById('modal-pres-title').textContent=p?'Editar presupuesto':'Nuevo presupuesto';
   document.getElementById('p-id').value=p?p.id:'';
@@ -2526,7 +2566,12 @@ function verPresupuesto(id){
   });
   html+='</div>';
   html+='<button class="btn btn-primary" id="btn-pres-pdf" style="width:100%;margin-top:4px;justify-content:center" onclick="enviarPresupuestoPdf(&quot;'+id+'&quot;)">Enviar PDF</button>';
-  html+='<button class="btn btn-teal" style="width:100%;margin-top:8px;justify-content:center" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
+  var opEx=opDePresupuesto(p);
+  if(opEx){
+    html+='<button class="btn btn-teal" style="width:100%;margin-top:8px;justify-content:center" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Ver OP</button>';
+  }else{
+    html+='<button class="btn btn-teal" style="width:100%;margin-top:8px;justify-content:center" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
+  }
   document.getElementById('pres-contenido').innerHTML=html;
   openModal('modal-ver-pres');
   precargarHtml2Pdf();
@@ -2537,7 +2582,7 @@ function setEstadoPres(id,estado){
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
   // Si ya tiene OP creada, no se cambia el estado desde aquí
-  if(lista[i].opId){renderPresupuestos();return;}
+  if(opDePresupuesto(lista[i])){renderPresupuestos();return;}
   lista[i].estado=estado;
   lista[i].estadoPor=actorAhora();
   pushHist(lista[i],'pres_estado',estado);
@@ -2647,7 +2692,8 @@ function confirmarAnticipo(){
   var i=lista.findIndex(function(x){return x.id===presId});
   if(i<0)return;
   var p=lista[i];
-  if(p.opId){closeModal('modal-anticipo');return;} // evita duplicados
+  var opYa=opDePresupuesto(p);
+  if(opYa){closeModal('modal-anticipo');goTab('ordenes');verOP(opYa.id);return}
   // Crear la OP reutilizando el mismo armado que "→ OP"
   window._anticipoPago=pago;
   abrirOrden(null,p);
@@ -2683,13 +2729,16 @@ function eliminarPresupuesto(id){
 function crearOPdesde(presId){
   var p=(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===presId});
   if(!p)return;
-  // Si ya tiene OP, abrirla; si no tiene anticipo, registrarlo primero
-  if(p.opId&&(LS.g('crm_ordenes')||[]).some(function(o){return o.id===p.opId})){goTab('ordenes');verOP(p.opId);return;}
+  var op=opDePresupuesto(p);
+  if(op){
+    vincularPresupuestoOP(p.id,op.id);
+    closeModal('modal-ver-pres');
+    goTab('ordenes');
+    verOP(op.id);
+    return;
+  }
   if(!p.anticipoPago){abrirAnticipo(presId);return;}
   abrirOrden(null,p);
-  var lista=LS.g('crm_presupuestos')||[];
-  var i=lista.findIndex(function(x){return x.id===presId});
-  if(i>=0){lista[i].estado='produccion';LS.s('crm_presupuestos',lista)}
 }
 
 // ===== ORDENES =====
@@ -2838,6 +2887,13 @@ function opToggleMetros(){
   opRenderItems();
 }
 function abrirOrden(id,desdePresup){
+  if(!id&&desdePresup){
+    var exist=opDePresupuesto(desdePresup);
+    if(exist){
+      abrirOrden(exist.id);
+      return;
+    }
+  }
   var o=id?(LS.g('crm_ordenes')||[]).find(function(x){return x.id===id}):null;
   document.getElementById('modal-op-title').textContent=o?'Editar OP — '+((o.clienteNombre)||''):'Nueva OP';
   document.getElementById('op-id').value=o?o.id:'';
@@ -3008,6 +3064,17 @@ function guardarOrden(){
     presupuestoId:document.getElementById('op-presupuesto-id').value||''
   };
   var esNueva=!id;
+  var pidForm=document.getElementById('op-presupuesto-id').value||'';
+  if(esNueva&&pidForm){
+    var ya=opsDePresupuesto(pidForm)[0];
+    if(ya){
+      alert('Este presupuesto ya tiene una OP. No se puede crear otra.');
+      closeModal('modal-orden');
+      goTab('ordenes');
+      verOP(ya.id);
+      return ya;
+    }
+  }
   var pagoAnt=window._anticipoPago||null;
   if(esNueva&&pagoAnt)obj.anticipoPago=pagoAnt;
   if(esNueva){
@@ -3044,6 +3111,7 @@ function guardarOrden(){
     LS.s('crm_movimientos',movsList);
   }
   closeModal('modal-orden');
+  if(obj.presupuestoId)vincularPresupuestoOP(obj.presupuestoId,obj.id);
   renderOrdenes();
   renderDash();
   return obj;
@@ -3294,7 +3362,18 @@ function eliminarOrden(id){
   var _o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===id});
   if(_o)auditLog('op_borrar','OP #'+_o.id.slice(-6).toUpperCase()+' '+(_o.clienteNombre||''));
   LS.s('crm_ordenes',(LS.g('crm_ordenes')||[]).filter(function(x){return x.id!==id}));
+  if(_o){
+    var pid=_o.presupuestoId||_o.presId||'';
+    var pres=LS.g('crm_presupuestos')||[];
+    var pi=pres.findIndex(function(p){return p.id===pid||p.opId===id});
+    if(pi>=0&&pres[pi].opId===id){
+      pres[pi].opId='';
+      if(pres[pi].estado==='produccion')pres[pi].estado='aprobado';
+      LS.s('crm_presupuestos',pres);
+    }
+  }
   renderOrdenes();
+  renderPresupuestos();
 }
 
 var LOG_ACCION={
