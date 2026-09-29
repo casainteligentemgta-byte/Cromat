@@ -85,6 +85,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .list-item:active{background:var(--s1)}
 .swipe-wrap{position:relative;overflow:hidden;border-radius:var(--r);margin-bottom:8px}
 .swipe-wrap .list-item{margin-bottom:0;position:relative;z-index:1;will-change:transform;-webkit-user-select:none;user-select:none}
+.swipe-wrap .swipe-front{position:relative;z-index:1;background:var(--s2);will-change:transform}
 .swipe-del{position:absolute;right:0;top:0;bottom:0;width:76px;border:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .swipe-del svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .li-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
@@ -322,6 +323,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="card" id="conta-cobros-card" style="margin-bottom:10px">
     <div class="st">Cobrado este mes</div>
+    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin:-2px 0 8px">Desliza a la izquierda para quitar un cobro. Se resta de ingresos, fondos y de la OP.</div>
     <div id="conta-cobros"><div class="empty">Sin cobros</div></div>
   </div>
   <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
@@ -3439,7 +3441,7 @@ function eliminarOrden(id){
 var LOG_ACCION={
   pres_crear:'Presupuesto creado',pres_editar:'Presupuesto editado',pres_estado:'Estado presupuesto',pres_borrar:'Presupuesto borrado',
   anticipo:'Anticipo registrado',op_crear:'OP creada',op_editar:'OP editada',op_estado:'Estado OP',op_borrar:'OP borrada',
-  pago_revisado:'Pago revisado',saldo_cobrado:'Saldo cobrado',entregado:'Entregado',usuario_crear:'Usuario creado',usuario_rol:'Rol cambiado'
+  pago_revisado:'Pago revisado',saldo_cobrado:'Saldo cobrado',pago_anulado:'Cobro quitado',entregado:'Entregado',usuario_crear:'Usuario creado',usuario_rol:'Rol cambiado'
 };
 function recolectarLog(){
   var ev=[],seen={};
@@ -4011,15 +4013,24 @@ function renderConta(){
   if(cobrosEl){
     var filasCob=cob.filas||[];
     var htmlC='';
+    var trashSvg='<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+    function filaSwipe(key,titulo,sub,monto){
+      return'<div class="swipe-wrap" data-id="'+escHtml(key)+'" style="margin-bottom:6px">'
+        +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarCobroMes(&quot;'+escHtml(key)+'&quot;)">'+trashSvg+'</button>'
+        +'<div class="list-item swipe-front" onclick="abrirCobroMesTap(event,&quot;'+escHtml(key)+'&quot;)"><div class="li-top"><span class="li-name">'+titulo+'</span><span style="font-weight:700;color:var(--gt)">'+usd(monto)+'</span></div>'
+        +(sub?'<div class="li-sub">'+sub+'</div>':'')
+        +'</div></div>';
+    }
     if(!filasCob.length&&!(cob.otros>0.009)&&!(cob.opSinId>0.009)){
       htmlC='<div class="empty">Sin cobros este mes</div>';
     }else{
       filasCob.forEach(function(f){
-        htmlC+='<div class="dist-row"><span class="result-label">'+escHtml(f.nombre||'OP')+' <span style="color:var(--tm);font-weight:500">#'+escHtml(f.codigo)+'</span></span><span class="dist-amt" style="color:var(--gt)">'+usd(f.monto)+'</span></div>';
+        var nom=escHtml(f.nombre||'OP');
+        htmlC+=filaSwipe(f.opId,nom,'OP #'+escHtml(f.codigo)+' · desliza para quitar',f.monto);
       });
-      if(cob.opSinId>0.009)htmlC+='<div class="dist-row"><span class="result-label">Cobros de OP sin ficha</span><span class="dist-amt" style="color:var(--gt)">'+usd(cob.opSinId)+'</span></div>';
-      if(cob.otros>0.009)htmlC+='<div class="dist-row"><span class="result-label">Otros ingresos</span><span class="dist-amt" style="color:var(--gt)">'+usd(cob.otros)+'</span></div>';
-      htmlC+='<div class="dist-row" style="border-bottom:none"><span class="result-label">Total cobrado</span><span class="dist-amt" style="color:var(--gt);font-weight:700">'+usd(cob.total)+'</span></div>';
+      if(cob.opSinId>0.009)htmlC+=filaSwipe('sin-ficha','Cobros de OP sin ficha','Desliza para quitar de ingresos',cob.opSinId);
+      if(cob.otros>0.009)htmlC+=filaSwipe('otros','Otros ingresos','Desliza para quitar de ingresos',cob.otros);
+      htmlC+='<div class="dist-row" style="border-bottom:none;padding-top:8px"><span class="result-label">Total cobrado</span><span class="dist-amt" style="color:var(--gt);font-weight:700">'+usd(cob.total)+'</span></div>';
       var avisos=[];
       if(cob.topeAjuste>0.009)avisos.push('Había más de una OP del mismo presupuesto: se topeó al total del trabajo (−'+usd(cob.topeAjuste)+').');
       if(cob.omitido>0.009)avisos.push('No se cuenta lo que supera lo cobrado de cada OP (−'+usd(cob.omitido)+').');
@@ -4027,6 +4038,7 @@ function renderConta(){
       if(avisos.length)htmlC+='<div style="font-size:11px;color:var(--wt);line-height:1.4;margin-top:8px">'+avisos.join(' ')+'</div>';
     }
     cobrosEl.innerHTML=htmlC;
+    bindSwipeDelete(cobrosEl);
   }
   renderGastosFijos();
   var balEl=document.getElementById('c-balance');
@@ -4143,6 +4155,95 @@ function guardarMovimiento(){
   renderConta();
   renderDash();
 }
+function restarPagoOP(o,n,t){
+  n=money2(n);
+  if(!o||!(n>0))return;
+  t=String(t||'');
+  var sal=opSaldoPagoDe(o);
+  if(t==='saldo'||((t==='op'||!t)&&sal>0.009)){
+    if(n>=sal-0.009){
+      n=money2(n-sal);
+      delete o.saldoPago;
+      o.saldoCobrado=false;
+      delete o.fechaCobroSaldo;
+    }else{
+      o.saldoPago=Object.assign({},o.saldoPago||{},{monto:money2(sal-n)});
+      o.saldoCobrado=false;
+      n=0;
+    }
+  }
+  if(n>0.009){
+    o.anticipo=Math.max(0,money2(opAnticipoDe(o)-n));
+    if(o.anticipo<=0.009){o.anticipo=0;delete o.anticipoPago}
+  }
+  if(opPendienteDe(o)>0.009)o.saldoCobrado=false;
+}
+function borrarMovsIngreso(pred){
+  var lista=LS.g('crm_movimientos')||[];
+  var quitar=[],quedar=[];
+  lista.forEach(function(m){
+    if(m&&m.tipo==='ingreso'&&pred(m))quitar.push(m);
+    else quedar.push(m);
+  });
+  quitar.forEach(function(m){if(m.fondosAuditId)revertirFondos(m.fondosAuditId)});
+  LS.s('crm_movimientos',quedar);
+  return quitar;
+}
+function limpiarPagoOPMes(o,ym){
+  if(!o)return;
+  var antF=o.anticipoPago&&o.anticipoPago.fecha;
+  if(antF&&fechaEnPeriodo(antF,ym)){
+    o.anticipo=0;
+    delete o.anticipoPago;
+  }
+  var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
+  if(salF&&fechaEnPeriodo(salF,ym)){
+    delete o.saldoPago;
+    o.saldoCobrado=false;
+    delete o.fechaCobroSaldo;
+  }
+  if(opPendienteDe(o)>0.009)o.saldoCobrado=false;
+}
+function deshacerCobrosMesOP(opId){
+  var ym=hoy().slice(0,7);
+  var quitar=borrarMovsIngreso(function(m){return m.opId===opId&&fechaEnPeriodo(m.fecha,ym)});
+  var ops=LS.g('crm_ordenes')||[];
+  var i=ops.findIndex(function(o){return o.id===opId});
+  if(i<0)return quitar;
+  var o=ops[i];
+  quitar.forEach(function(m){restarPagoOP(o,m.monto,tipoCobroMov(m))});
+  limpiarPagoOPMes(o,ym);
+  var sum=quitar.reduce(function(a,m){return a+(parseFloat(m.monto)||0)},0);
+  pushHist(o,'pago_anulado','Cobro quitado '+usd(sum||opCobradoDe(o)));
+  LS.s('crm_ordenes',ops);
+  return quitar;
+}
+function abrirCobroMesTap(ev,key){
+  var w=ev.currentTarget.closest('.swipe-wrap');
+  if(!w||w.classList.contains('open')||w._swiped)return;
+  if(key&&key!=='otros'&&key!=='sin-ficha')verOP(key);
+}
+function eliminarCobroMes(key){
+  if(!requireTab('conta'))return;
+  var ym=hoy().slice(0,7);
+  if(key==='otros'){
+    if(!confirmarBorrar('Quitar los otros ingresos de este mes? Se restan de la contabilidad y de fondos.'))return;
+    borrarMovsIngreso(function(m){return !tipoCobroMov(m)&&fechaEnPeriodo(m.fecha,ym)});
+  }else if(key==='sin-ficha'){
+    if(!confirmarBorrar('Quitar los cobros de OP sin ficha de este mes? Se restan de la contabilidad y de fondos.'))return;
+    borrarMovsIngreso(function(m){return tipoCobroMov(m)&&!m.opId&&fechaEnPeriodo(m.fecha,ym)});
+  }else{
+    var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===key});
+    var cod=String(key||'').slice(-6).toUpperCase();
+    var cob=cobrosDelPeriodo(LS.g('crm_movimientos')||[],ym);
+    var monto=(cob.byOp&&cob.byOp[key])||(o?opCobradoDe(o):0);
+    var nom=o&&o.clienteNombre?o.clienteNombre:'OP #'+cod;
+    if(!confirmarBorrar('Quitar el cobro de '+nom+' ('+usd(monto)+')? Se resta de ingresos, fondos y de la OP.'))return;
+    deshacerCobrosMesOP(key);
+  }
+  renderConta();
+  renderDash();
+}
 function eliminarMov(id){
   if(!requireTab('conta'))return;
   var lista=LS.g('crm_movimientos')||[];
@@ -4152,10 +4253,13 @@ function eliminarMov(id){
   if(m.fondosAuditId||m.tipo==='ingreso')msg='Eliminar este movimiento y revertir su aporte a fondos?';
   if(!confirmarBorrar(msg))return;
   if(m.fondosAuditId)revertirFondos(m.fondosAuditId);
-  if(m.opId&&m.concepto==='saldo'){
+  if(m.tipo==='ingreso'&&m.opId){
     var ops=LS.g('crm_ordenes')||[];
     var oi=ops.findIndex(function(x){return x.id===m.opId});
-    if(oi>=0){ops[oi].saldoCobrado=false;delete ops[oi].fechaCobroSaldo;LS.s('crm_ordenes',ops)}
+    if(oi>=0){
+      restarPagoOP(ops[oi],m.monto,tipoCobroMov(m));
+      LS.s('crm_ordenes',ops);
+    }
   }
   LS.s('crm_movimientos',lista.filter(function(x){return x.id!==id}));
   renderConta();
