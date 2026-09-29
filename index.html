@@ -1592,8 +1592,28 @@ var OP_ESTADOS_ORDEN=['pendiente','arte','impresion','calandra','costura','calid
 function opEstadoLabel(k){
   return {pendiente:'Pendiente',arte:'Arte',impresion:'Impresion',calandra:'Calandra',costura:'Costura',calidad:'Control calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'}[k]||k;
 }
+function opMontoDe(o){return Math.max(0,parseFloat(o&&o.monto)||0)}
+function opAnticipoDe(o){return Math.max(0,parseFloat(o&&o.anticipo)||0)}
+function opSaldoPagoDe(o){
+  if(!o||!o.saldoPago)return 0;
+  return Math.max(0,parseFloat(o.saldoPago.monto)||0);
+}
+function opCobradoDe(o){
+  if(!o)return 0;
+  var a=opAnticipoDe(o),s=opSaldoPagoDe(o),m=opMontoDe(o);
+  if(s<=0&&o.saldoCobrado)s=Math.max(0,m-a);
+  return Math.min(m,a+s);
+}
+function opPendienteDe(o){return Math.max(0,opMontoDe(o)-opCobradoDe(o))}
+function opPagoFicha(pago){
+  if(!pago)return '';
+  return (pago.metodo?escHtml(pago.metodo):'')
+    +(pago.referencia?' · Ref '+escHtml(pago.referencia):'')
+    +(pago.fecha?' · '+fch(pago.fecha):'')
+    +(pago.registradoPor?' · '+escHtml(fmtActor(pago.registradoPor)):'');
+}
 function opSaldoPendiente(o){
-  return !!(o&&o.monto&&o.monto>0&&(o.monto-(o.anticipo||0))>0&&!o.saldoCobrado);
+  return opPendienteDe(o)>0.009;
 }
 function opPagoRevisado(o){
   return !!(o&&(o.estado==='pagado'||o.pagoRevisadoPor));
@@ -2637,23 +2657,23 @@ function renderMetodosPago(){
 function abrirCobroSaldo(opId){
   var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===opId});
   if(!o)return;
-  var saldo=(o.monto||0)-(o.anticipo||0);
+  var saldo=opPendienteDe(o);
   document.getElementById('ant-pres-id').value='';
   document.getElementById('ant-op-id').value=opId;
   document.getElementById('ant-modo').value='saldo';
-  document.getElementById('ant-titulo').textContent='Cobrar saldo';
-  document.getElementById('ant-btn').textContent='✓ Confirmar saldo y marcar pagado';
+  document.getElementById('ant-titulo').textContent=opAnticipoDe(o)>0?'Cobrar saldo':'Registrar cobro';
+  document.getElementById('ant-btn').textContent=saldo>0.009?'✓ Confirmar cobro':'✓ Confirmar';
   document.getElementById('ant-monto').value=saldo>0?saldo.toFixed(2):'';
   document.getElementById('ant-ref').value='';
   document.getElementById('ant-nota').value='';
   document.getElementById('ant-fecha').value=hoy();
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
-  var ap=o.anticipoPago;
+  var cob=opCobradoDe(o);
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(o.clienteNombre||'')+' <span style="font-weight:500;color:var(--tm);font-size:12px">OP #'+o.id.slice(-6).toUpperCase()+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total OP</span><strong>'+usd(o.monto||0)+'</strong></div>'
-    +'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo'+(ap?' ('+escHtml(ap.metodo)+')':'')+'</span><strong style="color:var(--gt)">− '+usd(o.anticipo||0)+'</strong></div>'
-    +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Saldo a cobrar</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>';
+    +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total OP</span><strong>'+usd(opMontoDe(o))+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Ya cobrado</span><strong style="color:var(--gt)">− '+usd(cob)+'</strong></div>'
+    +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Por cobrar</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>';
   renderMetodosPago();
   closeModal('modal-ver-op');
   openModal('modal-anticipo');
@@ -2769,7 +2789,9 @@ function renderOrdenes(){
     var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
       var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?OP_TALLAS.reduce(function(s,t){return s+(it.tallasDetalle[t]||0)},0):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
+      var pend=opPendienteDe(o),cob=opCobradoDe(o),tot=opMontoDe(o);
+      var money=tot>0?'<div class="li-sub" style="margin-bottom:6px">'+(pend>0.009?usd(cob)+' cobrado · <span style="color:var(--wt);font-weight:700">'+usd(pend)+' por cobrar</span>':usd(tot)+' cobrado')+'</div>':'<div style="margin-bottom:6px"></div>';
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div>'+money+'<div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
     }).join('');
   }
 }
@@ -3229,34 +3251,36 @@ function verOP(id){
 
   // PANEL FINANCIERO
   if(o.monto&&o.monto>0){
-    var saldo=o.monto-(o.anticipo||0);
-    var saldoCobrado=o.saldoCobrado||false;
-    // Desglose de costos desde presupuesto vinculado
+    var tot=opMontoDe(o),ant=opAnticipoDe(o),salPago=opSaldoPagoDe(o),cob=opCobradoDe(o),pend=opPendienteDe(o);
     var costoProd=0,ganancia=0;
     if(o.presupuestoId){
       var pLink=(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===o.presupuestoId});
       if(pLink){costoProd=pLink.costoProd||0;ganancia=(pLink.total||0)-(costoProd);}
     }
-    html+='<div class="card" style="padding:12px;margin-bottom:12px;border-left:3px solid var(--gt)">';
-    html+='<div style="font-size:10px;font-weight:700;color:var(--gt);letter-spacing:1px;margin-bottom:8px">💰 RESUMEN FINANCIERO</div>';
-    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">';
-    html+='<div style="background:var(--s1);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--tm)">TOTAL OP</div><div style="font-size:16px;font-weight:700;color:var(--tp)">'+usd(o.monto)+'</div></div>';
-    html+='<div style="background:var(--gs);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--gt)">ANTICIPO COBRADO</div><div style="font-size:16px;font-weight:700;color:var(--gt)">'+usd(o.anticipo||0)+'</div>'+(o.anticipoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.anticipoPago.metodo)+(o.anticipoPago.referencia?' · Ref '+escHtml(o.anticipoPago.referencia):'')+' · '+fch(o.anticipoPago.fecha)+(o.anticipoPago.registradoPor?' · '+escHtml(fmtActor(o.anticipoPago.registradoPor)):'')+'</div>':'')+'</div>';
-    if(costoProd>0){
-      html+='<div style="background:var(--ds);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--dt)">COSTO PRODUCCION</div><div style="font-size:16px;font-weight:700;color:var(--dt)">'+usd(costoProd)+'</div></div>';
-      html+='<div style="background:var(--as);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--at)">GANANCIA EST.</div><div style="font-size:16px;font-weight:700;color:var(--at)">'+usd(ganancia)+'</div></div>';
+    html+='<div class="card" id="op-ficha-fin" style="padding:12px;margin-bottom:12px;border-left:3px solid var(--gt)">';
+    html+='<div style="font-size:10px;font-weight:700;color:var(--gt);letter-spacing:1px;margin-bottom:8px">RESUMEN FINANCIERO</div>';
+    html+='<div class="dist-row" style="padding-top:0"><span class="result-label">Total OP</span><span class="dist-amt">'+usd(tot)+'</span></div>';
+    if(ant>0.009){
+      html+='<div class="dist-row sub"><span class="result-label">Anticipo</span><span class="dist-amt" style="color:var(--gt)">'+usd(ant)+'</span></div>';
+      if(o.anticipoPago)html+='<div style="font-size:11px;color:var(--ts);padding:0 0 6px 14px">'+opPagoFicha(o.anticipoPago)+'</div>';
     }
-    html+='</div>';
-    if(saldo>0){
-      html+='<div style="background:'+(saldoCobrado?'var(--gs)':'var(--ws)')+';border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center">';
-      html+='<div><div style="font-size:10px;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+';font-weight:700">'+(saldoCobrado?'✓ SALDO COBRADO':'SALDO PENDIENTE')+'</div>';
-      html+='<div style="font-size:20px;font-weight:700;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+'">'+usd(saldoCobrado&&o.saldoPago?o.saldoPago.monto:saldo)+'</div>'+(saldoCobrado&&o.saldoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.saldoPago.metodo)+(o.saldoPago.referencia?' · Ref '+escHtml(o.saldoPago.referencia):'')+' · '+fch(o.saldoPago.fecha)+(o.saldoPago.registradoPor?' · '+escHtml(fmtActor(o.saldoPago.registradoPor)):'')+'</div>':'')+'</div>';
-      if(!saldoCobrado&&(o.estado==='listo'||o.estado==='pagado'||o.estado==='entregado')){
-        html+='<button class="btn btn-primary" style="font-size:12px" onclick="abrirCobroSaldo(&quot;'+id+'&quot;)">Cobrar saldo</button>';
+    if(salPago>0.009){
+      html+='<div class="dist-row sub"><span class="result-label">'+(ant>0.009?'Saldo':'Cobro')+'</span><span class="dist-amt" style="color:var(--gt)">'+usd(salPago)+'</span></div>';
+      if(o.saldoPago)html+='<div style="font-size:11px;color:var(--ts);padding:0 0 6px 14px">'+opPagoFicha(o.saldoPago)+'</div>';
+    }
+    html+='<div class="dist-row"><span class="result-label">Cobrado</span><span class="dist-amt" style="color:var(--gt);font-weight:700">'+usd(cob)+'</span></div>';
+    if(pend>0.009){
+      html+='<div class="dist-row" style="border-bottom:none"><span class="result-label">Por cobrar</span><span class="dist-amt" style="color:var(--wt);font-weight:700">'+usd(pend)+'</span></div>';
+      if(o.estado==='pagado'||o.estado==='entregado'){
+        html+='<div style="margin-top:8px;background:var(--ws);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--wt);font-weight:600">Falta '+usd(pend)+'. '+opEstadoLabel(o.estado)+' no cierra el cobro.</div>';
       }
-      html+='</div>';
-    } else {
-      html+='<div style="font-size:12px;color:var(--gt);font-weight:600;text-align:center;padding:4px">✓ Monto totalmente cobrado</div>';
+      html+='<button class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center" onclick="abrirCobroSaldo(&quot;'+id+'&quot;)">Cobrar '+usd(pend)+'</button>';
+    }else{
+      html+='<div style="font-size:12px;color:var(--gt);font-weight:600;text-align:center;padding:8px 0 0">✓ Cobrado completo</div>';
+    }
+    if(costoProd>0){
+      html+='<div class="dist-row" style="margin-top:8px"><span class="result-label">Costo producción</span><span class="dist-amt" style="color:var(--dt)">'+usd(costoProd)+'</span></div>';
+      html+='<div class="dist-row" style="border-bottom:none"><span class="result-label">Ganancia est.</span><span class="dist-amt" style="color:var(--at)">'+usd(ganancia)+'</span></div>';
     }
     html+='</div>';
   }
@@ -3278,8 +3302,8 @@ function verOP(id){
     var saldoPend=opSaldoPendiente(o);
     var sinPago= !opPagoRevisado(o);
     var bloqueado=false,bloqueoTxt='';
-    if(e.k==='pagado'&&saldoPend){bloqueado=true;bloqueoTxt=' 🔒 Cobrar saldo primero'}
-    if(e.k==='entregado'&&(saldoPend||sinPago)){bloqueado=true;bloqueoTxt=saldoPend?' 🔒 Cobrar saldo primero':' 🔒 Marcar pagado primero'}
+    if(e.k==='pagado'&&saldoPend&&!activo){bloqueado=true;bloqueoTxt=' 🔒 Cobrar saldo primero'}
+    if(e.k==='entregado'&&(saldoPend||sinPago)&&!activo){bloqueado=true;bloqueoTxt=saldoPend?' 🔒 Cobrar saldo primero':' 🔒 Marcar pagado primero'}
     html+='<button style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--r);border:1.5px solid '+(activo?e.c:'var(--bd)')+';background:'+(activo?e.c:'transparent')+';color:'+(activo?'#fff':(bloqueado?'var(--tm)':e.c))+';font-weight:600;font-size:13px;cursor:'+(bloqueado?'not-allowed':'pointer')+';text-align:left;opacity:'+(bloqueado?'0.5':'1')+'" '+(bloqueado?'disabled':('onclick="setEstadoOP(&quot;'+id+'&quot;,&quot;'+e.k+'&quot;)"'))+'>';
     html+='<span style="width:8px;height:8px;border-radius:50%;background:'+(activo?'rgba(255,255,255,0.8)':e.c)+';flex-shrink:0"></span>';
     html+=e.l+(activo?' ←':'')+bloqueoTxt+'</button>';
@@ -3326,33 +3350,60 @@ function cobrarSaldoOP(id,saldo,pago){
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
   var o=lista[i];
-  // Registrar movimiento de saldo
+  var monto=opMontoDe(o);
+  var ya=opCobradoDe(o);
+  var pend=Math.max(0,monto-ya);
+  var rec=parseFloat(saldo)||0;
+  if(rec<=0){alert('El cobro debe ser mayor a 0.');return}
+  if(pend<=0.009){alert('Esta OP ya está cobrada completa.');verOP(id);return}
+  if(rec>pend+0.009)rec=pend;
+  var cierra=rec>=pend-0.009;
+  var concepto=cierra&&ya>0.009?'saldo':'anticipo';
   var mov={
     id:uid(),tipo:'ingreso',
-    desc:'Saldo OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
-    monto:saldo,fecha:pago?pago.fecha:hoy(),
-    cat:'ventas',opId:o.id,concepto:'saldo',
+    desc:(cierra&&ya>0.009?'Saldo':'Cobro')+' OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
+    monto:rec,fecha:pago?pago.fecha:hoy(),
+    cat:'ventas',opId:o.id,concepto:concepto,
     metodo:pago?pago.metodo:'',referencia:pago?pago.referencia:''
   };
-  mov.fondosAuditId=alimentarFondos(saldo,o);
+  mov.fondosAuditId=alimentarFondos(rec,o);
   var movsList=LS.g('crm_movimientos')||[];
   movsList.push(mov);
   LS.s('crm_movimientos',movsList);
-  // Marcar saldo cobrado y pasar a Pagado (no Entregado: otro puede entregar)
-  lista[i].saldoCobrado=true;
-  lista[i].fechaCobroSaldo=pago?pago.fecha:hoy();
-  if(pago)lista[i].saldoPago=pago;
-  lista[i].estado='pagado';
-  lista[i].pagoRevisadoPor=actorAhora();
-  lista[i].fechaPagoRevisado=hoy();
-  pushHist(lista[i],'pago_revisado','Saldo '+usd(saldo)+(pago?' '+pago.metodo:''));
+  var ficha=pago?Object.assign({},pago,{monto:rec}):{monto:rec,fecha:hoy(),registradoPor:actorAhora()};
+  if(cierra){
+    if(opAnticipoDe(o)<0.009&&opSaldoPagoDe(o)>0.009){
+      lista[i].anticipo=opSaldoPagoDe(o);
+      lista[i].anticipoPago=o.saldoPago;
+    }
+    lista[i].saldoPago=ficha;
+    lista[i].saldoCobrado=true;
+    lista[i].fechaCobroSaldo=ficha.fecha;
+    if(o.estado!=='entregado')lista[i].estado='pagado';
+    if(!lista[i].pagoRevisadoPor){
+      lista[i].pagoRevisadoPor=actorAhora();
+      lista[i].fechaPagoRevisado=hoy();
+    }
+    pushHist(lista[i],'pago_revisado','Saldo '+usd(rec)+(pago?' '+pago.metodo:''));
+  }else{
+    if(opAnticipoDe(o)<0.009&&opSaldoPagoDe(o)>0.009){
+      lista[i].anticipo=opSaldoPagoDe(o)+rec;
+      if(!lista[i].anticipoPago)lista[i].anticipoPago=o.saldoPago||ficha;
+      delete lista[i].saldoPago;
+    }else{
+      lista[i].anticipo=opAnticipoDe(o)+rec;
+      if(!lista[i].anticipoPago)lista[i].anticipoPago=ficha;
+    }
+    lista[i].saldoCobrado=false;
+    pushHist(lista[i],'anticipo','Abono '+usd(rec)+(pago?' '+pago.metodo:''));
+  }
   LS.s('crm_ordenes',lista);
   closeModal('modal-ver-op');
   renderOrdenes();
   renderDash();
   var cf=document.createElement('div');
   cf.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--gt);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;max-width:90%';
-  cf.textContent='✓ Saldo cobrado — OP pagada. Quien entrega registra Entregado.';
+  cf.textContent=cierra?'✓ Cobrado completo — OP pagada. Quien entrega registra Entregado.':'✓ Abono '+usd(rec)+' · Quedan '+usd(pend-rec);
   document.body.appendChild(cf);
   setTimeout(function(){cf.remove()},3500);
 }
@@ -3434,8 +3485,7 @@ var CONTA_CFG_DEFAULT={costoPct:35,impPct:10,negPct:80,ceoPct:15,operPct:5};
 var MOV_CAT_LABEL={ventas:'Ventas',servicios:'Servicios',insumos:'Insumos/Materiales',operativos:'Gastos operativos',equipo:'Equipo/Mantenimiento',salarios:'Salarios',otro:'Otro'};
 var _contaPctReady=false;
 function saldoPendienteOP(o){
-  if(!o||o.saldoCobrado)return 0;
-  return Math.max(0,(parseFloat(o.monto)||0)-(parseFloat(o.anticipo)||0));
+  return opPendienteDe(o);
 }
 function totalPorCobrar(){
   return (LS.g('crm_ordenes')||[]).reduce(function(a,o){return a+saldoPendienteOP(o)},0);
@@ -3563,8 +3613,9 @@ function cobrosDelPeriodo(movs,ym,desde,hasta){
     if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&!seen[o.id+'|anticipo']&&!seen[o.id+'|op']){
       op+=ant;backfill+=ant;addOp(o.id,ant);seen[o.id+'|anticipo']=1;
     }
-    if(!o.saldoCobrado)return;
-    var sal=o.saldoPago?parseFloat(o.saldoPago.monto)||0:Math.max(0,(parseFloat(o.monto)||0)-ant);
+    var sal=opSaldoPagoDe(o);
+    if(sal<=0&&o.saldoCobrado)sal=Math.max(0,opMontoDe(o)-ant);
+    if(sal<=0)return;
     var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
     if(sal>0&&fechaEnPeriodo(salF,ym,desde,hasta)&&!seen[o.id+'|saldo']&&!seen[o.id+'|op']){
       op+=sal;backfill+=sal;addOp(o.id,sal);
