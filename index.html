@@ -907,7 +907,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     </div>
     <div class="fg"><label class="fl">Descuento (%)</label><input class="fi" type="number" id="p-desc" value="0" min="0" max="100" oninput="recalcPres()"></div>
     <div style="background:var(--s1);border-radius:var(--r);padding:10px;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Subtotal</span><span id="p-subtotal">$0.00</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Subtotal</span><span id="p-subtotal" style="font-weight:700">$0.00</span></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span id="p-desc-lbl">Descuento (0%)</span><span style="color:var(--dt)" id="p-total">-$0.00</span></div>
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;color:var(--ts)"><span>Costo producc. (sin ganancia)</span><span id="p-costo-prod">$0.00</span></div>
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;align-items:center;margin-bottom:4px">
@@ -2246,36 +2246,31 @@ function renderPresItems(){
     return'<div class="card" style="margin-bottom:6px;padding:8px">'
       +'<select class="fi" style="margin-bottom:6px;font-weight:600" onchange="presSelProd('+i+',this.value)">'+buildProdOpts(selVal)+'</select>'
       +tallaBlock
-      +'<div class="row2" style="margin-bottom:4px">'
-      +'<input class="fi" type="text" placeholder="Descripcion adicional..." value="'+escHtml(it.desc||'')+'" oninput="presItems['+i+'].desc=this.value;recalcPres()">'
-      +'<input class="fi" type="number" placeholder="Precio $" value="'+(it.precio||0)+'" oninput="presItems['+i+'].precio=+this.value;recalcPres()" style="max-width:90px">'
+      +'<input class="fi" type="text" placeholder="Descripcion adicional..." value="'+escHtml(it.desc||'')+'" oninput="presItems['+i+'].desc=this.value" style="margin-bottom:6px">'
+      +'<div class="row3" style="margin-bottom:4px;align-items:end">'
+      +(sinTalla
+        ?'<div><label class="fl">'+(presItemEsMetros(it)?'Cantidad (ml)':'Cantidad')+'</label><input class="fi" type="number" value="'+presItemQty(it)+'" min="0" step="0.1" oninput="presItems['+i+'].qty=+this.value;recalcPres()"></div>'
+        :'<div><label class="fl">Cantidad</label><div class="fi" style="border:none;background:transparent;padding-left:0">'+presItemQty(it)+' und</div></div>')
+      +'<div><label class="fl">Precio</label><input class="fi" type="number" value="'+(+it.precio||0)+'" min="0" step="0.01" oninput="presItems['+i+'].precio=+this.value;recalcPres()"></div>'
+      +'<div><label class="fl">Importe</label><div id="p-imp-'+i+'" style="font-weight:700;font-size:15px;padding:8px 0">'+usd(presItemMonto(it))+'</div></div>'
       +'</div>'
-      +'<div style="display:flex;gap:4px;align-items:center">'
-      +(sinTalla?'<input class="fi" type="number" placeholder="'+(presItemEsMetros(it)?'ml':'Cant')+'" value="'+(it.qty||1)+'" min="0" step="0.1" oninput="presItems['+i+'].qty=+this.value;recalcPres()" style="max-width:70px">':'')
-      +'<span style="font-size:11px;color:var(--ts)">'+usd(it.precio||0)+' × '+escHtml(presItemQtyTxt(it))+' = <strong style="color:var(--tp)">'+usd(presItemMonto(it))+'</strong></span>'
-      +'<button class="btn btn-ghost btn-sm" style="color:var(--dt);margin-left:auto" onclick="elimItemPres('+i+')">✕</button>'
-      +'</div></div>'
+      +'<div style="display:flex;justify-content:flex-end"><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="elimItemPres('+i+')">✕</button></div>'
+      +'</div>';
   }).join('');
   recalcPres();
 }
 function elimItemPres(i){presItems.splice(i,1);renderPresItems()}
 function agregarItemPres(){presItems.push({desc:'',qty:1,precio:0,sinTalla:true,tallasDetalle:{}});renderPresItems()}
 function recalcPres(){
-  // Subtotal
+  var subEl=document.getElementById('p-subtotal');
+  if(!subEl)return;
   var sub=presItems.reduce(function(a,it){return a+presItemMonto(it)},0);
   var desc=parseFloat(document.getElementById('p-desc').value)||0;
   var descMonto=sub*desc/100;
   var total=sub-descMonto;
-
-  // Costo de produccion sin ganancia (suma de costos de los items con analisis)
   var costosProd=presCostoProdDe(presItems);
-
-  // Anticipo sugerido
   var antPct=parseFloat(document.getElementById('p-ant-pct').value)||0;
   var antSugerido=total*antPct/100;
-
-  // Si hay costo de produccion conocido y no se ha editado manualmente el anticipo,
-  // pre-llenar el campo con el mayor entre costo de produccion y el % seleccionado
   var antRecEl=document.getElementById('p-anticipo');
   if(!antRecEl._manualEdit){
     var antAuto=costosProd>0?Math.max(antSugerido,costosProd):antSugerido;
@@ -2283,8 +2278,11 @@ function recalcPres(){
   }
   var antRec=parseFloat(antRecEl.value)||0;
   var saldo=total-antRec;
-
-  document.getElementById('p-subtotal').textContent=usd(sub);
+  presItems.forEach(function(it,i){
+    var imp=document.getElementById('p-imp-'+i);
+    if(imp)imp.textContent=usd(presItemMonto(it));
+  });
+  subEl.textContent=usd(sub);
   document.getElementById('p-desc-lbl').textContent='Descuento ('+desc+'%)';
   document.getElementById('p-total').textContent='-'+usd(descMonto);
   document.getElementById('p-costo-prod').textContent=costosProd>0?usd(costosProd):'N/A';
