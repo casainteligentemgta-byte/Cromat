@@ -2294,7 +2294,6 @@ function guardarPresupuesto(){
   if(id){var i=lista.findIndex(function(x){return x.id===id});if(i>=0){obj.estado=lista[i].estado;obj.creadoPor=lista[i].creadoPor;obj.hist=lista[i].hist;obj.editadoPor=actorAhora();pushHist(obj,'pres_editar',obj.clienteNombre||'');lista[i]=obj}else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}}
   else{obj.creadoPor=actorAhora();pushHist(obj,'pres_crear',obj.clienteNombre||'');lista.push(obj)}
   LS.s('crm_presupuestos',lista);
-  auditLog(id?'pres_editar':'pres_crear',(obj.clienteNombre||'')+' '+usd(obj.total||0));
   closeModal('modal-presupuesto');
   renderPresupuestos();
 }
@@ -2330,7 +2329,6 @@ function setEstadoPres(id,estado){
   lista[i].estadoPor=actorAhora();
   pushHist(lista[i],'pres_estado',estado);
   LS.s('crm_presupuestos',lista);
-  auditLog('pres_estado',(lista[i].clienteNombre||'')+' → '+estado);
   closeModal('modal-ver-pres');
   renderPresupuestos();
   // Al aprobar: pedir registro del anticipo
@@ -2452,7 +2450,6 @@ function confirmarAnticipo(){
   pushHist(lista[i],'anticipo',usd(monto)+' '+metodo);
   if(op)lista[i].opId=op.id;
   LS.s('crm_presupuestos',lista);
-  auditLog('anticipo',(p.clienteNombre||'')+' '+usd(monto)+' '+metodo);
   closeModal('modal-anticipo');
   renderPresupuestos();
   var cf=document.createElement('div');
@@ -2819,7 +2816,6 @@ function guardarOrden(){
     if(i>=0){lista[i]=Object.assign({},lista[i],obj,{fecha:lista[i].fecha||obj.fecha});obj=lista[i];}else lista.push(obj)
   }else lista.push(obj);
   LS.s('crm_ordenes',lista);
-  auditLog(esNueva?'op_crear':'op_editar','OP #'+obj.id.slice(-6).toUpperCase()+' '+(obj.clienteNombre||''));
   // Registrar anticipo en contabilidad si es OP nueva y hay anticipo
   if(esNueva&&obj.anticipo&&obj.anticipo>0){
     var movAnticipo={
@@ -3028,19 +3024,18 @@ function setEstadoOP(id,estado){
   }
   lista[i].estado=estado;
   lista[i].estadoPor=actorAhora();
-  pushHist(lista[i],'op_estado',opEstadoLabel(estado));
   if(estado==='pagado'){
     lista[i].pagoRevisadoPor=actorAhora();
     lista[i].fechaPagoRevisado=hoy();
-    pushHist(lista[i],'pago_revisado','');
-  }
-  if(estado==='entregado'){
+    pushHist(lista[i],'pago_revisado',opEstadoLabel(estado));
+  } else if(estado==='entregado'){
     lista[i].entregadoPor=actorAhora();
     lista[i].fechaEntregaReal=hoy();
-    pushHist(lista[i],'entregado','');
+    pushHist(lista[i],'entregado',opEstadoLabel(estado));
+  } else {
+    pushHist(lista[i],'op_estado',opEstadoLabel(estado));
   }
   LS.s('crm_ordenes',lista);
-  auditLog('op_estado','OP #'+o.id.slice(-6).toUpperCase()+' → '+opEstadoLabel(estado)+' · '+(o.clienteNombre||''));
   closeModal('modal-ver-op');
   renderOrdenes();
 }
@@ -3069,10 +3064,8 @@ function cobrarSaldoOP(id,saldo,pago){
   lista[i].estado='pagado';
   lista[i].pagoRevisadoPor=actorAhora();
   lista[i].fechaPagoRevisado=hoy();
-  pushHist(lista[i],'saldo_cobrado',usd(saldo)+(pago?' '+pago.metodo:''));
-  pushHist(lista[i],'pago_revisado',fmtActor(actorAhora()));
+  pushHist(lista[i],'pago_revisado','Saldo '+usd(saldo)+(pago?' '+pago.metodo:''));
   LS.s('crm_ordenes',lista);
-  auditLog('pago_revisado','OP #'+o.id.slice(-6).toUpperCase()+' saldo '+usd(saldo)+' · '+(o.clienteNombre||''));
   closeModal('modal-ver-op');
   renderOrdenes();
   renderDash();
@@ -3108,15 +3101,18 @@ function recolectarLog(){
   (LS.g('crm_audit')||[]).forEach(add);
   (LS.g('crm_ordenes')||[]).forEach(function(o){
     var cod='OP #'+(o.id||'').slice(-6).toUpperCase()+' '+(o.clienteNombre||'');
-    (o.hist||[]).forEach(function(h){add({id:h.id||o.id+'-'+h.t+'-'+h.fecha,fecha:h.fecha,accion:h.t,detalle:(h.extra?h.extra+' · ':'')+cod,actor:h.por,email:h.email})});
-    if(o.creadoPor)add({id:o.id+'-c',fecha:o.fecha,accion:'op_crear',detalle:cod,actor:fmtActor(o.creadoPor),email:o.creadoPor.email});
-    if(o.pagoRevisadoPor)add({id:o.id+'-pr',fecha:o.fechaPagoRevisado||o.fechaCobroSaldo,accion:'pago_revisado',detalle:cod,actor:fmtActor(o.pagoRevisadoPor),email:o.pagoRevisadoPor.email});
-    if(o.entregadoPor)add({id:o.id+'-en',fecha:o.fechaEntregaReal,accion:'entregado',detalle:cod,actor:fmtActor(o.entregadoPor),email:o.entregadoPor.email});
+    var hist=o.hist||[];
+    hist.forEach(function(h){add({id:h.id||o.id+'-'+h.t+'-'+h.fecha,fecha:h.fecha,accion:h.t,detalle:(h.extra?h.extra+' · ':'')+cod,actor:h.por,email:h.email})});
+    function tiene(t){return hist.some(function(h){return h.t===t})}
+    if(o.creadoPor&&!tiene('op_crear'))add({id:o.id+'-c',fecha:o.fecha,accion:'op_crear',detalle:cod,actor:fmtActor(o.creadoPor),email:o.creadoPor.email});
+    if(o.pagoRevisadoPor&&!tiene('pago_revisado'))add({id:o.id+'-pr',fecha:o.fechaPagoRevisado||o.fechaCobroSaldo,accion:'pago_revisado',detalle:cod,actor:fmtActor(o.pagoRevisadoPor),email:o.pagoRevisadoPor.email});
+    if(o.entregadoPor&&!tiene('entregado'))add({id:o.id+'-en',fecha:o.fechaEntregaReal,accion:'entregado',detalle:cod,actor:fmtActor(o.entregadoPor),email:o.entregadoPor.email});
   });
   (LS.g('crm_presupuestos')||[]).forEach(function(p){
     var cod=(p.clienteNombre||'Presupuesto')+' '+usd(p.total||0);
-    (p.hist||[]).forEach(function(h){add({id:h.id||p.id+'-'+h.t+'-'+h.fecha,fecha:h.fecha,accion:h.t,detalle:(h.extra?h.extra+' · ':'')+cod,actor:h.por,email:h.email})});
-    if(p.creadoPor)add({id:p.id+'-c',fecha:p.fecha,accion:'pres_crear',detalle:cod,actor:fmtActor(p.creadoPor),email:p.creadoPor.email});
+    var hist=p.hist||[];
+    hist.forEach(function(h){add({id:h.id||p.id+'-'+h.t+'-'+h.fecha,fecha:h.fecha,accion:h.t,detalle:(h.extra?h.extra+' · ':'')+cod,actor:h.por,email:h.email})});
+    if(p.creadoPor&&!hist.some(function(h){return h.t==='pres_crear'}))add({id:p.id+'-c',fecha:p.fecha,accion:'pres_crear',detalle:cod,actor:fmtActor(p.creadoPor),email:p.creadoPor.email});
   });
   ev.sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''))});
   return ev;
