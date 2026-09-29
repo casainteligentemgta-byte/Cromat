@@ -1426,7 +1426,7 @@ function authShowLogin(){
 function authApplyUI(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('btn-salir').style.display='';
-  document.getElementById('auth-chip').style.display='';
+  document.getElementById('auth-chip').style.display='inline';
   document.getElementById('auth-nombre').textContent=AUTH.nombre||AUTH.usuario;
   document.getElementById('auth-rol').textContent=authRol(AUTH.rol).l;
   var us=document.getElementById('btn-ajustes');
