@@ -994,7 +994,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div id="ant-resumen" style="background:var(--s1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
     <div class="fg">
       <label class="fl">Monto recibido ($)</label>
-      <input class="fi" type="number" id="ant-monto" min="0" step="0.01" inputmode="decimal">
+      <input class="fi" type="number" id="ant-monto" min="0" step="0.01" inputmode="decimal" oninput="onAntMontoInput()">
+      <div id="ant-cero-hint" style="display:none;font-size:11px;color:var(--ts);margin-top:6px;line-height:1.4">Poner <b>0</b> o <b>0000</b> autoriza crear la OP sin anticipo.</div>
     </div>
     <div class="fg">
       <label class="fl">Método de pago</label>
@@ -1620,8 +1621,12 @@ function opCobradoDe(o){
   return Math.min(m,a+s);
 }
 function opPendienteDe(o){return Math.max(0,opMontoDe(o)-opCobradoDe(o))}
+function pagoEsSinAnticipo(pago){return !!(pago&&pago.sinAnticipo)}
 function opPagoFicha(pago){
   if(!pago)return '';
+  if(pagoEsSinAnticipo(pago)){
+    return 'Sin anticipo (autorizado)'+(pago.registradoPor?' · '+escHtml(fmtActor(pago.registradoPor)):'');
+  }
   return (pago.metodo?escHtml(pago.metodo):'')
     +(pago.referencia?' · Ref '+escHtml(pago.referencia):'')
     +(pago.fecha?' · '+fch(pago.fecha):'')
@@ -2302,10 +2307,17 @@ function renderPresupuestos(){
     var ap=p.anticipoPago;
     var bloqueAnt='';
     if(ap){
-      bloqueAnt='<div style="margin-top:8px;background:var(--gs);border-radius:8px;padding:8px;font-size:12px;color:var(--gt)">'
-        +'<div style="font-weight:700">✓ Anticipo '+usd(ap.monto)+' — '+escHtml(ap.metodo)+'</div>'
-        +'<div style="opacity:0.85">'+(ap.referencia?'Ref '+escHtml(ap.referencia)+' · ':'')+fch(ap.fecha)+(ap.nota?' · '+escHtml(ap.nota):'')+'</div>'
-        +'</div>';
+      if(pagoEsSinAnticipo(ap)){
+        bloqueAnt='<div style="margin-top:8px;background:var(--s1);border-radius:8px;padding:8px;font-size:12px;color:var(--ts)">'
+          +'<div style="font-weight:700">✓ Autorizado sin anticipo</div>'
+          +'<div style="opacity:0.85">OP creada sin cobro inicial'+(ap.nota?' · '+escHtml(ap.nota):'')+'</div>'
+          +'</div>';
+      }else{
+        bloqueAnt='<div style="margin-top:8px;background:var(--gs);border-radius:8px;padding:8px;font-size:12px;color:var(--gt)">'
+          +'<div style="font-weight:700">✓ Anticipo '+usd(ap.monto)+' — '+escHtml(ap.metodo)+'</div>'
+          +'<div style="opacity:0.85">'+(ap.referencia?'Ref '+escHtml(ap.referencia)+' · ':'')+fch(ap.fecha)+(ap.nota?' · '+escHtml(ap.nota):'')+'</div>'
+          +'</div>';
+      }
     } else if(est==='aprobado'){
       bloqueAnt='<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="abrirAnticipo(\''+p.id+'\')">💵 Registrar anticipo</button>';
     }
@@ -2660,6 +2672,7 @@ function abrirAnticipo(presId){
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total presupuesto</span><strong>'+usd(presTotalDe(p))+'</strong></div>'
     +(sug?'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo sugerido</span><strong style="color:var(--coral)">'+usd(sug)+'</strong></div>':'');
   renderMetodosPago();
+  onAntMontoInput();
   openModal('modal-anticipo');
 }
 function renderMetodosPago(){
@@ -2690,6 +2703,7 @@ function abrirCobroSaldo(opId){
     +'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Ya cobrado</span><strong style="color:var(--gt)">− '+usd(cob)+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Por cobrar</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>';
   renderMetodosPago();
+  onAntMontoInput();
   closeModal('modal-ver-op');
   openModal('modal-anticipo');
 }
@@ -2698,18 +2712,41 @@ function confirmarPago(){
   if(document.getElementById('ant-modo').value==='saldo')confirmarSaldo();
   else confirmarAnticipo();
 }
+function antMontoEsCero(){
+  var raw=(document.getElementById('ant-monto').value||'').trim();
+  if(!raw)return false;
+  var n=parseFloat(raw);
+  return !isNaN(n)&&n<=0.009;
+}
+function onAntMontoInput(){
+  var modo=document.getElementById('ant-modo').value;
+  var cero=antMontoEsCero();
+  var hint=document.getElementById('ant-cero-hint');
+  if(hint)hint.style.display=(modo==='anticipo')?'block':'none';
+  var btn=document.getElementById('ant-btn');
+  if(modo==='anticipo'){
+    btn.textContent=cero?'✓ Crear OP sin anticipo':'✓ Confirmar anticipo y crear OP';
+  }
+}
 function leerPagoForm(){
-  var monto=parseFloat(document.getElementById('ant-monto').value)||0;
+  var raw=(document.getElementById('ant-monto').value||'').trim();
+  var monto=parseFloat(raw);
   var metodo=document.getElementById('ant-metodo').value;
   var ref=(document.getElementById('ant-ref').value||'').trim();
+  var modo=document.getElementById('ant-modo').value;
+  var sinAnt=modo==='anticipo'&&antMontoEsCero();
   var msg='';
-  if(monto<=0)msg='Indica el monto recibido.';
+  if(raw===''||isNaN(monto)||monto<0)msg='Indica el monto recibido.';
+  else if(sinAnt)msg='';
+  else if(monto<=0)msg='Indica el monto recibido.';
   else if(!metodo)msg='Selecciona el método de pago.';
   else if(metodo!=='Efectivo'&&!ref)msg='Coloca la referencia del '+metodo+' como constancia.';
   var err=document.getElementById('ant-error');
   if(msg){err.textContent=msg;err.style.display='block';return null;}
   err.style.display='none';
-  return{monto:monto,metodo:metodo,referencia:ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),registrado:hoy(),registradoPor:actorAhora()};
+  var pago={monto:sinAnt?0:(monto||0),metodo:sinAnt?'':metodo,referencia:sinAnt?'':ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),registrado:hoy(),registradoPor:actorAhora()};
+  if(sinAnt)pago.sinAnticipo=true;
+  return pago;
 }
 function confirmarSaldo(){
   var pago=leerPagoForm();
@@ -2722,7 +2759,7 @@ function confirmarAnticipo(){
   var presId=document.getElementById('ant-pres-id').value;
   var pago=leerPagoForm();
   if(!pago)return;
-  var monto=pago.monto,metodo=pago.metodo;
+  var monto=pago.monto,metodo=pago.metodo,sinAnt=pagoEsSinAnticipo(pago);
   var lista=LS.g('crm_presupuestos')||[];
   var i=lista.findIndex(function(x){return x.id===presId});
   if(i<0)return;
@@ -2732,7 +2769,7 @@ function confirmarAnticipo(){
   // Crear la OP reutilizando el mismo armado que "→ OP"
   window._anticipoPago=pago;
   abrirOrden(null,p);
-  document.getElementById('op-anticipo').value=monto;
+  document.getElementById('op-anticipo').value=sinAnt?0:monto;
   var op=guardarOrden();
   window._anticipoPago=null;
   // Marcar presupuesto
@@ -2741,14 +2778,14 @@ function confirmarAnticipo(){
   lista[i].anticipoPago=pago;
   lista[i].anticipoPor=actorAhora();
   lista[i].estado='produccion';
-  pushHist(lista[i],'anticipo',usd(monto)+' '+metodo);
+  pushHist(lista[i],'anticipo',sinAnt?'Sin anticipo (autorizado)':usd(monto)+' '+metodo);
   if(op)lista[i].opId=op.id;
   LS.s('crm_presupuestos',lista);
   closeModal('modal-anticipo');
   renderPresupuestos();
   var cf=document.createElement('div');
   cf.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--gt);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.3);text-align:center;max-width:90%';
-  cf.textContent='✓ Anticipo '+usd(monto)+' ('+metodo+') registrado — OP creada';
+  cf.textContent=sinAnt?'✓ OP creada sin anticipo':'✓ Anticipo '+usd(monto)+' ('+metodo+') registrado — OP creada';
   document.body.appendChild(cf);
   setTimeout(function(){cf.remove()},3500);
   goTab('ordenes');
@@ -3278,6 +3315,9 @@ function verOP(id){
     if(ant>0.009){
       html+='<div class="dist-row sub"><span class="result-label">Anticipo</span><span class="dist-amt" style="color:var(--gt)">'+usd(ant)+'</span></div>';
       if(o.anticipoPago)html+='<div style="font-size:11px;color:var(--ts);padding:0 0 6px 14px">'+opPagoFicha(o.anticipoPago)+'</div>';
+    }else if(pagoEsSinAnticipo(o.anticipoPago)){
+      html+='<div class="dist-row sub"><span class="result-label">Anticipo</span><span class="dist-amt" style="color:var(--ts)">Sin anticipo</span></div>';
+      html+='<div style="font-size:11px;color:var(--ts);padding:0 0 6px 14px">'+opPagoFicha(o.anticipoPago)+'</div>';
     }
     if(salPago>0.009){
       html+='<div class="dist-row sub"><span class="result-label">'+(ant>0.009?'Saldo':'Cobro')+'</span><span class="dist-amt" style="color:var(--gt)">'+usd(salPago)+'</span></div>';
