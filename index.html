@@ -1410,6 +1410,13 @@ var OP_ESTADOS_ORDEN=['pendiente','arte','impresion','calandra','costura','calid
 function opEstadoLabel(k){
   return {pendiente:'Pendiente',arte:'Arte',impresion:'Impresion',calandra:'Calandra',costura:'Costura',calidad:'Control calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'}[k]||k;
 }
+function opEstadoColor(k){
+  return {pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'}[k]||'tag-gray';
+}
+function opDePresupuesto(p){
+  if(!p||!p.opId)return null;
+  return (LS.g('crm_ordenes')||[]).find(function(o){return o.id===p.opId})||null;
+}
 function opSaldoPendiente(o){
   return !!(o&&o.monto&&o.monto>0&&(o.monto-(o.anticipo||0))>0&&!o.saldoCobrado);
 }
@@ -2038,11 +2045,21 @@ function renderPresupuestos(){
   lista.sort(function(a,b){return b.fecha>a.fecha?1:-1});
   var el=document.getElementById('lista-presupuestos');
   if(!lista.length){el.innerHTML='<div class="empty">Sin presupuestos aun</div>';return}
+  var ordenes=LS.g('crm_ordenes')||[];
+  var opById={};
+  ordenes.forEach(function(o){if(o&&o.id)opById[o.id]=o});
   el.innerHTML=lista.map(function(p){
     var eColor={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
     var eLbl={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En produccion'};
     var est=p.estado||'pendiente';
     var tieneOP=!!p.opId;
+    var op=tieneOP?opById[p.opId]:null;
+    var tagCls=eColor[est]||'tag-gray';
+    var tagLbl=eLbl[est]||est;
+    if(op){
+      tagCls=opEstadoColor(op.estado||'pendiente');
+      tagLbl=opEstadoLabel(op.estado||'pendiente');
+    }
     var ap=p.anticipoPago;
     var bloqueAnt='';
     if(ap){
@@ -2059,7 +2076,7 @@ function renderPresupuestos(){
         var c={pendiente:'#888',enviado:'var(--teal)',aprobado:'var(--gt)',rechazado:'var(--dt)'}[e];
         return'<button style="font-size:10px;padding:3px 8px;border-radius:20px;border:1.5px solid '+(on?c:'var(--bd)')+';background:'+(on?c:'transparent')+';color:'+(on?'#fff':c)+';font-weight:600;cursor:pointer" onclick="setEstadoPres(\''+p.id+'\',\''+e+'\')">'+eLbl[e]+'</button>';
       }).join('')+'</div>';
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(eColor[est]||'tag-gray')+'">'+eLbl[est]+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(p.total)+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
+    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+tagCls+'">'+escHtml(tagLbl)+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(p.fecha)+'</span><span style="font-weight:600">'+usd(p.total)+'</span></div>'+estadoBtns+bloqueAnt+'<div style="display:flex;gap:4px;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="verPresupuesto(\''+p.id+'\')">Ver</button>'+(tieneOP?'':'<button class="btn btn-ghost btn-sm" onclick="abrirPresupuesto(\''+p.id+'\')">Editar</button>')+'<button class="btn btn-'+(tieneOP?'teal':'ghost')+' btn-sm" onclick="crearOPdesde(\''+p.id+'\')">'+(tieneOP?'Ver OP':'&#8594; OP')+'</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarPresupuesto(\''+p.id+'\')">X</button></div></div>'
   }).join('');
 }
 function abrirPresupuesto(id){
@@ -2302,18 +2319,31 @@ function verPresupuesto(id){
   if(!p)return;
   var estados={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En produccion'};
   var colores={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
-  var html='<div><div style="display:flex;justify-content:space-between;margin-bottom:12px"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(colores[p.estado]||'tag-gray')+'">'+((estados[p.estado])||'PENDIENTE')+'</span></div>';
+  var op=opDePresupuesto(p);
+  var tagCls=colores[p.estado]||'tag-gray';
+  var tagLbl=estados[p.estado]||'PENDIENTE';
+  if(op){
+    tagCls=opEstadoColor(op.estado||'pendiente');
+    tagLbl=opEstadoLabel(op.estado||'pendiente');
+  }
+  var html='<div><div style="display:flex;justify-content:space-between;margin-bottom:12px"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+tagCls+'">'+escHtml(tagLbl)+'</span></div>';
   html+='<div style="font-size:12px;color:var(--tm);margin-bottom:10px">'+fch(p.fecha)+' &bull; Valido '+p.validez+' dias'+(p.creadoPor?' &bull; Creado por '+escHtml(fmtActor(p.creadoPor)):'')+'</div>';
   html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(it.desc||it.productoNombre||'')+(presItemEsMetros(it)?' · ':' ')+presItemQtyTxt(it)+'</span><span>'+usd(presItemMonto(it))+'</span></div>'}).join('')+'</div>';
   html+='<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:12px"><span>TOTAL</span><span>'+usd(p.total)+'</span></div>';
-  html+='<div class="st">Estado</div><div class="estado-grid">';
-  ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
-    var labels={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado'};
-    var actClases={'pendiente':'active-ne','enviado':'active-env','aprobado':'active-apr','rechazado':'active-rec'};
-    html+='<button class="estado-btn'+(p.estado===e?' '+actClases[e]:'')+'" onclick="setEstadoPres(&quot;'+id+'&quot;,&quot;'+e+'&quot;)">'+labels[e]+'</button>';
-  });
-  html+='</div>';
-  html+='<button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
+  if(op){
+    html+='<div class="st">Estado de la OP</div>';
+    html+='<div style="font-size:13px;margin-bottom:12px">'+escHtml(opEstadoLabel(op.estado||'pendiente'))+'</div>';
+    html+='<button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Ver OP</button>';
+  } else {
+    html+='<div class="st">Estado</div><div class="estado-grid">';
+    ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
+      var labels={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado'};
+      var actClases={'pendiente':'active-ne','enviado':'active-env','aprobado':'active-apr','rechazado':'active-rec'};
+      html+='<button class="estado-btn'+(p.estado===e?' '+actClases[e]:'')+'" onclick="setEstadoPres(&quot;'+id+'&quot;,&quot;'+e+'&quot;)">'+labels[e]+'</button>';
+    });
+    html+='</div>';
+    html+='<button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
+  }
   html+='</div>';
   document.getElementById('pres-contenido').innerHTML=html;
   openModal('modal-ver-pres');
@@ -2504,10 +2534,9 @@ function renderOrdenes(){
   } else {
     var el=document.getElementById('lista-ordenes');
     if(!lista.length){el.innerHTML='<div class="empty">Sin ordenes</div>';return}
-    var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
       var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?OP_TALLAS.reduce(function(s,t){return s+(it.tallasDetalle[t]||0)},0):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+opEstadoColor(o.estado)+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
     }).join('');
   }
 }
