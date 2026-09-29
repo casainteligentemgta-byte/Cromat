@@ -1425,12 +1425,15 @@ function authShowLogin(){
   document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
 }
 function authApplyUI(){
+  if(!AUTH)return;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('btn-salir').style.display='';
   var chip=document.getElementById('auth-chip');
   if(chip){chip.classList.add('on');chip.style.display='inline'}
-  document.getElementById('auth-nombre').textContent=AUTH.nombre||AUTH.usuario;
-  document.getElementById('auth-rol').textContent=authRol(AUTH.rol).l;
+  var nom=document.getElementById('auth-nombre');
+  if(nom)nom.textContent=AUTH.nombre||AUTH.usuario||'admin';
+  var rol=document.getElementById('auth-rol');
+  if(rol)rol.textContent=authRol(AUTH.rol).l;
   var us=document.getElementById('btn-ajustes');
   if(us)us.style.display=authCanUsers()?'flex':'none';
   ['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'].forEach(function(id){
