@@ -2187,16 +2187,16 @@ function recalcPres(){
   document.getElementById('p-saldo').textContent=usd(saldo);
 }
 function estadoPresFlujo(p){
+  var e=p&&p.estado;
+  if(e==='produccion')return 'aprobado';
   var sel=p&&p.estadoSeleccionado;
   if(sel==='pendiente'||sel==='enviado'||sel==='aprobado'||sel==='rechazado')return sel;
-  var e=p&&p.estado;
   if(e==='pendiente'||e==='enviado'||e==='aprobado'||e==='rechazado')return e;
   return 'pendiente';
 }
 function recordarEstadoPres(p){
   if(!p)return;
-  if(p.estadoSeleccionado==='pendiente'||p.estadoSeleccionado==='enviado'||p.estadoSeleccionado==='aprobado'||p.estadoSeleccionado==='rechazado')return;
-  p.estadoSeleccionado=estadoPresFlujo(p);
+  p.estadoSeleccionado='aprobado';
 }
 function guardarPresupuesto(){
   if(!requireTab('presupuestos'))return;
