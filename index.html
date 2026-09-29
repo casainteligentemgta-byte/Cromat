@@ -320,6 +320,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
     <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
   </div>
+  <div class="card" id="conta-cobros-card" style="margin-bottom:10px">
+    <div class="st">Cobrado este mes</div>
+    <div id="conta-cobros"><div class="empty">Sin cobros</div></div>
+  </div>
   <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
     <div class="st">Cuentas por cobrar</div>
     <div id="conta-cxc"><div class="empty">Sin saldos pendientes en OP</div></div>
@@ -1350,8 +1354,13 @@ var LS={
   s:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
 };
 function usd(n){return '$'+(+n||0).toFixed(2)}
-function fch(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0]}
-function hoy(){return new Date().toISOString().split('T')[0]}
+function money2(n){return Math.round((parseFloat(n)||0)*100)/100}
+function fch(d){if(!d)return'';var p=String(d).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
+function fechaISO(d){
+  d=d||new Date();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+function hoy(){return fechaISO(new Date())}
 // Detectar si un producto lleva talla por nombre (global - usada en presupuestos y OPs)
 var LLEVA_TALLA_KWORDS=['camisa','camiseta','polo','franela','corta viento','cortaviento','chaqueta','traje de baño','vestido','pantalon','pantalón','short','bermuda','toalla','delantal','uniforme','mono','sudadera','hoodie','blusa','playera'];
 function productollevaTalla(nombre){
@@ -3589,39 +3598,109 @@ function tipoCobroMov(m){
 }
 function cobrosDelPeriodo(movs,ym,desde,hasta){
   movs=movs||LS.g('crm_movimientos')||[];
-  var op=0,otros=0,seen={},backfill=0,byOp={},opSinId=0;
+  var ops=LS.g('crm_ordenes')||[];
+  var opById={};
+  ops.forEach(function(o){if(o&&o.id)opById[o.id]=o});
+  var op=0,otros=0,backfill=0,byOp={},opSinId=0,libro=0,topeAjuste=0,omitido=0;
+  var seenMov={},filas=[];
+  function cupoDe(id){
+    var o=id&&opById[id];
+    if(!o)return 1e12;
+    return Math.max(0,Math.min(opMontoDe(o),opCobradoDe(o))-(byOp[id]||0));
+  }
   function addOp(id,n){
-    if(!id){opSinId+=n;return}
-    byOp[id]=(byOp[id]||0)+n;
+    n=money2(n);
+    if(!(n>0))return 0;
+    if(!id){
+      opSinId=money2(opSinId+n);op=money2(op+n);return n;
+    }
+    var add=Math.min(n,cupoDe(id));
+    var drop=money2(n-add);
+    if(drop>0.009)omitido=money2(omitido+drop);
+    if(add<=0.009)return 0;
+    byOp[id]=money2((byOp[id]||0)+add);
+    op=money2(op+add);
+    return add;
   }
   movs.forEach(function(m){
     if(m.tipo!=='ingreso'||!fechaEnPeriodo(m.fecha,ym,desde,hasta))return;
-    var n=parseFloat(m.monto)||0;
+    var n=money2(m.monto);
+    if(!(n>0))return;
+    var dup=[m.opId||'',n.toFixed(2),m.fecha||'',m.concepto||'',String(m.desc||'')].join('|');
+    if(seenMov[dup])return;
+    seenMov[dup]=1;
     var t=tipoCobroMov(m);
     if(t){
-      op+=n;
+      libro=money2(libro+n);
       addOp(m.opId,n);
-      if(m.opId){
-        seen[m.opId+'|'+t]=1;
-        if(t==='op'){seen[m.opId+'|anticipo']=1;seen[m.opId+'|saldo']=1}
-      }
-    }else otros+=n;
+    }else{
+      libro=money2(libro+n);
+      otros=money2(otros+n);
+    }
   });
-  (LS.g('crm_ordenes')||[]).forEach(function(o){
-    var ant=parseFloat(o.anticipo)||0;
+  ops.forEach(function(o){
+    var falta=cupoDe(o.id);
+    if(falta<=0.009)return;
+    var ant=opAnticipoDe(o);
     var antF=o.anticipoPago&&o.anticipoPago.fecha;
-    if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&!seen[o.id+'|anticipo']&&!seen[o.id+'|op']){
-      op+=ant;backfill+=ant;addOp(o.id,ant);seen[o.id+'|anticipo']=1;
+    if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&falta>0.009){
+      var a=addOp(o.id,Math.min(ant,falta));
+      if(a>0){backfill=money2(backfill+a);falta=cupoDe(o.id)}
     }
     var sal=opSaldoPagoDe(o);
-    if(sal<=0&&o.saldoCobrado)sal=Math.max(0,opMontoDe(o)-ant);
-    if(sal<=0)return;
-    var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
-    if(sal>0&&fechaEnPeriodo(salF,ym,desde,hasta)&&!seen[o.id+'|saldo']&&!seen[o.id+'|op']){
-      op+=sal;backfill+=sal;addOp(o.id,sal);
+    var salF=(o.saldoPago&&o.saldoPago.fecha)||'';
+    if(sal>0&&salF&&fechaEnPeriodo(salF,ym,desde,hasta)&&falta>0.009){
+      var b=addOp(o.id,Math.min(sal,falta));
+      if(b>0)backfill=money2(backfill+b);
     }
   });
-  return {op:op,otros:otros,total:op+otros,backfill:backfill,byOp:byOp,opSinId:opSinId};
+  var groups={};
+  ops.forEach(function(o){
+    var k=o.presupuestoId||o.presId;
+    if(!k)return;
+    if(!groups[k])groups[k]=[];
+    groups[k].push(o);
+  });
+  Object.keys(groups).forEach(function(k){
+    var g=groups[k];
+    if(g.length<2)return;
+    var tope=0,counted=0;
+    g.forEach(function(o){
+      tope=Math.max(tope,opMontoDe(o));
+      counted=money2(counted+(byOp[o.id]||0));
+    });
+    var p=presDeOP(g[0]);
+    if(p)tope=Math.max(tope,parseFloat(p.total)||presTotalDe(p)||0);
+    if(counted<=tope+0.009)return;
+    var extra=money2(counted-tope);
+    var canon=g.find(function(o){return p&&p.opId===o.id})||g[0];
+    g.slice().sort(function(a,b){
+      if(a.id===canon.id)return 1;
+      if(b.id===canon.id)return -1;
+      return (byOp[b.id]||0)-(byOp[a.id]||0);
+    }).forEach(function(o){
+      if(extra<=0.009)return;
+      var v=byOp[o.id]||0;
+      var cut=Math.min(v,extra);
+      if(cut<=0.009)return;
+      byOp[o.id]=money2(v-cut);
+      op=money2(op-cut);
+      topeAjuste=money2(topeAjuste+cut);
+      extra=money2(extra-cut);
+    });
+  });
+  Object.keys(byOp).forEach(function(id){
+    if((byOp[id]||0)<=0.009)return;
+    var o=opById[id];
+    filas.push({
+      opId:id,
+      nombre:o?o.clienteNombre||'OP':'OP',
+      codigo:String(id).slice(-6).toUpperCase(),
+      monto:byOp[id]
+    });
+  });
+  filas.sort(function(a,b){return b.monto-a.monto});
+  return {op:op,otros:otros,total:money2(op+otros),backfill:backfill,byOp:byOp,opSinId:opSinId,libro:libro,topeAjuste:topeAjuste,omitido:omitido,filas:filas};
 }
 function presDeOP(o){
   if(!o)return null;
@@ -3831,7 +3910,7 @@ function onContaPct(){
 function periodoRango(){
   var hoyStr=hoy(),desde,hasta;
   if(periodoConta==='dia'){desde=hoyStr;hasta=hoyStr}
-  else if(periodoConta==='semana'){var d=new Date();d.setDate(d.getDate()-7);desde=d.toISOString().split('T')[0];hasta=hoyStr}
+  else if(periodoConta==='semana'){var d=new Date();d.setDate(d.getDate()-7);desde=fechaISO(d);hasta=hoyStr}
   else if(periodoConta==='mes'){desde=hoyStr.slice(0,7)+'-01';hasta=hoyStr}
   else{desde=document.getElementById('conta-desde').value;hasta=document.getElementById('conta-hasta').value}
   return {desde:desde,hasta:hasta};
@@ -3899,6 +3978,27 @@ function renderConta(){
     var nota=periodoConta==='mes'?'':'Hoy / Semana / Rango filtra la lista de abajo. ';
     var resCol=(ing-gas)<0?'var(--dt)':'var(--gt)';
     ingSplit.innerHTML=nota+'<span class="dash-split-ing">Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+'</span> · <span class="dash-split-gas">Gastos '+usd(gas)+'</span> · <span style="color:'+resCol+'">Resultado '+usd(ing-gas)+'</span>';
+  }
+  var cobrosEl=document.getElementById('conta-cobros');
+  if(cobrosEl){
+    var filasCob=cob.filas||[];
+    var htmlC='';
+    if(!filasCob.length&&!(cob.otros>0.009)&&!(cob.opSinId>0.009)){
+      htmlC='<div class="empty">Sin cobros este mes</div>';
+    }else{
+      filasCob.forEach(function(f){
+        htmlC+='<div class="dist-row"><span class="result-label">'+escHtml(f.nombre||'OP')+' <span style="color:var(--tm);font-weight:500">#'+escHtml(f.codigo)+'</span></span><span class="dist-amt" style="color:var(--gt)">'+usd(f.monto)+'</span></div>';
+      });
+      if(cob.opSinId>0.009)htmlC+='<div class="dist-row"><span class="result-label">Cobros de OP sin ficha</span><span class="dist-amt" style="color:var(--gt)">'+usd(cob.opSinId)+'</span></div>';
+      if(cob.otros>0.009)htmlC+='<div class="dist-row"><span class="result-label">Otros ingresos</span><span class="dist-amt" style="color:var(--gt)">'+usd(cob.otros)+'</span></div>';
+      htmlC+='<div class="dist-row" style="border-bottom:none"><span class="result-label">Total cobrado</span><span class="dist-amt" style="color:var(--gt);font-weight:700">'+usd(cob.total)+'</span></div>';
+      var avisos=[];
+      if(cob.topeAjuste>0.009)avisos.push('Había más de una OP del mismo presupuesto: se topeó al total del trabajo (−'+usd(cob.topeAjuste)+').');
+      if(cob.omitido>0.009)avisos.push('No se cuenta lo que supera lo cobrado de cada OP (−'+usd(cob.omitido)+').');
+      if(cob.backfill>0.009)avisos.push('Incluye '+usd(cob.backfill)+' de cobros de OP sin asiento en el libro.');
+      if(avisos.length)htmlC+='<div style="font-size:11px;color:var(--wt);line-height:1.4;margin-top:8px">'+avisos.join(' ')+'</div>';
+    }
+    cobrosEl.innerHTML=htmlC;
   }
   renderGastosFijos();
   var balEl=document.getElementById('c-balance');
