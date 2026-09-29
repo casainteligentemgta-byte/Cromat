@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; font-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://*.jsdelivr.net; font-src 'self'">
 <title>CromatGestion</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -941,6 +941,17 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <div id="ant-metodos" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
       <input type="hidden" id="ant-metodo">
     </div>
+    <div class="fg" id="ant-foto-wrap">
+      <label class="fl">Foto o captura del recibo</label>
+      <input type="file" id="ant-foto-file" accept="image/*" onchange="cargarFotoRecibo(this)" style="font-size:12px">
+      <div id="ant-foto-ocr" style="font-size:11px;color:var(--tm);margin-top:4px;display:none"></div>
+      <div id="ant-foto-prev" style="display:none;margin-top:8px;position:relative">
+        <button type="button" onclick="verFotoPagoDesde(this)" style="border:none;padding:0;background:transparent;cursor:pointer;display:block;width:100%">
+          <img id="ant-foto-img" alt="Recibo" style="width:100%;max-height:180px;object-fit:contain;border-radius:var(--r);background:var(--s1)">
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--dt)" onclick="quitarFotoRecibo()">Quitar foto</button>
+      </div>
+    </div>
     <div class="fg" id="ant-ref-wrap">
       <label class="fl" id="ant-ref-lbl">Referencia / N° de operación</label>
       <input class="fi" type="text" id="ant-ref" placeholder="Ej: 004512">
@@ -1193,6 +1204,14 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Orden de Produccion</span><button class="close-btn" onclick="closeModal('modal-ver-op')">&#x2715;</button></div>
     <div id="op-ver-content"></div>
+  </div>
+</div>
+
+<!-- MODAL FOTO RECIBO -->
+<div class="modal-bg" id="modal-foto-pago" onclick="if(event.target===this)closeModal('modal-foto-pago')">
+  <div class="modal" style="padding:12px">
+    <div class="modal-header"><span class="modal-title">Recibo de pago</span><button class="close-btn" onclick="closeModal('modal-foto-pago')">&#x2715;</button></div>
+    <img id="foto-pago-img" alt="Recibo" style="width:100%;border-radius:var(--r);background:var(--s1)">
   </div>
 </div>
 
@@ -1969,6 +1988,7 @@ function renderPresupuestos(){
       bloqueAnt='<div style="margin-top:8px;background:var(--gs);border-radius:8px;padding:8px;font-size:12px;color:var(--gt)">'
         +'<div style="font-weight:700">✓ Anticipo '+usd(ap.monto)+' — '+escHtml(ap.metodo)+'</div>'
         +'<div style="opacity:0.85">'+(ap.referencia?'Ref '+escHtml(ap.referencia)+' · ':'')+fch(ap.fecha)+(ap.nota?' · '+escHtml(ap.nota):'')+'</div>'
+        +htmlFotoPago(ap)
         +'</div>';
     } else if(est==='aprobado'){
       bloqueAnt='<button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="abrirAnticipo(\''+p.id+'\')">💵 Registrar anticipo</button>';
@@ -2279,6 +2299,7 @@ function abrirAnticipo(presId){
   document.getElementById('ant-fecha').value=hoy();
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
+  quitarFotoRecibo();
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(p.clienteNombre||'')+'</div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total presupuesto</span><strong>'+usd(p.total||0)+'</strong></div>'
     +(sug?'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo sugerido</span><strong style="color:var(--coral)">'+usd(sug)+'</strong></div>':'');
@@ -2307,6 +2328,7 @@ function abrirCobroSaldo(opId){
   document.getElementById('ant-fecha').value=hoy();
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
+  quitarFotoRecibo();
   var ap=o.anticipoPago;
   document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(o.clienteNombre||'')+' <span style="font-weight:500;color:var(--tm);font-size:12px">OP #'+o.id.slice(-6).toUpperCase()+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total OP</span><strong>'+usd(o.monto||0)+'</strong></div>'
@@ -2332,7 +2354,163 @@ function leerPagoForm(){
   var err=document.getElementById('ant-error');
   if(msg){err.textContent=msg;err.style.display='block';return null;}
   err.style.display='none';
-  return{monto:monto,metodo:metodo,referencia:ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),registrado:hoy()};
+  return{monto:monto,metodo:metodo,referencia:ref,fecha:document.getElementById('ant-fecha').value||hoy(),nota:(document.getElementById('ant-nota').value||'').trim(),foto:window._antFoto||'',registrado:hoy()};
+}
+function setOcrPagoMsg(txt,ok){
+  var el=document.getElementById('ant-foto-ocr');
+  if(!el)return;
+  if(!txt){el.style.display='none';el.textContent='';return}
+  el.style.display='';
+  el.style.color=ok===false?'var(--dt)':ok?'var(--gt)':'var(--tm)';
+  el.textContent=txt;
+}
+function quitarFotoRecibo(){
+  window._antFoto='';
+  var f=document.getElementById('ant-foto-file');
+  if(f)f.value='';
+  var prev=document.getElementById('ant-foto-prev');
+  var img=document.getElementById('ant-foto-img');
+  if(prev)prev.style.display='none';
+  if(img){img.removeAttribute('src')}
+  setOcrPagoMsg('');
+}
+function mostrarFotoRecibo(src){
+  var u=safeImgSrc(src);
+  window._antFoto=u;
+  var img=document.getElementById('ant-foto-img');
+  var prev=document.getElementById('ant-foto-prev');
+  if(img&&u)img.src=u;
+  if(prev)prev.style.display=u?'':'none';
+}
+function comprimirImagenPago(file,cb){
+  if(!file)return;
+  if(!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)){alert('Usa una imagen PNG, JPG, GIF o WebP');return}
+  if(file.size>12*1024*1024){alert('La imagen es muy pesada (máx 12 MB)');return}
+  var url=URL.createObjectURL(file);
+  var im=new Image();
+  im.onload=function(){
+    URL.revokeObjectURL(url);
+    var max=1280,w=im.width,h=im.height;
+    if(w>max||h>max){var s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
+    var c=document.createElement('canvas');
+    c.width=w;c.height=h;
+    c.getContext('2d').drawImage(im,0,0,w,h);
+    var q=0.72,data=c.toDataURL('image/jpeg',q);
+    while(data.length>380000&&q>0.42){q-=0.08;data=c.toDataURL('image/jpeg',q)}
+    var src=safeImgSrc(data);
+    if(!src){alert('Imagen no valida');return}
+    cb(src);
+  };
+  im.onerror=function(){URL.revokeObjectURL(url);alert('No se pudo leer la imagen')};
+  im.src=url;
+}
+function fechaDesdeTexto(s){
+  var p=String(s||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(!p){
+    var iso=String(s||'').trim().match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+    if(!iso)return '';
+    return iso[1]+'-'+('0'+iso[2]).slice(-2)+'-'+('0'+iso[3]).slice(-2);
+  }
+  var d=+p[1],m=+p[2],y=+p[3];
+  if(y<100)y+=2000;
+  if(d<1||d>31||m<1||m>12)return '';
+  return y+'-'+('0'+m).slice(-2)+'-'+('0'+d).slice(-2);
+}
+function extraerDatosRecibo(texto){
+  var t=String(texto||'').replace(/\s+/g,' ').trim();
+  var n=normTxt(t);
+  var out={};
+  if(n.indexOf('pago movil')>=0||n.indexOf('pagomovil')>=0||n.indexOf('pago movil')>=0)out.metodo='Pago Móvil';
+  else if(n.indexOf('binance')>=0)out.metodo='Binance';
+  else if(n.indexOf('zelle')>=0)out.metodo='Zelle';
+  else if(n.indexOf('transfer')>=0)out.metodo='Transferencia';
+  var ref=t.match(/(?:ref(?:erencia)?|nro|n[uú]m(?:ero)?|operaci[oó]n|txid|confirmaci[oó]n|c[oó]digo)[:\s#.\-]*([A-Z0-9\-]{6,22})/i);
+  if(!ref)ref=t.match(/\b(\d{6,12})\b/);
+  if(ref)out.referencia=ref[1];
+  var mon=t.match(/(?:usd|monto|total|importe)[:\s\$]*(\d{1,5}[.,]\d{2})/i)||t.match(/\$\s*(\d{1,5}[.,]\d{2})/)||t.match(/\b(\d{1,4}[.,]\d{2})\b/);
+  if(mon)out.monto=parseFloat(mon[1].replace(',','.'));
+  var fec=t.match(/\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\b/)||t.match(/\b(\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})\b/);
+  if(fec)out.fecha=fechaDesdeTexto(fec[1]);
+  return out;
+}
+function aplicarDatosRecibo(d){
+  if(!d)return;
+  if(d.metodo&&typeof selMetodoPago==='function')selMetodoPago(d.metodo);
+  if(d.referencia&&!(document.getElementById('ant-ref').value||'').trim())document.getElementById('ant-ref').value=d.referencia;
+  else if(d.referencia)document.getElementById('ant-ref').value=d.referencia;
+  if(d.fecha)document.getElementById('ant-fecha').value=d.fecha;
+  if(d.monto>0)document.getElementById('ant-monto').value=d.monto.toFixed(2);
+}
+function cargarTesseractPago(cb){
+  if(window.Tesseract){cb(true);return}
+  if(window._tessCbs){window._tessCbs.push(cb);return}
+  window._tessCbs=[cb];
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  s.onload=function(){var q=window._tessCbs||[];window._tessCbs=null;q.forEach(function(fn){fn(!!window.Tesseract)})};
+  s.onerror=function(){var q=window._tessCbs||[];window._tessCbs=null;q.forEach(function(fn){fn(false)})};
+  document.head.appendChild(s);
+}
+function leerTextoRecibo(src,cb){
+  cargarTesseractPago(function(ok){
+    if(!ok||!window.Tesseract){cb('');return}
+    var T=window.Tesseract;
+    var opts={
+      workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+      corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/tesseract-core-simd.wasm.js',
+      langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int'
+    };
+    var done=function(text){cb(text||'')};
+    if(T.createWorker){
+      T.createWorker('eng',1,opts).then(function(w){
+        return w.recognize(src).then(function(r){
+          var t=(r&&r.data&&r.data.text)||'';
+          return w.terminate().then(function(){done(t)}).catch(function(){done(t)});
+        });
+      }).catch(function(){done('')});
+      return;
+    }
+    T.recognize(src,'eng',opts).then(function(r){done((r&&r.data&&r.data.text)||'')}).catch(function(){done('')});
+  });
+}
+function cargarFotoRecibo(input){
+  var file=input&&input.files&&input.files[0];
+  if(!file)return;
+  setOcrPagoMsg('Guardando foto...');
+  comprimirImagenPago(file,function(src){
+    mostrarFotoRecibo(src);
+    setOcrPagoMsg('Leyendo el recibo...');
+    var ocrDone=false;
+    setTimeout(function(){
+      if(!ocrDone)setOcrPagoMsg('Foto guardada. Si no se leyeron los datos, complétalos a mano.',true);
+    },12000);
+    leerTextoRecibo(src,function(txt){
+      ocrDone=true;
+      if(!txt){setOcrPagoMsg('Foto guardada. Si no se leyeron los datos, complétalos a mano.',true);return}
+      var d=extraerDatosRecibo(txt);
+      aplicarDatosRecibo(d);
+      var bits=[];
+      if(d.metodo)bits.push(d.metodo);
+      if(d.referencia)bits.push('ref '+d.referencia);
+      if(d.monto)bits.push(usd(d.monto));
+      if(d.fecha)bits.push(fch(d.fecha));
+      setOcrPagoMsg(bits.length?('Se leyó: '+bits.join(' · ')):'Foto guardada. Completa referencia y monto si faltan.',true);
+    });
+  });
+}
+function htmlFotoPago(pago){
+  var u=safeImgSrc(pago&&pago.foto);
+  if(!u)return '';
+  return '<button type="button" onclick="event.stopPropagation();verFotoPagoDesde(this)" style="border:none;padding:0;background:transparent;cursor:pointer;margin-top:6px">'+imgTag(u,'width:56px;height:56px;object-fit:cover;border-radius:6px;display:block')+'</button>';
+}
+function verFotoPagoDesde(el){
+  var img=el&&(el.tagName==='IMG'?el:el.querySelector('img'));
+  var u=safeImgSrc(img&&img.src);
+  if(!u)u=window._antFoto||'';
+  if(!u)return;
+  var vis=document.getElementById('foto-pago-img');
+  if(vis)vis.src=u;
+  openModal('modal-foto-pago');
 }
 function confirmarSaldo(){
   var pago=leerPagoForm();
@@ -2856,7 +3034,7 @@ function verOP(id){
     html+='<div style="font-size:10px;font-weight:700;color:var(--gt);letter-spacing:1px;margin-bottom:8px">💰 RESUMEN FINANCIERO</div>';
     html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">';
     html+='<div style="background:var(--s1);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--tm)">TOTAL OP</div><div style="font-size:16px;font-weight:700;color:var(--tp)">'+usd(o.monto)+'</div></div>';
-    html+='<div style="background:var(--gs);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--gt)">ANTICIPO COBRADO</div><div style="font-size:16px;font-weight:700;color:var(--gt)">'+usd(o.anticipo||0)+'</div>'+(o.anticipoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.anticipoPago.metodo)+(o.anticipoPago.referencia?' · Ref '+escHtml(o.anticipoPago.referencia):'')+' · '+fch(o.anticipoPago.fecha)+'</div>':'')+'</div>';
+    html+='<div style="background:var(--gs);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--gt)">ANTICIPO COBRADO</div><div style="font-size:16px;font-weight:700;color:var(--gt)">'+usd(o.anticipo||0)+'</div>'+(o.anticipoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.anticipoPago.metodo)+(o.anticipoPago.referencia?' · Ref '+escHtml(o.anticipoPago.referencia):'')+' · '+fch(o.anticipoPago.fecha)+'</div>'+htmlFotoPago(o.anticipoPago):'')+'</div>';
     if(costoProd>0){
       html+='<div style="background:var(--ds);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--dt)">COSTO PRODUCCION</div><div style="font-size:16px;font-weight:700;color:var(--dt)">'+usd(costoProd)+'</div></div>';
       html+='<div style="background:var(--as);border-radius:6px;padding:8px"><div style="font-size:10px;color:var(--at)">GANANCIA EST.</div><div style="font-size:16px;font-weight:700;color:var(--at)">'+usd(ganancia)+'</div></div>';
@@ -2865,7 +3043,7 @@ function verOP(id){
     if(saldo>0){
       html+='<div style="background:'+(saldoCobrado?'var(--gs)':'var(--ws)')+';border-radius:6px;padding:10px;display:flex;justify-content:space-between;align-items:center">';
       html+='<div><div style="font-size:10px;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+';font-weight:700">'+(saldoCobrado?'✓ SALDO COBRADO':'SALDO PENDIENTE')+'</div>';
-      html+='<div style="font-size:20px;font-weight:700;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+'">'+usd(saldoCobrado&&o.saldoPago?o.saldoPago.monto:saldo)+'</div>'+(saldoCobrado&&o.saldoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.saldoPago.metodo)+(o.saldoPago.referencia?' · Ref '+escHtml(o.saldoPago.referencia):'')+' · '+fch(o.saldoPago.fecha)+'</div>':'')+'</div>';
+      html+='<div style="font-size:20px;font-weight:700;color:'+(saldoCobrado?'var(--gt)':'var(--wt)')+'">'+usd(saldoCobrado&&o.saldoPago?o.saldoPago.monto:saldo)+'</div>'+(saldoCobrado&&o.saldoPago?'<div style="font-size:10px;color:var(--gt);margin-top:2px">'+escHtml(o.saldoPago.metodo)+(o.saldoPago.referencia?' · Ref '+escHtml(o.saldoPago.referencia):'')+' · '+fch(o.saldoPago.fecha)+'</div>'+htmlFotoPago(o.saldoPago):'')+'</div>';
       if(!saldoCobrado&&(o.estado==='listo'||o.estado==='entregado')){
         html+='<button class="btn btn-primary" style="font-size:12px" onclick="abrirCobroSaldo(&quot;'+id+'&quot;)">Cobrar saldo</button>';
       }
