@@ -2771,7 +2771,8 @@ function verOP(id){
     html+='</div>';
   }
 
-  // ITEMS
+  // ITEMS — en impresión/sublimación textil el recuadro de metros ya lo cubre
+  if(!opEsMetrosTextil(o)){
   html+='<div style="font-size:11px;font-weight:700;color:var(--ts);letter-spacing:1px;margin-bottom:6px">'+(esTextilOP?'PRENDAS A PRODUCIR':'ITEMS DE PRODUCCION')+'</div>';
   if(o.opItems&&o.opItems.length){
     o.opItems.forEach(function(it){
@@ -2807,6 +2808,7 @@ function verOP(id){
     });
   } else {
     html+='<div style="color:var(--tm);font-size:12px;margin-bottom:10px">Sin items registrados</div>';
+  }
   }
 
   // INSTRUCCIONES
