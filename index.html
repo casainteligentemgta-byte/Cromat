@@ -1318,6 +1318,18 @@ function esNombreMetrosTextil(s){
   var imp=n.indexOf('impresion')>=0||n.indexOf('sublim')>=0;
   return textil&&imp;
 }
+function presItemEsMetros(it){
+  return !!(it&&(esNombreMetrosTextil(it.desc)||esNombreMetrosTextil(it.productoNombre)));
+}
+function presItemMonto(it){
+  var p=+it.precio||0;
+  if(presItemEsMetros(it))return p;
+  return p*(+it.qty||1);
+}
+function presItemQtyTxt(it){
+  if(presItemEsMetros(it))return (it.qty||0)+' ml';
+  return 'x'+(it.qty||1);
+}
 function opHayPrendas(o){
   return (o&&o.opItems||[]).some(function(it){
     if(!it)return false;
@@ -2147,7 +2159,7 @@ function elimItemPres(i){presItems.splice(i,1);renderPresItems()}
 function agregarItemPres(){presItems.push({desc:'',qty:1,precio:0,sinTalla:true,tallasDetalle:{}});renderPresItems()}
 function recalcPres(){
   // Subtotal
-  var sub=presItems.reduce(function(a,it){return a+(parseFloat(it.precio)||0)*(parseFloat(it.qty)||1)},0);
+  var sub=presItems.reduce(function(a,it){return a+presItemMonto(it)},0);
   var desc=parseFloat(document.getElementById('p-desc').value)||0;
   var descMonto=sub*desc/100;
   var total=sub-descMonto;
@@ -2160,7 +2172,7 @@ function recalcPres(){
     var costo=0;
     if(tipo==='c'){
       var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
-      if(c)costo=(parseFloat(c.costo)||0)*(parseFloat(it.qty)||1);
+      if(c)costo=presItemEsMetros(it)?(parseFloat(c.costo)||0):(parseFloat(c.costo)||0)*(parseFloat(it.qty)||1);
     }
     return a+costo;
   },0);
@@ -2194,7 +2206,7 @@ function guardarPresupuesto(){
   var cId=cSel.value;
   var cNom=cId?(LS.g('crm_clientes')||[]).find(function(x){return x.id===cId}):null;
   var desc=parseFloat(document.getElementById('p-desc').value)||0;
-  var sub=presItems.reduce(function(a,it){return a+(parseFloat(it.precio)||0)*(parseFloat(it.qty)||1)},0);
+  var sub=presItems.reduce(function(a,it){return a+presItemMonto(it)},0);
   var total=sub*(1-desc/100);
   var antRec=parseFloat(document.getElementById('p-anticipo').value)||0;
   var obj={id:id||uid(),clienteId:cId,clienteNombre:cNom?cNom.nombre:'Sin cliente',fecha:document.getElementById('p-fecha').value,validez:document.getElementById('p-validez').value,items:presItems,desc:desc,subtotal:sub,total:total,anticipo:antRec,antPct:parseFloat(document.getElementById('p-ant-pct').value)||50,saldo:total-antRec,notas:document.getElementById('p-notas').value,estado:id?undefined:'pendiente'};
@@ -2211,7 +2223,7 @@ function verPresupuesto(id){
   var colores={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
   var html='<div><div style="display:flex;justify-content:space-between;margin-bottom:12px"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span class="tag '+(colores[p.estado]||'tag-gray')+'">'+((estados[p.estado])||'PENDIENTE')+'</span></div>';
   html+='<div style="font-size:12px;color:var(--tm);margin-bottom:10px">'+fch(p.fecha)+' &bull; Valido '+p.validez+' dias</div>';
-  html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(it.desc||'')+' x'+it.qty+'</span><span>'+usd((it.precio||0)*(it.qty||1))+'</span></div>'}).join('')+'</div>';
+  html+='<div style="margin-bottom:10px">'+p.items.map(function(it){return'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd);font-size:13px"><span>'+escHtml(it.desc||it.productoNombre||'')+(presItemEsMetros(it)?' · ':' ')+presItemQtyTxt(it)+'</span><span>'+usd(presItemMonto(it))+'</span></div>'}).join('')+'</div>';
   html+='<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-bottom:12px"><span>TOTAL</span><span>'+usd(p.total)+'</span></div>';
   html+='<div class="st">Estado</div><div class="estado-grid">';
   ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
