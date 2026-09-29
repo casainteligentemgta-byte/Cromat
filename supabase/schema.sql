@@ -159,8 +159,13 @@ begin
     select * into inv
     from public.cromat_invites
     where used_at is null
-      and email is not null
-      and lower(trim(email)) = lower(trim(coalesce(auth.email(), '')))
+      and (
+        (email is not null and lower(trim(email)) = lower(trim(coalesce(auth.email(), ''))))
+        or (
+          coalesce(nullif(trim(nombre_sugerido), ''), '') <> ''
+          and lower(trim(nombre_sugerido)) = split_part(lower(trim(coalesce(auth.email(), ''))), '@', 1)
+        )
+      )
     order by created_at desc
     limit 1
     for update;
@@ -428,3 +433,24 @@ exception when others then
   raise notice 'Confirmación de cuentas: %', sqlerrm;
 end;
 $$;
+
+-- El login llama esto (anon) para confirmar a quien ya se registró y el correo de Supabase lo bloqueó.
+create or replace function public.cromat_unlock_login(p_email text)
+returns void
+language plpgsql
+security definer
+set search_path = auth, public
+as $$
+declare
+  em text := lower(trim(coalesce(p_email, '')));
+begin
+  if em = '' or position('@' in em) = 0 then
+    return;
+  end if;
+  update auth.users
+  set email_confirmed_at = coalesce(email_confirmed_at, now())
+  where lower(email) = em;
+end;
+$$;
+
+grant execute on function public.cromat_unlock_login(text) to anon, authenticated;
