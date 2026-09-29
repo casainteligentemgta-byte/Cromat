@@ -31,7 +31,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .tagline{border:0.5px solid #444;padding:1px 6px;font-size:9px;letter-spacing:2px;color:#888;margin-top:2px}
 .badge{background:rgba(255,107,53,0.2);color:var(--coral);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
 #sync-status{display:none;margin-top:4px;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer}
-#auth-chip{display:none;font-size:11px;color:#eee;font-weight:600;white-space:nowrap}
+#auth-chip{display:none;font-size:11px;color:#eee;font-weight:600;white-space:nowrap;flex-shrink:0}
+#auth-chip.on{display:inline}
 #auth-chip #auth-rol{color:var(--coral)}
 #btn-ajustes{display:none;background:transparent;border:0.5px solid #444;color:#aaa;width:30px;height:30px;padding:0;border-radius:15px;cursor:pointer;align-items:center;justify-content:center}
 #btn-ajustes svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -1420,13 +1421,14 @@ function authShowLogin(){
   scr.style.display='flex';
   var salir=document.getElementById('btn-salir');if(salir)salir.style.display='none';
   var us=document.getElementById('btn-ajustes');if(us)us.style.display='none';
-  var chip=document.getElementById('auth-chip');if(chip)chip.style.display='none';
+  var chip=document.getElementById('auth-chip');if(chip){chip.classList.remove('on');chip.style.display='none'}
   document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
 }
 function authApplyUI(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('btn-salir').style.display='';
-  document.getElementById('auth-chip').style.display='inline';
+  var chip=document.getElementById('auth-chip');
+  if(chip){chip.classList.add('on');chip.style.display='inline'}
   document.getElementById('auth-nombre').textContent=AUTH.nombre||AUTH.usuario;
   document.getElementById('auth-rol').textContent=authRol(AUTH.rol).l;
   var us=document.getElementById('btn-ajustes');
