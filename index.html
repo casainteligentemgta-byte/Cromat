@@ -30,6 +30,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .logo .c1{color:var(--coral)}.logo .c2{color:var(--teal)}
 .tagline{border:0.5px solid #444;padding:1px 6px;font-size:9px;letter-spacing:2px;color:#888;margin-top:2px}
 .badge{background:rgba(255,107,53,0.2);color:var(--coral);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+#sync-status{display:none;margin-top:4px;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer}
+#auth-chip{display:none;font-size:11px;color:#eee;font-weight:600;white-space:nowrap}
+#auth-chip #auth-rol{color:var(--coral)}
+#btn-ajustes{display:none;background:transparent;border:0.5px solid #444;color:#aaa;width:30px;height:30px;padding:0;border-radius:15px;cursor:pointer;align-items:center;justify-content:center}
+#btn-ajustes svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .main{padding:14px 14px 0}
 .sec{display:none}.sec.on{display:block}
 /* NAV */
@@ -173,15 +178,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <div class="topbar">
   <div>
     <div class="logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
-    <div class="tagline">GESTION EMPRESARIAL</div>
+    <span id="sync-status" title="" onclick="cloudSyncTap()"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <span id="sync-status" title="" onclick="cloudSyncTap()" style="display:none;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
-    <div id="auth-chip" style="display:none;text-align:right;line-height:1.2">
-      <div id="auth-nombre" style="font-size:11px;color:#eee;font-weight:600"></div>
-      <div id="auth-rol" style="font-size:9px;color:var(--coral)"></div>
-    </div>
-    <button id="btn-usuarios" onclick="abrirUsuarios()" style="display:none;background:transparent;border:0.5px solid #444;color:#aaa;font-size:10px;padding:3px 8px;border-radius:12px;cursor:pointer">Usuarios</button>
+    <div id="auth-chip"><span id="auth-nombre"></span>: <span id="auth-rol"></span></div>
+    <button id="btn-ajustes" type="button" onclick="abrirUsuarios()" aria-label="Ajustes y usuarios" title="Usuarios">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg>
+    </button>
     <button id="btn-salir" onclick="authLogout()" style="display:none;background:transparent;border:0.5px solid #444;color:#aaa;font-size:10px;padding:3px 8px;border-radius:12px;cursor:pointer">Salir</button>
     <span class="badge">v1.0</span>
   </div>
@@ -192,26 +195,15 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- DASHBOARD -->
 <div id="s-dash" class="sec on">
   <div class="kpi-grid" style="margin-top:14px">
-    <div class="kpi coral"><div class="kpi-v" id="k-clientes">0</div><div class="kpi-l">Clientes</div></div>
-    <div class="kpi teal"><div class="kpi-v" id="k-presupuestos">0 presup. / 0 OP</div><div class="kpi-l">Presupuestos</div></div>
-    <div class="kpi green"><div class="kpi-v" id="k-cobrar">$0.00</div><div class="kpi-l">Por cobrar</div></div>
     <div class="kpi ing"><div class="kpi-v" id="k-mes">$0.00</div><div class="kpi-l">Ingresos mes</div></div>
     <div class="kpi gas"><div class="kpi-v" id="k-gastos">$0.00</div><div class="kpi-l">Gastos mes</div></div>
-  </div>
-  <div style="font-size:11px;margin:-4px 0 10px;line-height:1.4">
-    <div id="k-mes-split" class="dash-split-ing">Lo cobrado este mes (anticipos, saldos y extras)</div>
-    <div id="k-gastos-split" class="dash-split-gas">Gastos fijos del mes + gastos agregados</div>
+    <div class="kpi green"><div class="kpi-v" id="k-cobrar">$0.00</div><div class="kpi-l">Por cobrar</div></div>
   </div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
-  <div style="margin-top:16px">
-    <div id="dash-local-note" style="font-size:11px;color:var(--tm);margin-bottom:8px;line-height:1.4">Los datos se guardan en este dispositivo. Aún no hay nube activa.</div>
-    <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin-bottom:8px;line-height:1.4"></div>
-    <button class="btn btn-ghost btn-sm" id="btn-backup" onclick="abrirBackup()">&#128190; Exportar / Importar datos</button>
-    <button class="btn btn-teal btn-sm" id="btn-subir-nube" style="display:none;margin-top:8px" onclick="cloudSubirLocal()">Subir datos de este teléfono a la nube</button>
-  </div>
+  <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin:16px 0 0;line-height:1.4"></div>
 </div>
 
 <!-- CLIENTES -->
@@ -1199,7 +1191,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- MODAL USUARIOS -->
 <div class="modal-bg" id="modal-usuarios">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Usuarios y roles</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title">Usuarios</span><button class="close-btn" onclick="closeModal('modal-usuarios')">&#x2715;</button></div>
     <div id="lista-usuarios"></div>
     <div id="nu-local-block">
       <div class="st" style="margin-top:14px">Nuevo usuario</div>
@@ -1427,7 +1419,7 @@ function authShowLogin(){
   if(pass)pass.autocomplete=setup||(cloud&&window._sbModo!=='login')?'new-password':'current-password';
   scr.style.display='flex';
   var salir=document.getElementById('btn-salir');if(salir)salir.style.display='none';
-  var us=document.getElementById('btn-usuarios');if(us)us.style.display='none';
+  var us=document.getElementById('btn-ajustes');if(us)us.style.display='none';
   var chip=document.getElementById('auth-chip');if(chip)chip.style.display='none';
   document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
 }
@@ -1437,18 +1429,12 @@ function authApplyUI(){
   document.getElementById('auth-chip').style.display='';
   document.getElementById('auth-nombre').textContent=AUTH.nombre||AUTH.usuario;
   document.getElementById('auth-rol').textContent=authRol(AUTH.rol).l;
-  document.getElementById('btn-usuarios').style.display=authCanUsers()?'':'none';
-  var bak=document.getElementById('btn-backup');
-  if(bak)bak.style.display=authCanBackup()?'':'none';
+  var us=document.getElementById('btn-ajustes');
+  if(us)us.style.display=authCanUsers()?'flex':'none';
   ['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'].forEach(function(id){
     var b=document.getElementById('nb-'+id);
     if(b)b.style.display=authCan(id)?'':'none';
   });
-  var dn=document.getElementById('dash-local-note');
-  var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
-  if(dn)dn.textContent=cloud?'Datos de la empresa en la nube. Cada quien ve solo lo de su rol. Si este teléfono tiene clientes o trabajos de antes, usa Subir datos de este teléfono.':'Los datos se guardan en este dispositivo. Aún no hay nube activa.';
-  var up=document.getElementById('btn-subir-nube');
-  if(up)up.style.display=(cloud&&authCanUsers())?'':'none';
 }
 function authSetSession(u){
   var rol=u.rol;
@@ -1648,13 +1634,9 @@ function goTab(id){
 
 // ===== DASHBOARD =====
 function renderDash(){
-  var clientes=LS.g('crm_clientes')||[];
   var presup=LS.g('crm_presupuestos')||[];
-  var ordenes=LS.g('crm_ordenes')||[];
   var movs=LS.g('crm_movimientos')||[];
   var inv=LS.g('crm_inventario')||[];
-  document.getElementById('k-clientes').textContent=clientes.length;
-  document.getElementById('k-presupuestos').textContent=presup.length+' presup. / '+ordenes.length+' OP';
   document.getElementById('k-cobrar').textContent=usd(totalPorCobrar());
   var m=hoy().slice(0,7);
   var cob=cobrosDelPeriodo(movs,m);
@@ -1662,16 +1644,10 @@ function renderDash(){
   var gasMes=totalGastosFijos()+extraMes;
   document.getElementById('k-mes').textContent=usd(cob.total);
   document.getElementById('k-gastos').textContent=usd(gasMes);
-  var ms=document.getElementById('k-mes-split');
-  if(ms)ms.textContent='Lo cobrado: OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total);
-  var gs=document.getElementById('k-gastos-split');
-  if(gs)gs.textContent='Fijos '+usd(totalGastosFijos())+' + agregados '+usd(extraMes)+' = '+usd(gasMes);
   var km=document.getElementById('k-mes');
   if(km&&km.parentNode)km.parentNode.title='Lo cobrado este mes (anticipos, saldos de OP y otros ingresos)';
   var kg=document.getElementById('k-gastos');
   if(kg&&kg.parentNode){
-    var lab=kg.parentNode.querySelector('.kpi-l');
-    if(lab)lab.textContent='Gastos mes';
     kg.parentNode.title='Fijos '+usd(totalGastosFijos())+' + agregados '+usd(extraMes);
   }
   var rec=presup.slice().sort(function(a,b){return b.fecha>a.fecha?1:-1}).slice(0,3);
