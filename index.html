@@ -527,11 +527,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <span style="font-size:13px;font-weight:700;color:var(--teal)" id="ir-costo">-</span>
     </div>
     <div class="result-row"><span class="result-label" style="font-weight:700">Costo total / ml</span><span class="result-val" id="ir-costo-ml" style="font-weight:700;color:var(--teal)">-</span></div>
-    <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia neta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
-    <div class="result-row"><span class="result-label">Impuesto / retenciones (<span id="ir-imp-pct-m2">10</span>%)</span><span class="result-val" id="ir-imp">-</span></div>
-    <div class="result-row"><span class="result-label" style="font-weight:600">Ganancia a repartir</span><span class="result-val" id="ir-gan-rep">-</span></div>
+    <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia bruta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
+    <div class="result-row"><span class="result-label">Impuesto / retenciones (<span id="ir-imp-pct-m2">10</span>% de la bruta)</span><span class="result-val" id="ir-imp">-</span></div>
+    <div class="result-row"><span class="result-label" style="font-weight:600">Ganancia neta</span><span class="result-val" id="ir-gan-rep">-</span></div>
     <div style="border-top:0.5px solid var(--bd);margin:8px 0 4px"></div>
-    <div class="st" style="margin:0 0 6px">Reparto de la ganancia</div>
+    <div class="st" style="margin:0 0 6px">Reparto de la ganancia neta</div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio (<span id="ir-neg-pct-m2">80</span>%)</span><span class="result-val" style="color:var(--gt)" id="ir-neg">-</span></div>
     <div class="result-row"><span class="result-label">CEO (<span id="ir-ceo-pct-m2">15</span>%)</span><span class="result-val" id="ir-ceo">-</span></div>
     <div class="result-row"><span class="result-label">Operadora (<span id="ir-oper-pct-m2">5</span>%)</span><span class="result-val" id="ir-oper">-</span></div>
@@ -3513,8 +3513,8 @@ function lineasCostosPdf(){
   });
   [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
    ['ir-luz','Electricidad total / m2'],['ir-dep','Depreciacion / ml'],['ir-mano','Mano de obra / m2'],
-   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / ml'],['ir-gan','Ganancia neta / m2'],
-   ['ir-imp','Impuesto / retenciones / m2'],['ir-gan-rep','Ganancia a repartir / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
+   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / ml'],['ir-gan','Ganancia bruta / m2'],
+   ['ir-imp','Impuesto / retenciones / m2'],['ir-gan-rep','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
    ['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],['ir-total','PRECIO TOTAL DEL TRABAJO'],
    ['ir-imp-tot','Impuesto (remanente)'],['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
     var n=document.getElementById(p[0]);
@@ -4234,17 +4234,17 @@ function verCosto(id){
   }
   if(d.ganancia!=null){
     var gp=precio>0?d.ganancia/precio*100:0;
-    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp.toFixed(1)+'%</span></div>';
+    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">'+(d.gan_repartir!=null?'Ganancia bruta':'Ganancia')+'</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp.toFixed(1)+'%</span></div>';
     if(d.impuesto!=null){
-      html+='<div class="result-row"><span class="result-label">Impuesto / retenciones'+(d.impPct!=null?' ('+(+d.impPct).toFixed(0)+'%)':'')+'</span><span class="result-val">'+usd(d.impuesto)+'</span></div>';
+      html+='<div class="result-row"><span class="result-label">Impuesto / retenciones'+(d.impPct!=null?' ('+(+d.impPct).toFixed(0)+'% de la bruta)':'')+'</span><span class="result-val">'+usd(d.impuesto)+'</span></div>';
     }
     if(d.gan_repartir!=null){
-      html+='<div class="result-row"><span class="result-label" style="font-weight:600">Ganancia a repartir</span><span class="result-val">'+usd(d.gan_repartir)+'</span></div>';
+      html+='<div class="result-row"><span class="result-label" style="font-weight:600">Ganancia neta</span><span class="result-val">'+usd(d.gan_repartir)+'</span></div>';
     }
     html+='</div>';
   }
   if(d.reparto&&d.reparto.length){
-    html+='<div class="card" style="margin-bottom:10px"><div class="st">'+(d.gan_repartir!=null?'Reparto de la ganancia':'Porcentaje de cada quien')+'</div>'+desgloseRows(d.reparto,d.gan_repartir!=null?d.gan_repartir:precio)+'</div>';
+    html+='<div class="card" style="margin-bottom:10px"><div class="st">'+(d.gan_repartir!=null?'Reparto de la ganancia neta':'Porcentaje de cada quien')+'</div>'+desgloseRows(d.reparto,d.gan_repartir!=null?d.gan_repartir:precio)+'</div>';
   }
   if(!d.gastos&&!d.reparto){
     html+='<div class="empty" style="padding:20px">Este analisis se guardo sin desglose. Calculalo de nuevo y guardalo para ver gastos y porcentajes.</div>';
