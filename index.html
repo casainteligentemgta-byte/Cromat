@@ -25,17 +25,19 @@
   --bd:#3A3A38;--bds:#4A4A48;
 }}
 body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-bottom:80px}
-.topbar{background:var(--negro);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
-.logo{font-size:20px;font-weight:700;letter-spacing:0.5px}
+.topbar{background:var(--negro);padding:8px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50;flex-wrap:nowrap}
+.logo{font-size:18px;font-weight:700;letter-spacing:0.5px;flex-shrink:0;line-height:1}
 .logo .c1{color:var(--coral)}.logo .c2{color:var(--teal)}
 .tagline{border:0.5px solid #444;padding:1px 6px;font-size:9px;letter-spacing:2px;color:#888;margin-top:2px}
-.badge{background:rgba(255,107,53,0.2);color:var(--coral);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
-#sync-status{display:none;margin-top:4px;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer}
-#auth-chip{display:none;font-size:11px;color:#eee;font-weight:600;white-space:nowrap;flex-shrink:0}
-#auth-chip.on{display:inline}
+.badge{background:rgba(255,107,53,0.2);color:var(--coral);font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;flex-shrink:0}
+.topbar-right{display:flex;align-items:center;gap:6px;margin-left:auto;min-width:0;flex-shrink:1}
+#sync-status{display:none;margin:0;font-size:10px;color:#aaa;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;line-height:1;white-space:nowrap}
+#auth-chip{display:none;font-size:11px;color:#eee;font-weight:600;white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#auth-chip.on{display:inline-flex;align-items:center}
 #auth-chip #auth-rol{color:var(--coral)}
-#btn-ajustes{display:none;background:transparent;border:0.5px solid #444;color:#aaa;width:30px;height:30px;padding:0;border-radius:15px;cursor:pointer;align-items:center;justify-content:center}
+#btn-ajustes{display:none;background:transparent;border:0.5px solid #444;color:#aaa;width:28px;height:28px;padding:0;border-radius:14px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0}
 #btn-ajustes svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#btn-salir{flex-shrink:0}
 .main{padding:14px 14px 0}
 .sec{display:none}.sec.on{display:block}
 /* NAV */
@@ -213,11 +215,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <body>
 
 <div class="topbar">
-  <div>
-    <div class="logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
-    <span id="sync-status" title="" onclick="cloudSyncTap()"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span><span id="sync-txt"></span></span>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px">
+  <div class="logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
+  <span id="sync-status" title="" onclick="cloudSyncTap()"><span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block;flex-shrink:0"></span><span id="sync-txt"></span></span>
+  <div class="topbar-right">
     <div id="auth-chip"><span id="auth-nombre"></span>: <span id="auth-rol"></span></div>
     <button id="btn-ajustes" type="button" onclick="abrirUsuarios()" aria-label="Ajustes y usuarios" title="Usuarios">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg>
@@ -1866,7 +1866,7 @@ function authApplyUI(){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('btn-salir').style.display='';
   var chip=document.getElementById('auth-chip');
-  if(chip){chip.classList.add('on');chip.style.display='inline'}
+  if(chip){chip.classList.add('on');chip.style.display='inline-flex'}
   var nom=document.getElementById('auth-nombre');
   if(nom)nom.textContent=AUTH.nombre||AUTH.usuario||'admin';
   var rol=document.getElementById('auth-rol');
