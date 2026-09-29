@@ -1308,6 +1308,33 @@ function productollevaTalla(nombre){
   var n=nombre.toLowerCase();
   return LLEVA_TALLA_KWORDS.some(function(k){return n.indexOf(k)>=0});
 }
+function normTxt(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function esNombreMetrosTextil(s){
+  var n=normTxt(s);
+  if(!n)return false;
+  var textil=n.indexOf('textil')>=0;
+  var imp=n.indexOf('impresion')>=0||n.indexOf('sublim')>=0;
+  return textil&&imp;
+}
+function opHayPrendas(o){
+  return (o&&o.opItems||[]).some(function(it){
+    if(!it)return false;
+    if(it.sinTalla===false)return true;
+    if(productollevaTalla(it.nombre||''))return true;
+    var td=it.tallasDetalle||{};
+    return Object.keys(td).some(function(k){return +td[k]>0});
+  });
+}
+function opEsMetrosTextil(o){
+  if(!o)return false;
+  if(opHayPrendas(o))return false;
+  if(esNombreMetrosTextil(o.servicio))return true;
+  return (o.opItems||[]).some(function(it){
+    return esNombreMetrosTextil(it.nombre)||esNombreMetrosTextil(it.desc);
+  });
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function nombreClienteKey(n){return String(n||'').trim().toLowerCase().replace(/\s+/g,' ')}
 function repararFichasComerciales(){
@@ -2720,7 +2747,7 @@ function verOP(id){
   html+='<span>OP: <strong style="color:var(--tp)">#'+o.id.slice(-6).toUpperCase()+'</strong></span>';
   html+='<span>Creada: <strong style="color:var(--tp)">'+fch(o.fecha||hoy())+'</strong></span>';
   if(o.fechaEntrega)html+='<span>Entrega: <strong style="color:var(--coral)">'+fch(o.fechaEntrega)+'</strong></span>';
-  if(o.totalUnidades)html+='<span>Total prendas: <strong style="color:var(--tp)">'+o.totalUnidades+'</strong></span>';
+  if(o.totalUnidades&&!opEsMetrosTextil(o))html+='<span>Total prendas: <strong style="color:var(--tp)">'+o.totalUnidades+'</strong></span>';
   html+='</div></div>';
 
   // ARCHIVO DE ARTE
@@ -2744,7 +2771,8 @@ function verOP(id){
     html+='</div>';
   }
 
-  // ITEMS
+  // ITEMS — en impresión/sublimación textil el recuadro de metros ya lo cubre
+  if(!opEsMetrosTextil(o)){
   html+='<div style="font-size:11px;font-weight:700;color:var(--ts);letter-spacing:1px;margin-bottom:6px">'+(esTextilOP?'PRENDAS A PRODUCIR':'ITEMS DE PRODUCCION')+'</div>';
   if(o.opItems&&o.opItems.length){
     o.opItems.forEach(function(it){
@@ -2780,6 +2808,7 @@ function verOP(id){
     });
   } else {
     html+='<div style="color:var(--tm);font-size:12px;margin-bottom:10px">Sin items registrados</div>';
+  }
   }
 
   // INSTRUCCIONES
