@@ -730,9 +730,13 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <div class="field-row"><span class="field-label">Markup (%)</span><input class="field-input" type="number" id="ds-mg" value="20" min="0" oninput="cDs()"></div>
         <div class="field-row"><span class="field-label">% CEO</span><input class="field-input" type="number" id="ds-pct-ceo" value="15" min="0" max="100" oninput="cDs()"></div>
         <div class="field-row"><span class="field-label">% Operadora</span><input class="field-input" type="number" id="ds-pct-oper" value="5" min="0" max="100" oninput="cDs()"></div>
+        <div class="field-row"><span class="field-label">Impuesto / retenciones (%)</span><input class="field-input" type="number" id="ds-imp" value="10" min="0" max="50" oninput="cDs()"></div>
       </div>
       <div class="result-box">
         <div class="result-row"><span class="result-label">Costo base</span><span class="result-val" id="dsr-1">-</span></div>
+        <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia bruta</span><span class="result-val" style="color:var(--gt)" id="dsr-gan">-</span></div>
+        <div class="result-row"><span class="result-label">Impuesto / retenciones (<span id="dsr-imp-pct">10</span>% de la bruta)</span><span class="result-val" id="dsr-imp">-</span></div>
+        <div class="result-row"><span class="result-label" style="font-weight:600">Ganancia neta</span><span class="result-val" id="dsr-neta">-</span></div>
         <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio</span><span class="result-val" style="color:var(--gt)" id="dsr-neg">-</span></div>
         <div class="result-row"><span class="result-label">CEO</span><span class="result-val coral" id="dsr-2">-</span></div>
         <div class="result-row"><span class="result-label">Operadora</span><span class="result-val" id="dsr-3">-</span></div>
@@ -5168,24 +5172,36 @@ function cDs(){
   var mg=parseFloat(document.getElementById('ds-mg').value)||20;
   var ceoPct=parseFloat(document.getElementById('ds-pct-ceo').value)||15;
   var operPct=parseFloat(document.getElementById('ds-pct-oper').value)||5;
+  var impEl=document.getElementById('ds-imp');
+  var impPct=impEl?parseFloat(impEl.value):CONTA_CFG_DEFAULT.impPct;
+  if(isNaN(impPct))impPct=CONTA_CFG_DEFAULT.impPct;
   var base=h*hrs;
   var final=base*(1+mg/100);
-  var negPct=Math.max(0,100-ceoPct-operPct);
+  var gan=final-base;
+  var split=detalleRepartoDe({ganancia:gan,impPct:impPct,reparto:[
+    {label:'Negocio',pct:Math.max(0,100-ceoPct-operPct)},
+    {label:'CEO',pct:ceoPct},
+    {label:'Operadora',pct:operPct}
+  ]},base,final);
+  var negPct=split.reparto[0].pct,ceoP=split.reparto[1].pct,operP=split.reparto[2].pct;
   document.getElementById('dsr-1').textContent=usd(base);
-  document.getElementById('dsr-neg').textContent=usd(final*negPct/100)+' ('+negPct.toFixed(0)+'%)';
-  document.getElementById('dsr-2').textContent=usd(final*ceoPct/100)+' ('+ceoPct.toFixed(0)+'%)';
-  document.getElementById('dsr-3').textContent=usd(final*operPct/100)+' ('+operPct.toFixed(0)+'%)';
+  var dsrGan=document.getElementById('dsr-gan');if(dsrGan)dsrGan.textContent=usd(split.ganancia);
+  var dsrImpPct=document.getElementById('dsr-imp-pct');if(dsrImpPct)dsrImpPct.textContent=split.impPct.toFixed(0);
+  var dsrImp=document.getElementById('dsr-imp');if(dsrImp)dsrImp.textContent=usd(split.impuesto);
+  var dsrNeta=document.getElementById('dsr-neta');if(dsrNeta)dsrNeta.textContent=usd(split.gan_repartir);
+  document.getElementById('dsr-neg').textContent=usd(split.reparto[0].monto)+' ('+negPct.toFixed(0)+'%)';
+  document.getElementById('dsr-2').textContent=usd(split.reparto[1].monto)+' ('+ceoP.toFixed(0)+'%)';
+  document.getElementById('dsr-3').textContent=usd(split.reparto[2].monto)+' ('+operP.toFixed(0)+'%)';
   document.getElementById('dsr-p').textContent=usd(final);
   window._dsResult={
-    costo:base,precio:final,gan:final-base,
+    costo:base,precio:final,gan:gan,
     detalle:{
       gastos:[{label:'Costo base (horas)',monto:base}],
-      ganancia:final-base,
-      reparto:[
-        {label:'Negocio',pct:negPct,monto:final*negPct/100,color:'#2E7D32'},
-        {label:'CEO',pct:ceoPct,monto:final*ceoPct/100,color:'#FF6B35'},
-        {label:'Operadora',pct:operPct,monto:final*operPct/100,color:'#028090'}
-      ],
+      ganancia:split.ganancia,
+      impuesto:split.impuesto,
+      gan_repartir:split.gan_repartir,
+      impPct:split.impPct,
+      reparto:split.reparto,
       notas:[{label:'Tarifa/hora',val:usd(h)},{label:'Horas',val:String(hrs)}]
     }
   };
@@ -5271,6 +5287,15 @@ function confirmarGuardarAnalisis(silencio){
     lista[i].costo=costo;
     lista[i].precio=precio;
     if(precio>0)lista[i].margen=(precio-costo)/precio*100;
+    if(lista[i].detalle&&lista[i].detalle.reparto&&lista[i].detalle.reparto.length){
+      var d0=lista[i].detalle;
+      var splitEdit=detalleRepartoDe(Object.assign({},d0,{ganancia:precio-costo}),costo,precio);
+      lista[i].detalle.ganancia=splitEdit.ganancia;
+      lista[i].detalle.impuesto=splitEdit.impuesto;
+      lista[i].detalle.gan_repartir=splitEdit.gan_repartir;
+      lista[i].detalle.impPct=splitEdit.impPct;
+      lista[i].detalle.reparto=splitEdit.reparto;
+    }
     LS.s('crm_costos',lista);
     syncCostoCatalogo(lista[i],prevNombre);
     closeModal('modal-guardar-calc');
@@ -5352,6 +5377,45 @@ function abrirCostoTap(ev,id){
   if(!w||w.classList.contains('open')||w._swiped)return;
   verCosto(id);
 }
+function pctsDeReparto(reparto){
+  var ceo=CONTA_CFG_DEFAULT.ceoPct,oper=CONTA_CFG_DEFAULT.operPct,neg=CONTA_CFG_DEFAULT.negPct;
+  (reparto||[]).forEach(function(it){
+    var lab=normTxt(it.label);
+    var p=+it.pct;
+    if(isNaN(p))return;
+    if(lab.indexOf('ceo')>=0)ceo=p;
+    else if(lab.indexOf('oper')>=0)oper=p;
+    else if(lab.indexOf('neg')>=0)neg=p;
+  });
+  if(Math.abs(neg+ceo+oper-100)>0.05)neg=Math.max(0,100-ceo-oper);
+  return {negPct:neg,ceoPct:ceo,operPct:oper};
+}
+function filasRepartoNeta(neta,pcts){
+  pcts=pcts||{negPct:CONTA_CFG_DEFAULT.negPct,ceoPct:CONTA_CFG_DEFAULT.ceoPct,operPct:CONTA_CFG_DEFAULT.operPct};
+  return [
+    {label:'Negocio',pct:pcts.negPct,monto:neta*pcts.negPct/100,color:'#2E7D32'},
+    {label:'CEO',pct:pcts.ceoPct,monto:neta*pcts.ceoPct/100,color:'#FF6B35'},
+    {label:'Operadora',pct:pcts.operPct,monto:neta*pcts.operPct/100,color:'#028090'}
+  ];
+}
+function detalleRepartoDe(d,costo,precio){
+  d=d||{};
+  var gan=d.ganancia!=null?+d.ganancia:((+precio||0)-(+costo||0));
+  if(isNaN(gan))gan=(+precio||0)-(+costo||0);
+  var impPct=d.impPct!=null?+d.impPct:NaN;
+  if(isNaN(impPct)&&d.impuesto!=null&&gan)impPct=(+d.impuesto)/gan*100;
+  if(isNaN(impPct))impPct=CONTA_CFG_DEFAULT.impPct;
+  var impuesto=gan*impPct/100;
+  var neta=gan-impuesto;
+  var pcts=pctsDeReparto(d.reparto);
+  return {
+    ganancia:gan,
+    impuesto:impuesto,
+    gan_repartir:neta,
+    impPct:impPct,
+    reparto:filasRepartoNeta(neta,pcts)
+  };
+}
 function desgloseRows(items,total){
   return (items||[]).filter(function(it){return (+it.monto||0)>0||it.pct}).map(function(it){
     var monto=+it.monto||0;
@@ -5368,6 +5432,7 @@ function verCosto(id){
   var costo=+c.costo||0,precio=+c.precio||0;
   var margen=precio>0?(precio-costo)/precio*100:0;
   var d=c.detalle||{};
+  var split=d.reparto&&d.reparto.length?detalleRepartoDe(d,costo,precio):null;
   var html='';
   html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><span class="tag tag-teal">'+escHtml(c.tipo||'')+'</span><span class="li-sub">'+fch(c.fecha)+(c.material?' · '+escHtml(c.material):'')+'</span></div>';
   html+='<div class="kpi-grid" style="margin-bottom:12px">';
@@ -5383,19 +5448,16 @@ function verCosto(id){
   if(d.gastos&&d.gastos.length){
     html+='<div class="card" style="margin-bottom:10px"><div class="st">Gastado en cada cosa</div>'+desgloseRows(d.gastos,costo)+'</div>';
   }
-  if(d.ganancia!=null){
-    var gp=precio>0?d.ganancia/precio*100:0;
-    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">'+(d.gan_repartir!=null?'Ganancia bruta':'Ganancia')+'</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp.toFixed(1)+'%</span></div>';
-    if(d.impuesto!=null){
-      html+='<div class="result-row"><span class="result-label">Impuesto / retenciones'+(d.impPct!=null?' ('+(+d.impPct).toFixed(0)+'% de la bruta)':'')+'</span><span class="result-val">'+usd(d.impuesto)+'</span></div>';
-    }
-    if(d.gan_repartir!=null){
-      html+='<div class="result-row"><span class="result-label" style="font-weight:600">Ganancia neta</span><span class="result-val">'+usd(d.gan_repartir)+'</span></div>';
-    }
+  if(split){
+    var gp=precio>0?split.ganancia/precio*100:0;
+    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia bruta</span><span class="result-val" style="color:var(--gt)">'+usd(split.ganancia)+' · '+gp.toFixed(1)+'%</span></div>';
+    html+='<div class="result-row"><span class="result-label">Impuesto / retenciones ('+split.impPct.toFixed(0)+'% de la bruta)</span><span class="result-val">'+usd(split.impuesto)+'</span></div>';
+    html+='<div class="result-row"><span class="result-label" style="font-weight:600">Ganancia neta</span><span class="result-val">'+usd(split.gan_repartir)+'</span></div>';
     html+='</div>';
-  }
-  if(d.reparto&&d.reparto.length){
-    html+='<div class="card" style="margin-bottom:10px"><div class="st">'+(d.gan_repartir!=null?'Reparto de la ganancia neta':'Porcentaje de cada quien')+'</div>'+desgloseRows(d.reparto,d.gan_repartir!=null?d.gan_repartir:precio)+'</div>';
+    html+='<div class="card" style="margin-bottom:10px"><div class="st">Reparto de la ganancia neta</div>'+desgloseRows(split.reparto,split.gan_repartir)+'</div>';
+  }else if(d.ganancia!=null){
+    var gp0=precio>0?d.ganancia/precio*100:0;
+    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp0.toFixed(1)+'%</span></div></div>';
   }
   if(!d.gastos&&!d.reparto){
     html+='<div class="empty" style="padding:20px">Este analisis se guardo sin desglose. Calculalo de nuevo y guardalo para ver gastos y porcentajes.</div>';
