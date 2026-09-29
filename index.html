@@ -2480,7 +2480,12 @@ function cargarFotoRecibo(input){
   comprimirImagenPago(file,function(src){
     mostrarFotoRecibo(src);
     setOcrPagoMsg('Leyendo el recibo...');
+    var ocrDone=false;
+    setTimeout(function(){
+      if(!ocrDone)setOcrPagoMsg('Foto guardada. Si no se leyeron los datos, complétalos a mano.',true);
+    },12000);
     leerTextoRecibo(src,function(txt){
+      ocrDone=true;
       if(!txt){setOcrPagoMsg('Foto guardada. Si no se leyeron los datos, complétalos a mano.',true);return}
       var d=extraerDatosRecibo(txt);
       aplicarDatosRecibo(d);
