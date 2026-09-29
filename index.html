@@ -2727,6 +2727,8 @@ function onAntMontoInput(){
   if(modo==='anticipo'){
     btn.textContent=cero?'✓ Crear OP sin anticipo':'✓ Confirmar anticipo y crear OP';
   }
+  var err=document.getElementById('ant-error');
+  if(err)err.style.display='none';
 }
 function leerPagoForm(){
   var raw=(document.getElementById('ant-monto').value||'').trim();
