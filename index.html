@@ -119,11 +119,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .kanban-card{background:var(--s2);border:0.5px solid var(--bd);border-radius:6px;padding:8px;margin-bottom:6px;cursor:pointer;font-size:12px}
 /* PRESUP ESTADO BTNS */
 .estado-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
-.estado-btn{padding:8px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--s2);font-size:11px;font-weight:600;cursor:pointer;text-align:center}
-.estado-btn.active-ne{border-color:var(--ts);background:var(--s1);color:var(--ts)}
-.estado-btn.active-env{border-color:var(--teal);background:#E0F4F7;color:var(--teal)}
-.estado-btn.active-apr{border-color:var(--gt);background:var(--gs);color:var(--gt)}
-.estado-btn.active-rec{border-color:var(--dt);background:var(--ds);color:var(--dt)}
+.estado-btn{padding:8px;border-radius:var(--r);border:1.5px solid var(--bd);background:var(--s2);color:var(--ts);font-size:11px;font-weight:600;cursor:pointer;text-align:center}
+.estado-btn.active-ne{border-color:#888;background:#888;color:#fff}
+.estado-btn.active-env{border-color:var(--teal);background:var(--teal);color:#fff}
+.estado-btn.active-apr{border-color:var(--gt);background:var(--gt);color:#fff}
+.estado-btn.active-rec{border-color:var(--dt);background:var(--dt);color:#fff}
 /* FONDOS */
 .fondo-card{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px}
 .fondo-bar{height:6px;border-radius:3px;background:var(--bd);margin:6px 0 4px;overflow:hidden}
@@ -2186,6 +2186,18 @@ function recalcPres(){
   document.getElementById('p-anticipo-lbl').textContent=usd(antSugerido);
   document.getElementById('p-saldo').textContent=usd(saldo);
 }
+function estadoPresFlujo(p){
+  var sel=p&&p.estadoSeleccionado;
+  if(sel==='pendiente'||sel==='enviado'||sel==='aprobado'||sel==='rechazado')return sel;
+  var e=p&&p.estado;
+  if(e==='pendiente'||e==='enviado'||e==='aprobado'||e==='rechazado')return e;
+  return 'pendiente';
+}
+function recordarEstadoPres(p){
+  if(!p)return;
+  if(p.estadoSeleccionado==='pendiente'||p.estadoSeleccionado==='enviado'||p.estadoSeleccionado==='aprobado'||p.estadoSeleccionado==='rechazado')return;
+  p.estadoSeleccionado=estadoPresFlujo(p);
+}
 function guardarPresupuesto(){
   if(!requireTab('presupuestos'))return;
   var lista=LS.g('crm_presupuestos')||[];
@@ -2217,7 +2229,7 @@ function verPresupuesto(id){
   ['pendiente','enviado','aprobado','rechazado'].forEach(function(e){
     var labels={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado'};
     var actClases={'pendiente':'active-ne','enviado':'active-env','aprobado':'active-apr','rechazado':'active-rec'};
-    html+='<button class="estado-btn'+(p.estado===e?' '+actClases[e]:'')+'" onclick="setEstadoPres(&quot;'+id+'&quot;,&quot;'+e+'&quot;)">'+labels[e]+'</button>';
+    html+='<button class="estado-btn'+(estadoPresFlujo(p)===e?' '+actClases[e]:'')+'" onclick="setEstadoPres(&quot;'+id+'&quot;,&quot;'+e+'&quot;)">'+labels[e]+'</button>';
   });
   html+='</div>';
   html+='<button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="crearOPdesde(&quot;'+id+'&quot;);closeModal(&quot;modal-ver-pres&quot;)">Crear OP desde este presupuesto</button>';
@@ -2230,11 +2242,18 @@ function setEstadoPres(id,estado){
   var lista=LS.g('crm_presupuestos')||[];
   var i=lista.findIndex(function(x){return x.id===id});
   if(i<0)return;
+  var modalAbierto=document.getElementById('modal-ver-pres').classList.contains('open');
   // Si ya tiene OP creada, no se cambia el estado desde aquí
-  if(lista[i].opId){renderPresupuestos();return;}
-  lista[i].estado=estado;LS.s('crm_presupuestos',lista);
-  closeModal('modal-ver-pres');
+  if(lista[i].opId){
+    renderPresupuestos();
+    if(modalAbierto)verPresupuesto(id);
+    return;
+  }
+  lista[i].estado=estado;
+  lista[i].estadoSeleccionado=estado;
+  LS.s('crm_presupuestos',lista);
   renderPresupuestos();
+  if(modalAbierto)verPresupuesto(id);
   // Al aprobar: pedir registro del anticipo
   if(estado==='aprobado'&&!lista[i].anticipoPago)abrirAnticipo(id);
 }
@@ -2349,6 +2368,7 @@ function confirmarAnticipo(){
   lista=LS.g('crm_presupuestos')||[];
   i=lista.findIndex(function(x){return x.id===presId});
   lista[i].anticipoPago=pago;
+  recordarEstadoPres(lista[i]);
   lista[i].estado='produccion';
   if(op)lista[i].opId=op.id;
   LS.s('crm_presupuestos',lista);
@@ -2376,7 +2396,7 @@ function crearOPdesde(presId){
   abrirOrden(null,p);
   var lista=LS.g('crm_presupuestos')||[];
   var i=lista.findIndex(function(x){return x.id===presId});
-  if(i>=0){lista[i].estado='produccion';LS.s('crm_presupuestos',lista)}
+  if(i>=0){recordarEstadoPres(lista[i]);lista[i].estado='produccion';LS.s('crm_presupuestos',lista)}
 }
 
 // ===== ORDENES =====
