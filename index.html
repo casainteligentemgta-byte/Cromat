@@ -1238,7 +1238,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 <!-- MODAL VER OP -->
 <div class="modal-bg" id="modal-ver-op">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Orden de Produccion</span><button class="close-btn" onclick="closeModal('modal-ver-op')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="modal-ver-op-title">Orden de Produccion</span><button class="close-btn" onclick="closeModal('modal-ver-op')">&#x2715;</button></div>
     <div id="op-ver-content"></div>
   </div>
 </div>
@@ -1431,6 +1431,25 @@ function presNumero(p){
   if(p&&p.numero)return p.numero;
   var y=String((p&&p.fecha)||hoy()).slice(0,4);
   var n=String((p&&p.id)||'0000').replace(/[^a-z0-9]/gi,'').slice(-4).toUpperCase()||'0000';
+  return 'PRES-'+y+'-'+n;
+}
+function presupuestoDeOp(o){
+  if(!o)return null;
+  var lista=LS.g('crm_presupuestos')||[];
+  var pid=o.presupuestoId||o.presId||'';
+  if(pid){
+    var p=lista.find(function(x){return x.id===pid});
+    if(p)return p;
+  }
+  if(o.id)return lista.find(function(x){return x.opId===o.id})||null;
+  return null;
+}
+function opNumero(o){
+  if(o&&o.numero)return o.numero;
+  var p=presupuestoDeOp(o);
+  if(p)return presNumero(p);
+  var y=String((o&&o.fecha)||hoy()).slice(0,4);
+  var n=String((o&&o.id)||'0000').replace(/[^a-z0-9]/gi,'').slice(-4).toUpperCase()||'0000';
   return 'PRES-'+y+'-'+n;
 }
 function presFechaVence(p){
@@ -2601,7 +2620,7 @@ function abrirCobroSaldo(opId){
   document.getElementById('ant-metodo').value='';
   document.getElementById('ant-error').style.display='none';
   var ap=o.anticipoPago;
-  document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(o.clienteNombre||'')+' <span style="font-weight:500;color:var(--tm);font-size:12px">OP #'+o.id.slice(-6).toUpperCase()+'</span></div>'
+  document.getElementById('ant-resumen').innerHTML='<div style="font-weight:700;font-size:14px">'+escHtml(o.clienteNombre||'')+' <span style="font-weight:500;color:var(--tm);font-size:12px">'+escHtml(opNumero(o))+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--ts)">Total OP</span><strong>'+usd(o.monto||0)+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between"><span style="color:var(--ts)">Anticipo'+(ap?' ('+escHtml(ap.metodo)+')':'')+'</span><strong style="color:var(--gt)">− '+usd(o.anticipo||0)+'</strong></div>'
     +'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:4px;padding-top:4px"><span style="font-weight:700">Saldo a cobrar</span><strong style="color:var(--coral)">'+usd(saldo)+'</strong></div>';
@@ -2700,7 +2719,7 @@ function renderOrdenes(){
   var lista=LS.g('crm_ordenes')||[];
   var q=(document.getElementById('op-buscar').value||'').toLowerCase();
   var estFil=document.getElementById('op-filtro-estado').value;
-  if(q)lista=lista.filter(function(o){return(o.clienteNombre||'').toLowerCase().includes(q)||(o.id||'').includes(q)});
+  if(q)lista=lista.filter(function(o){var n=opNumero(o).toLowerCase();return(o.clienteNombre||'').toLowerCase().includes(q)||(o.id||'').includes(q)||n.indexOf(q)>=0});
   if(estFil)lista=lista.filter(function(o){return o.estado===estFil});
   if(vistaOP==='kanban'){
     var cols=['pendiente','arte','impresion','calandra','costura','calidad','listo','pagado','entregado'];
@@ -2708,7 +2727,7 @@ function renderOrdenes(){
     var colColors={pendiente:'var(--ts)',arte:'#7B2FBE',impresion:'var(--coral)',calandra:'#E65100',costura:'var(--teal)',calidad:'var(--at)',listo:'var(--gt)',pagado:'#1B5E20',entregado:'var(--bd)'};
     document.getElementById('kanban-board').innerHTML=cols.map(function(c){
       var items=lista.filter(function(o){return o.estado===c});
-      return'<div class="kanban-col"><div class="kanban-col-title" style="color:'+colColors[c]+'">'+colLabels[c]+' ('+items.length+')</div>'+items.map(function(o){var its=o.opItems&&o.opItems.length?o.opItems.map(function(it){return escHtml(it.nombre||'Item')+(it.qty>1?' x'+it.qty:'')}).join(', '):'';return'<div class="kanban-card" onclick="verOP(\''+o.id+'\')"><div style="font-weight:600">'+escHtml(o.clienteNombre)+'</div><div style="color:var(--tm);font-size:11px">'+escHtml(o.servicio)+'</div>'+(its?'<div style="font-size:11px;margin-top:2px">'+its+'</div>':'')+(o.fechaEntrega?'<div style="color:var(--teal);font-size:10px;margin-top:2px">'+fch(o.fechaEntrega)+'</div>':'')+'</div>'}).join('')+'</div>'
+      return'<div class="kanban-col"><div class="kanban-col-title" style="color:'+colColors[c]+'">'+colLabels[c]+' ('+items.length+')</div>'+items.map(function(o){var its=o.opItems&&o.opItems.length?o.opItems.map(function(it){return escHtml(it.nombre||'Item')+(it.qty>1?' x'+it.qty:'')}).join(', '):'';return'<div class="kanban-card" onclick="verOP(\''+o.id+'\')"><div style="font-size:10px;font-weight:700;color:var(--teal);margin-bottom:2px">'+escHtml(opNumero(o))+'</div><div style="font-weight:600">'+escHtml(o.clienteNombre)+'</div><div style="color:var(--tm);font-size:11px">'+escHtml(o.servicio)+'</div>'+(its?'<div style="font-size:11px;margin-top:2px">'+its+'</div>':'')+(o.fechaEntrega?'<div style="color:var(--teal);font-size:10px;margin-top:2px">'+fch(o.fechaEntrega)+'</div>':'')+'</div>'}).join('')+'</div>'
     }).join('');
   } else {
     var el=document.getElementById('lista-ordenes');
@@ -2716,7 +2735,7 @@ function renderOrdenes(){
     var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
       var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?OP_TALLAS.reduce(function(s,t){return s+(it.tallasDetalle[t]||0)},0):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
-      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
+      return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(opNumero(o))+(o.servicio?' · '+escHtml(o.servicio):'')+(o.fechaEntrega?' · Entrega: '+fch(o.fechaEntrega):'')+(o.metros?' · '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div><div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
     }).join('');
   }
 }
@@ -2835,7 +2854,7 @@ function opToggleMetros(){
 }
 function abrirOrden(id,desdePresup){
   var o=id?(LS.g('crm_ordenes')||[]).find(function(x){return x.id===id}):null;
-  document.getElementById('modal-op-title').textContent=o?'Editar OP — '+((o.clienteNombre)||''):'Nueva OP';
+  document.getElementById('modal-op-title').textContent=o?('Editar OP — '+opNumero(o)):((desdePresup?'Nueva OP — '+presNumero(desdePresup):'Nueva OP'));
   document.getElementById('op-id').value=o?o.id:'';
   document.getElementById('op-presupuesto-id').value=o?o.presupuestoId||'':(desdePresup?desdePresup.id||'':'');
 
@@ -3003,6 +3022,8 @@ function guardarOrden(){
     fecha:hoy(),
     presupuestoId:document.getElementById('op-presupuesto-id').value||''
   };
+  var pLink=obj.presupuestoId?(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===obj.presupuestoId}):null;
+  obj.numero=pLink?presNumero(pLink):opNumero(obj);
   var esNueva=!id;
   var pagoAnt=window._anticipoPago||null;
   if(esNueva&&pagoAnt)obj.anticipoPago=pagoAnt;
@@ -3029,7 +3050,7 @@ function guardarOrden(){
   if(esNueva&&obj.anticipo&&obj.anticipo>0){
     var movAnticipo={
       id:uid(),tipo:'ingreso',
-      desc:'Anticipo OP #'+obj.id.slice(-6).toUpperCase()+' — '+obj.clienteNombre+(pagoAnt?' ('+pagoAnt.metodo+(pagoAnt.referencia?' Ref '+pagoAnt.referencia:'')+')':''),
+      desc:'Anticipo OP '+opNumero(obj)+' — '+obj.clienteNombre+(pagoAnt?' ('+pagoAnt.metodo+(pagoAnt.referencia?' Ref '+pagoAnt.referencia:'')+')':''),
       monto:obj.anticipo,fecha:pagoAnt?pagoAnt.fecha:hoy(),
       cat:'ventas',opId:obj.id,concepto:'anticipo',
       metodo:pagoAnt?pagoAnt.metodo:'',referencia:pagoAnt?pagoAnt.referencia:''
@@ -3059,6 +3080,8 @@ function verOP(id){
     {k:'entregado',l:'Entregado',c:'var(--ts)'}
   ];
   var estAct=ESTADOS.find(function(e){return e.k===o.estado})||ESTADOS[0];
+  var titOp=document.getElementById('modal-ver-op-title');
+  if(titOp)titOp.textContent=opNumero(o);
   var html='<div>';
   // CABECERA
   html+='<div style="background:var(--s1);border-radius:var(--r);padding:12px;margin-bottom:12px">';
@@ -3068,7 +3091,7 @@ function verOP(id){
   html+='<span style="background:'+estAct.c+';color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700">'+estAct.l.toUpperCase()+'</span>';
   html+='</div>';
   html+='<div style="display:flex;gap:16px;font-size:12px;color:var(--ts);flex-wrap:wrap">';
-  html+='<span>OP: <strong style="color:var(--tp)">#'+o.id.slice(-6).toUpperCase()+'</strong></span>';
+  html+='<span>OP: <strong style="color:var(--tp)">'+escHtml(opNumero(o))+'</strong></span>';
   html+='<span>Creada: <strong style="color:var(--tp)">'+fch(o.fecha||hoy())+'</strong></span>';
   if(o.creadoPor)html+='<span>Por: <strong style="color:var(--tp)">'+escHtml(fmtActor(o.creadoPor))+'</strong></span>';
   if(o.fechaEntrega)html+='<span>Entrega: <strong style="color:var(--coral)">'+fch(o.fechaEntrega)+'</strong></span>';
@@ -3257,7 +3280,7 @@ function cobrarSaldoOP(id,saldo,pago){
   // Registrar movimiento de saldo
   var mov={
     id:uid(),tipo:'ingreso',
-    desc:'Saldo OP #'+o.id.slice(-6).toUpperCase()+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
+    desc:'Saldo OP '+opNumero(o)+' — '+o.clienteNombre+(pago?' ('+pago.metodo+(pago.referencia?' Ref '+pago.referencia:'')+')':''),
     monto:saldo,fecha:pago?pago.fecha:hoy(),
     cat:'ventas',opId:o.id,concepto:'saldo',
     metodo:pago?pago.metodo:'',referencia:pago?pago.referencia:''
@@ -3288,7 +3311,7 @@ function eliminarOrden(id){
   if(!requireTab('ordenes'))return;
   if(!confirmarBorrar('Eliminar esta orden de produccion?'))return;
   var _o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===id});
-  if(_o)auditLog('op_borrar','OP #'+_o.id.slice(-6).toUpperCase()+' '+(_o.clienteNombre||''));
+  if(_o)auditLog('op_borrar',opNumero(_o)+' '+(_o.clienteNombre||''));
   LS.s('crm_ordenes',(LS.g('crm_ordenes')||[]).filter(function(x){return x.id!==id}));
   renderOrdenes();
 }
@@ -3309,7 +3332,7 @@ function recolectarLog(){
   }
   (LS.g('crm_audit')||[]).forEach(add);
   (LS.g('crm_ordenes')||[]).forEach(function(o){
-    var cod='OP #'+(o.id||'').slice(-6).toUpperCase()+' '+(o.clienteNombre||'');
+    var cod=opNumero(o)+' '+(o.clienteNombre||'');
     var hist=o.hist||[];
     hist.forEach(function(h){add({id:h.id||o.id+'-'+h.t+'-'+h.fecha,fecha:h.fecha,accion:h.t,detalle:(h.extra?h.extra+' · ':'')+cod,actor:h.por,email:h.email})});
     function tiene(t){return hist.some(function(h){return h.t===t})}
@@ -3659,7 +3682,7 @@ function renderConta(){
   else{
     cxcEl.innerHTML=ops.slice(0,8).map(function(x){
       var o=x.o;
-      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">OP #'+escHtml(String(o.id).slice(-6).toUpperCase())+(o.estado?' · '+escHtml(o.estado):'')+'</div></div>';
+      return'<div class="list-item" onclick="verOP(\''+o.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre||'OP')+'</span><span style="font-weight:700;color:var(--wt)">'+usd(x.saldo)+'</span></div><div class="li-sub">'+escHtml(opNumero(o))+(o.estado?' · '+escHtml(o.estado):'')+'</div></div>';
     }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' OP más</div>':'');
   }
   var byCat={};
