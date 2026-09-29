@@ -528,8 +528,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     </div>
     <div class="result-row"><span class="result-label" style="font-weight:700">Costo total / ml</span><span class="result-val" id="ir-costo-ml" style="font-weight:700;color:var(--teal)">-</span></div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia neta</span><span class="result-val" style="color:var(--gt)" id="ir-gan">-</span></div>
+    <div class="result-row"><span class="result-label">Impuesto / retenciones (<span id="ir-imp-pct-m2">10</span>%)</span><span class="result-val" id="ir-imp">-</span></div>
+    <div class="result-row"><span class="result-label" style="font-weight:600">Ganancia a repartir</span><span class="result-val" id="ir-gan-rep">-</span></div>
     <div style="border-top:0.5px solid var(--bd);margin:8px 0 4px"></div>
-    <div class="st" style="margin:0 0 6px">Reparto del precio</div>
+    <div class="st" style="margin:0 0 6px">Reparto de la ganancia</div>
     <div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Negocio (<span id="ir-neg-pct-m2">80</span>%)</span><span class="result-val" style="color:var(--gt)" id="ir-neg">-</span></div>
     <div class="result-row"><span class="result-label">CEO (<span id="ir-ceo-pct-m2">15</span>%)</span><span class="result-val" id="ir-ceo">-</span></div>
     <div class="result-row"><span class="result-label">Operadora (<span id="ir-oper-pct-m2">5</span>%)</span><span class="result-val" id="ir-oper">-</span></div>
@@ -559,6 +561,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     </div>
     <div style="border-top:0.5px solid #444;margin:10px 0 8px"></div>
     <div style="font-size:10px;color:#888;font-weight:700;letter-spacing:.04em;margin-bottom:8px">QUIÉN SE LLEVA EL TRABAJO</div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:#aaa">Impuesto (<span id="ir-imp-pct">10</span>%)</span>
+      <span style="font-size:14px;color:#e8c07a;font-weight:700" id="ir-imp-tot">-</span>
+    </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:6px">
       <span style="font-size:11px;color:#aaa">Negocio (<span id="ir-neg-pct">80</span>%)</span>
       <span style="font-size:14px;color:#8fd19e;font-weight:700" id="ir-neg-tot">-</span>
@@ -3507,9 +3513,10 @@ function lineasCostosPdf(){
   });
   [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
    ['ir-luz','Electricidad total / m2'],['ir-dep','Depreciacion / ml'],['ir-mano','Mano de obra / m2'],
-   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / ml'],['ir-gan','Ganancia neta / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
+   ['ir-costo','Costo total / m2'],['ir-costo-ml','Costo total / ml'],['ir-gan','Ganancia neta / m2'],
+   ['ir-imp','Impuesto / retenciones / m2'],['ir-gan-rep','Ganancia a repartir / m2'],['ir-sin-fijos','Sin gastos fijos / m2'],
    ['ir-pm2','Precio / m2'],['ir-precio','Precio / metro lineal'],['ir-total','PRECIO TOTAL DEL TRABAJO'],
-   ['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
+   ['ir-imp-tot','Impuesto (remanente)'],['ir-neg-tot','Negocio (trabajo)'],['ir-ceo-tot','CEO (trabajo)'],['ir-oper-tot','Operadora (trabajo)']].forEach(function(p){
     var n=document.getElementById(p[0]);
     if(n&&src.contains(n))push('fila',p[1],valorCampoPdf(n));
   });
@@ -3609,14 +3616,16 @@ function calcImpresion(passN){
   var impPct=numEl('i-imp',10);
   var gan_m2=costo_m2*mgPct/100;
   var precio_m2=costo_m2+gan_m2;
-  var comis_m2=precio_m2*(ceoPct+operPct)/100;
-  var ceo_m2=precio_m2*ceoPct/100,oper_m2=precio_m2*operPct/100,neg_m2=precio_m2*negPct/100;
+  var imp_m2=gan_m2*impPct/100;
+  var gan_rep_m2=gan_m2-imp_m2;
+  var ceo_m2=gan_rep_m2*ceoPct/100,oper_m2=gan_rep_m2*operPct/100,neg_m2=gan_rep_m2*negPct/100;
+  var comis_m2=ceo_m2+oper_m2;
   var precio_ml=precio_m2*ancho;
   var costo_ml=costo_m2*ancho;
   var total_trabajo=precio_ml*largo;
   var sin_fijos=precio_m2-prorr_m2;
   var margen=precio_m2>0?gan_m2/precio_m2*100:0;
-  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,costo_ml:costo_ml,gan_m2:gan_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
+  return {largo:largo,ancho:ancho,area:area,tkC:tkC,tkM:tkM,tkY:tkY,tkK:tkK,mlm2:mlm2,purga:purga,rp:rp,rl:rl,kwImp:kwImp,kwCal:kwCal,kwh:kwh,tImp:tImp,tCal:tCal,vimp:vimp,metrosVida:metrosVida,sal:sal,gf:gf,otros:otros,m2mes:m2mes,mgPct:mgPct,impPct:impPct,ceoPct:ceoPct,operPct:operPct,negPct:negPct,tinta_m2:tinta_m2,papel_m2:papel_m2,luz_m2:luz_m2,dep_ml:dep_ml,dep_m2:dep_m2,mano_m2:mano_m2,prorr_m2:prorr_m2,costo_m2:costo_m2,costo_ml:costo_ml,gan_m2:gan_m2,imp_m2:imp_m2,gan_rep_m2:gan_rep_m2,precio_m2:precio_m2,comis_m2:comis_m2,ceo_m2:ceo_m2,oper_m2:oper_m2,neg_m2:neg_m2,precio_ml:precio_ml,total_trabajo:total_trabajo,sin_fijos:sin_fijos,margen:margen};
 }
 function calcDTFUnit(){
   var area=numEl('d-ancho',20)*numEl('d-alto',20)/10000;
@@ -3794,11 +3803,18 @@ function cImp(){
   document.getElementById('ir-gan').textContent=usd(r.gan_m2)+'/m²';
   document.getElementById('ir-pct-neg').textContent=r.negPct.toFixed(0)+'%';
   function setRepartoPct(id,n){var el=document.getElementById(id);if(el)el.textContent=n.toFixed(0)}
+  setRepartoPct('ir-imp-pct-m2',r.impPct);setRepartoPct('ir-imp-pct',r.impPct);
   setRepartoPct('ir-neg-pct-m2',r.negPct);setRepartoPct('ir-ceo-pct-m2',r.ceoPct);setRepartoPct('ir-oper-pct-m2',r.operPct);
   setRepartoPct('ir-neg-pct',r.negPct);setRepartoPct('ir-ceo-pct',r.ceoPct);setRepartoPct('ir-oper-pct',r.operPct);
+  var irImp=document.getElementById('ir-imp');
+  if(irImp)irImp.textContent=usd(r.imp_m2)+'/m²';
+  var irGanRep=document.getElementById('ir-gan-rep');
+  if(irGanRep)irGanRep.textContent=usd(r.gan_rep_m2)+'/m²';
   document.getElementById('ir-neg').textContent=usd(r.neg_m2)+'/m²';
   document.getElementById('ir-ceo').textContent=usd(r.ceo_m2)+'/m²';
   document.getElementById('ir-oper').textContent=usd(r.oper_m2)+'/m²';
+  var irImpTot=document.getElementById('ir-imp-tot');
+  if(irImpTot)irImpTot.textContent=usd(r.imp_m2*r.area);
   document.getElementById('ir-neg-tot').textContent=usd(r.neg_m2*r.area);
   document.getElementById('ir-ceo-tot').textContent=usd(r.ceo_m2*r.area);
   document.getElementById('ir-oper-tot').textContent=usd(r.oper_m2*r.area);
@@ -3828,6 +3844,9 @@ function cImp(){
         {label:'Otros insumos',monto:r.otros*r.area}
       ],
       ganancia:r.gan_m2*r.area,
+      impuesto:r.imp_m2*r.area,
+      gan_repartir:r.gan_rep_m2*r.area,
+      impPct:r.impPct,
       reparto:[
         {label:'Negocio',pct:r.negPct,monto:r.neg_m2*r.area,color:'#2E7D32'},
         {label:'CEO',pct:r.ceoPct,monto:r.ceo_m2*r.area,color:'#FF6B35'},
@@ -4215,10 +4234,17 @@ function verCosto(id){
   }
   if(d.ganancia!=null){
     var gp=precio>0?d.ganancia/precio*100:0;
-    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp.toFixed(1)+'%</span></div></div>';
+    html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp.toFixed(1)+'%</span></div>';
+    if(d.impuesto!=null){
+      html+='<div class="result-row"><span class="result-label">Impuesto / retenciones'+(d.impPct!=null?' ('+(+d.impPct).toFixed(0)+'%)':'')+'</span><span class="result-val">'+usd(d.impuesto)+'</span></div>';
+    }
+    if(d.gan_repartir!=null){
+      html+='<div class="result-row"><span class="result-label" style="font-weight:600">Ganancia a repartir</span><span class="result-val">'+usd(d.gan_repartir)+'</span></div>';
+    }
+    html+='</div>';
   }
   if(d.reparto&&d.reparto.length){
-    html+='<div class="card" style="margin-bottom:10px"><div class="st">Porcentaje de cada quien</div>'+desgloseRows(d.reparto,precio)+'</div>';
+    html+='<div class="card" style="margin-bottom:10px"><div class="st">'+(d.gan_repartir!=null?'Reparto de la ganancia':'Porcentaje de cada quien')+'</div>'+desgloseRows(d.reparto,d.gan_repartir!=null?d.gan_repartir:precio)+'</div>';
   }
   if(!d.gastos&&!d.reparto){
     html+='<div class="empty" style="padding:20px">Este analisis se guardo sin desglose. Calculalo de nuevo y guardalo para ver gastos y porcentajes.</div>';
