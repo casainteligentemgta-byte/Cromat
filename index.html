@@ -2092,7 +2092,7 @@ function abrirPresupuesto(id){
   document.getElementById('p-fecha').value=p?p.fecha:hoy();
   document.getElementById('p-validez').value=p?p.validez:15;
   document.getElementById('p-desc').value=p?p.desc:0;
-  document.getElementById('p-notas').value=p?p.notas:'';
+  document.getElementById('p-notas').value=(p&&p.notas)||'';
   document.getElementById('p-anticipo').value=p?p.anticipo:0;
   document.getElementById('p-anticipo')._manualEdit=p?true:false;
   document.getElementById('p-ant-pct').value=p?(p.antPct||50):50;
