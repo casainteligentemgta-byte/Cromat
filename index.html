@@ -940,7 +940,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="modal-header"><span class="modal-title" id="modal-pres-title">Nuevo presupuesto</span><button class="close-btn" onclick="closeModal('modal-presupuesto')">&#x2715;</button></div>
     <input type="hidden" id="p-id">
     <div class="fg"><label class="fl">Cliente</label>
-      <select class="fi" id="p-cliente"><option value="">Seleccionar cliente...</option></select>
+      <select class="fi" id="p-cliente" onchange="onPClienteChange()"><option value="">Seleccionar cliente...</option></select>
     </div>
     <div class="row2">
       <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="p-fecha"></div>
@@ -1745,7 +1745,18 @@ function calcFechaEntrega(servicio,desde){
   return d.toISOString().split('T')[0];
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
-function closeModal(id){document.getElementById(id).classList.remove('open')}
+function closeModal(id){
+  var el=document.getElementById(id);
+  el.classList.remove('open');
+  if(id==='modal-cliente'){
+    el.style.zIndex='';
+    if(_presClienteNuevo){
+      _presClienteNuevo=false;
+      var sel=document.getElementById('p-cliente');
+      if(sel&&sel.value==='__new__')sel.value=_pClientePrev||'';
+    }
+  }
+}
 
 // ===== AUTH Y ROLES =====
 var AUTH=null;
@@ -2213,7 +2224,10 @@ function setLogoCliente(src){
   else{w.innerHTML='&#128247;'}
 }
 function guardarCliente(){
-  if(!requireTab('clientes'))return;
+  if(_presClienteNuevo){
+    if(!AUTH){authShowLogin();return}
+    if(!authCan('presupuestos')&&!authCan('clientes'))return;
+  }else if(!requireTab('clientes'))return;
   var lista=LS.g('crm_clientes')||[];
   var id=document.getElementById('c-id').value;
   var esJur=document.getElementById('c-tipo-juridica').checked;
@@ -2243,8 +2257,11 @@ function guardarCliente(){
   };
   if(id){var i=lista.findIndex(function(x){return x.id===id});if(i>=0){obj.fechaCreacion=lista[i].fechaCreacion;lista[i]=obj;}else lista.push(obj)}else lista.push(obj);
   LS.s('crm_clientes',lista);
+  var desdePres=_presClienteNuevo;
+  _presClienteNuevo=false;
   closeModal('modal-cliente');
   renderClientes();
+  if(desdePres)fillPCliente(obj.id);
 }
 function eliminarCliente(id){
   if(!requireTab('clientes'))return;
@@ -2331,12 +2348,32 @@ function abrirPresupuesto(id){
   document.getElementById('p-anticipo').value=p?p.anticipo:0;
   document.getElementById('p-anticipo')._manualEdit=p?true:false;
   document.getElementById('p-ant-pct').value=p?(p.antPct||50):50;
-  var clientes=LS.g('crm_clientes')||[];
-  var sel=document.getElementById('p-cliente');
-  sel.innerHTML='<option value="">Seleccionar cliente...</option>'+clientes.map(function(c){return'<option value="'+escHtml(c.id)+'"'+(p&&p.clienteId===c.id?' selected':'')+'>'+escHtml(c.nombre)+'</option>'}).join('');
+  fillPCliente(p?p.clienteId:'');
   populateOpCatSelect();
   renderPresItems();
   openModal('modal-presupuesto');
+}
+var _presClienteNuevo=false;
+var _pClientePrev='';
+function fillPCliente(selectedId){
+  var clientes=LS.g('crm_clientes')||[];
+  var sel=document.getElementById('p-cliente');
+  sel.innerHTML='<option value="__new__">+ Crear nuevo cliente</option><option value="">Seleccionar cliente...</option>'+
+    clientes.map(function(c){return'<option value="'+escHtml(c.id)+'">'+escHtml(c.nombre)+'</option>'}).join('');
+  sel.value=selectedId||'';
+  if(sel.value!==(selectedId||''))sel.value='';
+  _pClientePrev=sel.value;
+}
+function onPClienteChange(){
+  var sel=document.getElementById('p-cliente');
+  if(sel.value==='__new__'){
+    sel.value=_pClientePrev||'';
+    _presClienteNuevo=true;
+    document.getElementById('modal-cliente').style.zIndex='220';
+    abrirCliente();
+    return;
+  }
+  _pClientePrev=sel.value;
 }
 function buildProdOpts(selVal){
   var catalogo=(LS.g('crm_catalogo')||[]).filter(function(p){return p.activo});
@@ -2529,7 +2566,7 @@ function guardarPresupuesto(){
   var lista=LS.g('crm_presupuestos')||[];
   var id=document.getElementById('p-id').value;
   var cSel=document.getElementById('p-cliente');
-  var cId=cSel.value;
+  var cId=cSel.value==='__new__'?'':cSel.value;
   var cNom=cId?(LS.g('crm_clientes')||[]).find(function(x){return x.id===cId}):null;
   var desc=parseFloat(document.getElementById('p-desc').value)||0;
   var sub=presItems.reduce(function(a,it){return a+presItemMonto(it)},0);
