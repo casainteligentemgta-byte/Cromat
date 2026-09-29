@@ -1,7 +1,7 @@
 -- Cromat: una empresa, usuarios con rol, datos compartidos y RLS.
 -- Pega ESTE ARCHIVO COMPLETO en Supabase → SQL Editor y córrelo (no un fragmento).
--- Auth: Authentication → Providers → Email.
--- Recomendado al inicio: desactivar "Confirm email" para el equipo.
+-- Auth: Authentication → Providers → Email → desactiva Confirm email
+-- (el SMTP gratis bloquea invitados con «excediste el número de intentos»).
 
 create extension if not exists pgcrypto;
 
@@ -150,10 +150,21 @@ begin
   if exists (select 1 from public.cromat_profiles where user_id = auth.uid()) then
     return (select org_id from public.cromat_profiles where user_id = auth.uid());
   end if;
-  select * into inv
-  from public.cromat_invites
-  where upper(code) = upper(trim(p_code)) and used_at is null
-  for update;
+  if coalesce(nullif(trim(p_code), ''), '') <> '' then
+    select * into inv
+    from public.cromat_invites
+    where upper(code) = upper(trim(p_code)) and used_at is null
+    for update;
+  else
+    select * into inv
+    from public.cromat_invites
+    where used_at is null
+      and email is not null
+      and lower(trim(email)) = lower(trim(coalesce(auth.email(), '')))
+    order by created_at desc
+    limit 1
+    for update;
+  end if;
   if not found then
     raise exception 'invalid_invite';
   end if;
@@ -378,5 +389,42 @@ begin
   values (uid, oid, 'Luis Mata', split_part('casainteligentemgta@gmail.com', '@', 1), 'admin', true, 'casainteligentemgta@gmail.com')
   on conflict (user_id) do update
     set rol = 'admin', activo = true, email = excluded.email;
+end;
+$$;
+
+-- El SMTP gratis de Supabase bloquea el 2.º (y a veces el 1.º) correo de confirmación.
+-- El equipo entra sin ese correo: se confirma al crear la cuenta y se confirman las que ya quedaron a medias.
+create or replace function public.cromat_auto_confirm_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = auth, public
+as $$
+begin
+  if new.email_confirmed_at is null then
+    new.email_confirmed_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+do $$
+begin
+  drop trigger if exists cromat_auto_confirm_auth_user on auth.users;
+  create trigger cromat_auto_confirm_auth_user
+    before insert on auth.users
+    for each row execute function public.cromat_auto_confirm_auth_user();
+exception when others then
+  raise notice 'Trigger de auto-confirm: %', sqlerrm;
+end;
+$$;
+
+do $$
+begin
+  update auth.users
+  set email_confirmed_at = coalesce(email_confirmed_at, now())
+  where email_confirmed_at is null;
+exception when others then
+  raise notice 'Confirmación de cuentas: %', sqlerrm;
 end;
 $$;
