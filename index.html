@@ -125,17 +125,24 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .estado-btn.active-apr{border-color:var(--gt);background:var(--gs);color:var(--gt)}
 .estado-btn.active-rec{border-color:var(--dt);background:var(--ds);color:var(--dt)}
 /* PRESUPUESTO FORMAL */
-.pres-doc{background:#fff;color:#1a1a18;border:1px solid #e0e0d8;border-radius:8px;padding:16px 14px;margin-bottom:14px}
-.pres-doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-bottom:10px;border-bottom:2.5px solid #FF6B35;margin-bottom:12px}
-.pres-doc-brand{font-size:22px;font-weight:800;letter-spacing:0.5px;line-height:1}
-.pres-doc-brand .c1{color:#FF6B35}.pres-doc-brand .c2{color:#028090}
-.pres-doc-tag{font-size:9px;letter-spacing:1.4px;color:#888;text-transform:uppercase;margin-top:5px}
-.pres-doc-web{font-size:11px;color:#028090;font-weight:600;margin-top:2px}
-.pres-doc-meta{text-align:right;font-size:11px;color:#555;line-height:1.55}
-.pres-doc-num{font-size:13px;font-weight:700;color:#028090}
+.pres-doc{background:#fff;color:#1a1a18;border:1px solid #e0e0d8;border-radius:8px;margin-bottom:14px;overflow:hidden}
+.pres-doc-head{background:#0A0A0A;padding:14px 14px 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:3px solid #FF6B35}
+.pres-doc-brand{font-size:24px;font-weight:800;letter-spacing:0.6px;line-height:1}
+.pres-doc-brand .c1{color:#FF6B35}.pres-doc-brand .c2{color:#5ec8d4}
+.pres-doc-tag{font-size:9px;letter-spacing:1.5px;color:#b8b8b0;text-transform:uppercase;margin-top:6px}
+.pres-doc-web{font-size:11px;color:#5ec8d4;font-weight:600;margin-top:3px}
+.pres-doc-meta{text-align:right;font-size:11px;color:#d0d0c8;line-height:1.55}
+.pres-doc-kind{font-size:10px;font-weight:800;letter-spacing:2px;color:#FF6B35;text-transform:uppercase}
+.pres-doc-num{font-size:14px;font-weight:700;color:#fff;margin-top:2px}
+.pres-doc-body{padding:14px}
 .pres-doc-sec{font-size:10px;font-weight:700;letter-spacing:1.4px;color:#028090;text-transform:uppercase;margin:12px 0 6px}
-.pres-cli{font-size:12px;line-height:1.55;color:#222}
-.pres-cli strong{font-size:14px;display:block;margin-bottom:2px}
+.pres-partes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+@media(max-width:420px){.pres-partes{grid-template-columns:1fr}}
+.pres-parte{border:1px solid #e0e0d8;border-radius:6px;padding:8px 10px;background:#fafaf7}
+.pres-parte .k{font-size:9px;letter-spacing:1.3px;color:#028090;font-weight:700;text-transform:uppercase;margin-bottom:5px}
+.pres-fila{font-size:12px;color:#222;line-height:1.5;display:flex;gap:6px}
+.pres-fila span{color:#888;min-width:72px;flex-shrink:0}
+.pres-fila b{font-weight:600;color:#111}
 .pres-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .pres-tbl{width:100%;min-width:300px;border-collapse:collapse;font-size:12px}
 .pres-tbl th{background:#028090;color:#fff;font-weight:600;text-align:left;padding:6px;font-size:10px;letter-spacing:0.4px;text-transform:uppercase}
@@ -146,6 +153,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .pres-tot-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#444}
 .pres-tot-row.grand{font-size:15px;font-weight:800;color:#0A0A0A;border-top:2px solid #0A0A0A;margin-top:4px;padding-top:8px}
 .pres-cond{font-size:11px;color:#555;line-height:1.55}
+.pres-acept{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+.pres-firma{border-top:1px solid #bbb;padding-top:6px;text-align:center;font-size:10px;color:#666;margin-top:26px}
 .pres-foot{margin-top:14px;padding-top:8px;border-top:0.5px solid #e0e0d8;font-size:10px;color:#888;text-align:center;line-height:1.5}
 /* FONDOS */
 .fondo-card{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px}
@@ -1456,6 +1465,55 @@ function presItemUnd(it){
 function pdfTxt(s){
   return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[–—•·]/g,'-').replace(/[“”«»]/g,'"').replace(/[‘’]/g,"'");
 }
+function presDocModelo(p){
+  var c=clienteDePres(p);
+  var vence=presFechaVence(p);
+  var sub=presSubtotalDe(p);
+  var desc=parseFloat(p.desc)||0;
+  var descMonto=sub*desc/100;
+  var total=presTotalDe(p);
+  var antPct=parseFloat(p.antPct)||50;
+  var antSug=total*antPct/100;
+  var doc=c?clienteDocTxt(c):'';
+  var dir=c?clienteDirTxt(c):'';
+  var tel=c?[c.tel,c.tel2].filter(Boolean).join(' / '):'';
+  var emisor=[
+    {k:'Empresa',v:'CROMAT'},
+    {k:'Actividad',v:'Impresion, sublimacion y textil'},
+    {k:'Web',v:'cromat.xyz'}
+  ];
+  var cliente=[
+    {k:'Nombre',v:(c&&c.nombre)||p.clienteNombre||'Sin cliente'},
+    {k:'Nombre comercial',v:c&&c.empresa},
+    {k:(c&&c.tipo==='Juridica')?'RIF':'Cedula',v:doc},
+    {k:'Tipo',v:c?(c.tipo==='Juridica'?'Persona juridica':'Persona natural'):''},
+    {k:'Telefono',v:tel},
+    {k:'Email',v:c&&c.email},
+    {k:'Direccion',v:dir},
+    {k:'Instagram',v:c&&c.ig}
+  ].filter(function(r){return String(r.v||'').trim();});
+  if(!cliente.length)cliente=[{k:'Nombre',v:'Sin cliente'}];
+  var conds=[
+    'Validez: '+String(p.validez||15)+' dias a partir de la fecha de emision'+(vence?' (hasta el '+fch(vence)+')':'')+'.',
+    'Precios expresados en dolares de los Estados Unidos (USD).',
+    'Condicion de pago: '+clientePagoTxt(c,p)+'. Anticipo sugerido ('+antPct+'%): '+usd(antSug)+'. Saldo: '+usd(Math.max(0,total-antSug))+'.'
+  ];
+  var notas=String((p&&p.notas)||'').trim();
+  if(notas)conds.push('Observaciones: '+notas);
+  return {
+    numero:presNumero(p),
+    fecha:p.fecha,
+    validez:p.validez||15,
+    vence:vence,
+    emisor:emisor,
+    cliente:cliente,
+    items:(p.items||[]).map(function(it){
+      return {desc:presItemDesc(it),qty:presItemQty(it),und:presItemUnd(it),precio:+it.precio||0,importe:presItemMonto(it)};
+    }),
+    sub:sub,desc:desc,descMonto:descMonto,total:total,conds:conds,
+    elaborado:fmtActor(p.creadoPor)||''
+  };
+}
 function presCostoProdDe(items){
   return (items||[]).reduce(function(a,it){
     if(!it.productoId)return a;
@@ -2408,57 +2466,45 @@ function guardarPresupuesto(){
   renderPresupuestos();
 }
 function htmlPresupuestoFormal(p){
-  var c=clienteDePres(p);
-  var num=presNumero(p);
-  var vence=presFechaVence(p);
-  var sub=presSubtotalDe(p);
-  var desc=parseFloat(p.desc)||0;
-  var descMonto=sub*desc/100;
-  var total=presTotalDe(p);
-  var antPct=parseFloat(p.antPct)||50;
-  var antSug=total*antPct/100;
-  var doc=c?clienteDocTxt(c):'';
-  var dir=c?clienteDirTxt(c):'';
+  var d=presDocModelo(p);
+  function filas(arr){
+    return arr.map(function(r){return '<div class="pres-fila"><span>'+escHtml(r.k)+'</span><b>'+escHtml(r.v)+'</b></div>';}).join('');
+  }
   var html='<div class="pres-doc">';
   html+='<div class="pres-doc-head"><div>';
   html+='<div class="pres-doc-brand"><span class="c1">CRO</span><span class="c2">MAT</span></div>';
   html+='<div class="pres-doc-tag">Impresion · Sublimacion · Textil</div>';
   html+='<div class="pres-doc-web">cromat.xyz</div></div>';
-  html+='<div class="pres-doc-meta"><div class="pres-doc-num">'+escHtml(num)+'</div>';
-  html+='<div>Fecha: '+fch(p.fecha)+'</div>';
-  html+='<div>Valido '+escHtml(String(p.validez||15))+' dias</div>';
-  if(vence)html+='<div>Vence: '+fch(vence)+'</div>';
+  html+='<div class="pres-doc-meta"><div class="pres-doc-kind">Presupuesto</div>';
+  html+='<div class="pres-doc-num">'+escHtml(d.numero)+'</div>';
+  html+='<div>Fecha: '+fch(d.fecha)+'</div>';
+  html+='<div>Valido '+escHtml(String(d.validez))+' dias</div>';
+  if(d.vence)html+='<div>Vence: '+fch(d.vence)+'</div>';
   html+='</div></div>';
-  html+='<div class="pres-doc-sec">Datos del cliente</div>';
-  html+='<div class="pres-cli"><strong>'+escHtml((c&&c.nombre)||p.clienteNombre||'Sin cliente')+'</strong>';
-  if(c&&c.empresa)html+='<div>Nombre comercial: '+escHtml(c.empresa)+'</div>';
-  if(c&&c.tipo)html+='<div>Tipo: '+(c.tipo==='Juridica'?'Persona juridica':'Persona natural')+'</div>';
-  if(doc)html+='<div>'+(c&&c.tipo==='Juridica'?'RIF: ':'Cedula: ')+escHtml(doc)+'</div>';
-  if(c&&(c.tel||c.tel2))html+='<div>WhatsApp: '+escHtml([c.tel,c.tel2].filter(Boolean).join(' / '))+'</div>';
-  if(c&&c.email)html+='<div>Email: '+escHtml(c.email)+'</div>';
-  if(dir)html+='<div>Direccion: '+escHtml(dir)+'</div>';
+  html+='<div class="pres-doc-body">';
+  html+='<div class="pres-partes">';
+  html+='<div class="pres-parte"><div class="k">De / Cromat</div>'+filas(d.emisor)+'</div>';
+  html+='<div class="pres-parte"><div class="k">Datos del cliente</div>'+filas(d.cliente)+'</div>';
   html+='</div>';
   html+='<div class="pres-doc-sec">Detalle</div>';
   html+='<div class="pres-tbl-wrap"><table class="pres-tbl"><thead><tr><th>Descripcion</th><th class="c">Cant.</th><th class="c">Und.</th><th class="r">P. unit.</th><th class="r">Importe</th></tr></thead><tbody>';
-  (p.items||[]).forEach(function(it){
-    html+='<tr><td>'+escHtml(presItemDesc(it))+'</td><td class="c">'+presItemQty(it)+'</td><td class="c">'+presItemUnd(it)+'</td><td class="r">'+usd(it.precio||0)+'</td><td class="r">'+usd(presItemMonto(it))+'</td></tr>';
+  d.items.forEach(function(it){
+    html+='<tr><td>'+escHtml(it.desc)+'</td><td class="c">'+it.qty+'</td><td class="c">'+it.und+'</td><td class="r">'+usd(it.precio)+'</td><td class="r">'+usd(it.importe)+'</td></tr>';
   });
   html+='</tbody></table></div>';
   html+='<div class="pres-tot">';
-  html+='<div class="pres-tot-row"><span>Subtotal</span><span>'+usd(sub)+'</span></div>';
-  if(desc>0)html+='<div class="pres-tot-row"><span>Descuento ('+desc+'%)</span><span>-'+usd(descMonto)+'</span></div>';
-  html+='<div class="pres-tot-row grand"><span>TOTAL</span><span>'+usd(total)+'</span></div>';
+  html+='<div class="pres-tot-row"><span>Subtotal</span><span>'+usd(d.sub)+'</span></div>';
+  if(d.desc>0)html+='<div class="pres-tot-row"><span>Descuento ('+d.desc+'%)</span><span>-'+usd(d.descMonto)+'</span></div>';
+  html+='<div class="pres-tot-row grand"><span>TOTAL</span><span>'+usd(d.total)+'</span></div>';
   html+='</div>';
   html+='<div class="pres-doc-sec">Condiciones</div>';
-  html+='<div class="pres-cond">';
-  html+='<div>Validez: '+escHtml(String(p.validez||15))+' dias a partir de la fecha de emision'+(vence?' (hasta el '+fch(vence)+')':'')+'.</div>';
-  html+='<div>Precios expresados en dolares de los Estados Unidos (USD).</div>';
-  html+='<div>Condicion de pago: '+escHtml(clientePagoTxt(c,p))+'. Anticipo sugerido ('+antPct+'%): '+usd(antSug)+'. Saldo: '+usd(Math.max(0,total-antSug))+'.</div>';
-  var notas=String((p&&p.notas)||'').trim();
-  if(notas)html+='<div>Notas: '+escHtml(notas)+'</div>';
+  html+='<div class="pres-cond">'+d.conds.map(function(x){return '<div>'+escHtml(x)+'</div>';}).join('')+'</div>';
+  html+='<div class="pres-acept">';
+  html+='<div class="pres-firma">'+(d.elaborado?'Elaborado por '+escHtml(d.elaborado)+'<br>':'')+'CROMAT</div>';
+  html+='<div class="pres-firma">Aceptacion del cliente<br>Nombre y firma</div>';
   html+='</div>';
   html+='<div class="pres-foot">CROMAT · Impresion, sublimacion y textil · cromat.xyz<br>Este documento es una cotizacion y no constituye factura.</div>';
-  html+='</div>';
+  html+='</div></div>';
   return html;
 }
 function verPresupuesto(id){
@@ -3994,77 +4040,72 @@ function construirPdfPresupuesto(p){
   var JsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
   if(!JsPDF)throw new Error('PDF no disponible');
   var pdf=new JsPDF({unit:'mm',format:'a4'});
-  var W=210,M=16,y=18,maxY=278;
-  var c=clienteDePres(p);
-  var num=presNumero(p);
-  var vence=presFechaVence(p);
-  var sub=presSubtotalDe(p);
-  var desc=parseFloat(p.desc)||0;
-  var descMonto=sub*desc/100;
-  var total=presTotalDe(p);
-  var antPct=parseFloat(p.antPct)||50;
-  var antSug=total*antPct/100;
+  var W=210,M=16,y=0,maxY=278;
+  var d=presDocModelo(p);
   function need(h){if(y+h>maxY){pdf.addPage();y=18}}
   function txt(s,x,yy,opt){pdf.text(pdfTxt(s),x,yy,opt||{})}
+  pdf.setFillColor(10,10,10);
+  pdf.rect(0,0,W,32,'F');
+  pdf.setFillColor(255,107,53);
+  pdf.rect(0,32,W,2.4,'F');
   pdf.setFont('helvetica','bold');
   pdf.setFontSize(20);
   pdf.setTextColor(255,107,53);
-  pdf.text('CRO',M,y);
+  pdf.text('CRO',M,14);
   var croW=pdf.getTextWidth('CRO');
-  pdf.setTextColor(2,128,144);
-  pdf.text('MAT',M+croW,y);
-  pdf.setFontSize(11);
-  pdf.text(pdfTxt(num),W-M,y,{align:'right'});
-  y+=6;
+  pdf.setTextColor(94,200,212);
+  pdf.text('MAT',M+croW,14);
+  pdf.setFontSize(10);
+  pdf.setTextColor(255,107,53);
+  pdf.text('PRESUPUESTO',W-M,12,{align:'right'});
+  pdf.setFontSize(12);
+  pdf.setTextColor(255);
+  pdf.text(pdfTxt(d.numero),W-M,18,{align:'right'});
   pdf.setFont('helvetica','normal');
   pdf.setFontSize(8);
-  pdf.setTextColor(120);
-  pdf.text(pdfTxt('Impresion  ·  Sublimacion  ·  Textil'),M,y);
-  pdf.setFontSize(9);
-  pdf.setTextColor(80);
-  pdf.text('Fecha: '+fch(p.fecha),W-M,y,{align:'right'});
-  y+=5;
-  pdf.setTextColor(2,128,144);
-  pdf.text('cromat.xyz',M,y);
-  pdf.setTextColor(80);
-  pdf.text(pdfTxt('Valido '+String(p.validez||15)+' dias'+(vence?'  ·  Vence '+fch(vence):'')),W-M,y,{align:'right'});
-  y+=5;
-  pdf.setDrawColor(255,107,53);
-  pdf.setLineWidth(0.8);
-  pdf.line(M,y,W-M,y);
-  y+=8;
+  pdf.setTextColor(180);
+  pdf.text(pdfTxt('Impresion  ·  Sublimacion  ·  Textil'),M,21);
+  pdf.text('cromat.xyz',M,26);
+  pdf.setTextColor(200);
+  pdf.text('Fecha: '+fch(d.fecha),W-M,24,{align:'right'});
+  pdf.text(pdfTxt('Valido '+String(d.validez)+' dias'+(d.vence?'  ·  Vence '+fch(d.vence):'')),W-M,29,{align:'right'});
+  y=42;
+  var colW=(W-2*M-4)/2;
+  var boxH=Math.max(8+d.emisor.length*5,8+d.cliente.length*5);
+  need(boxH+6);
+  pdf.setDrawColor(224,224,216);
+  pdf.setFillColor(250,250,247);
+  pdf.setLineWidth(0.3);
+  pdf.rect(M,y,colW,boxH,'FD');
+  pdf.rect(M+colW+4,y,colW,boxH,'FD');
   pdf.setFont('helvetica','bold');
-  pdf.setFontSize(13);
-  pdf.setTextColor(10);
-  pdf.text('PRESUPUESTO',M,y);
-  y+=8;
-  pdf.setFontSize(8);
+  pdf.setFontSize(7.5);
   pdf.setTextColor(2,128,144);
-  pdf.text('DATOS DEL CLIENTE',M,y);
-  y+=5;
-  pdf.setFont('helvetica','bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(20);
-  txt((c&&c.nombre)||p.clienteNombre||'Sin cliente',M,y);
-  y+=5;
+  pdf.text('DE / CROMAT',M+3,y+5);
+  pdf.text('DATOS DEL CLIENTE',M+colW+7,y+5);
   pdf.setFont('helvetica','normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(60);
-  if(c&&c.empresa){txt('Nombre comercial: '+c.empresa,M,y);y+=4.5}
-  if(c&&c.tipo){txt(c.tipo==='Juridica'?'Persona juridica':'Persona natural',M,y);y+=4.5}
-  var doc=c?clienteDocTxt(c):'';
-  if(doc){txt((c&&c.tipo==='Juridica'?'RIF: ':'Cedula: ')+doc,M,y);y+=4.5}
-  if(c&&(c.tel||c.tel2)){txt('WhatsApp: '+[c.tel,c.tel2].filter(Boolean).join(' / '),M,y);y+=4.5}
-  if(c&&c.email){txt('Email: '+c.email,M,y);y+=4.5}
-  var dir=c?clienteDirTxt(c):'';
-  if(dir){
-    var dirLines=pdf.splitTextToSize(pdfTxt('Direccion: '+dir),W-2*M);
-    dirLines.forEach(function(ln){need(5);pdf.text(ln,M,y);y+=4.5});
-  }
-  y+=4;
+  pdf.setFontSize(8.5);
+  d.emisor.forEach(function(r,i){
+    pdf.setTextColor(120);
+    pdf.text(pdfTxt(r.k),M+3,y+11+i*5);
+    pdf.setFont('helvetica','bold');
+    pdf.setTextColor(20);
+    pdf.text(pdfTxt(r.v),M+28,y+11+i*5);
+    pdf.setFont('helvetica','normal');
+  });
+  d.cliente.forEach(function(r,i){
+    pdf.setTextColor(120);
+    pdf.text(pdfTxt(r.k),M+colW+7,y+11+i*5);
+    pdf.setFont('helvetica','bold');
+    pdf.setTextColor(20);
+    var val=pdf.splitTextToSize(pdfTxt(r.v),colW-36);
+    pdf.text(val,M+colW+32,y+11+i*5);
+    pdf.setFont('helvetica','normal');
+  });
+  y+=boxH+10;
   need(12);
-  var colDesc=78,colCant=18,colUnd=16,colPu=28;
-  var xCant=M+colDesc,xUnd=xCant+colCant,xPu=xUnd+colUnd,xImp=W-M;
+  var colDesc=78,colCant=18,colUnd=16;
+  var xUnd=M+colDesc+colCant,xPu=xUnd+colUnd,xImp=W-M;
   pdf.setFillColor(2,128,144);
   pdf.rect(M,y-4.5,W-2*M,7,'F');
   pdf.setFont('helvetica','bold');
@@ -4078,8 +4119,8 @@ function construirPdfPresupuesto(p){
   y+=6;
   pdf.setFont('helvetica','normal');
   pdf.setFontSize(9);
-  (p.items||[]).forEach(function(it,idx){
-    var descLines=pdf.splitTextToSize(pdfTxt(presItemDesc(it)),colDesc-3);
+  d.items.forEach(function(it,idx){
+    var descLines=pdf.splitTextToSize(pdfTxt(it.desc),colDesc-3);
     var h=Math.max(6.5,descLines.length*4.2+2.2);
     need(h+2);
     if(idx%2===0){
@@ -4088,11 +4129,11 @@ function construirPdfPresupuesto(p){
     }
     pdf.setTextColor(30);
     descLines.forEach(function(ln,li){pdf.text(ln,M+1.5,y+li*4.2)});
-    pdf.text(String(presItemQty(it)),xUnd-2,y,{align:'right'});
-    pdf.text(presItemUnd(it),xPu-2,y,{align:'right'});
-    pdf.text(usd(it.precio||0),xImp-30,y,{align:'right'});
+    pdf.text(String(it.qty),xUnd-2,y,{align:'right'});
+    pdf.text(it.und,xPu-2,y,{align:'right'});
+    pdf.text(usd(it.precio),xImp-30,y,{align:'right'});
     pdf.setFont('helvetica','bold');
-    pdf.text(usd(presItemMonto(it)),xImp,y,{align:'right'});
+    pdf.text(usd(it.importe),xImp,y,{align:'right'});
     pdf.setFont('helvetica','normal');
     y+=h;
   });
@@ -4106,12 +4147,12 @@ function construirPdfPresupuesto(p){
     pdf.text(val,W-M,y,{align:'right'});
     y+=6;
   }
-  totRow('Subtotal',usd(sub),false);
-  if(desc>0)totRow('Descuento ('+desc+'%)','-'+usd(descMonto),false);
+  totRow('Subtotal',usd(d.sub),false);
+  if(d.desc>0)totRow('Descuento ('+d.desc+'%)','-'+usd(d.descMonto),false);
   pdf.setDrawColor(10);
   pdf.setLineWidth(0.6);
   pdf.line(W-M-70,y-3,W-M,y-3);
-  totRow('TOTAL',usd(total),true);
+  totRow('TOTAL',usd(d.total),true);
   y+=4;
   need(36);
   pdf.setFont('helvetica','bold');
@@ -4122,21 +4163,24 @@ function construirPdfPresupuesto(p){
   pdf.setFont('helvetica','normal');
   pdf.setFontSize(9);
   pdf.setTextColor(70);
-  var conds=[
-    'Validez: '+String(p.validez||15)+' dias a partir de la fecha de emision'+(vence?' (hasta el '+fch(vence)+')':'')+'.',
-    'Precios expresados en dolares de los Estados Unidos (USD).',
-    'Condicion de pago: '+clientePagoTxt(c,p)+'. Anticipo sugerido ('+antPct+'%): '+usd(antSug)+'. Saldo: '+usd(Math.max(0,total-antSug))+'.'
-  ];
-  var notas=String((p&&p.notas)||'').trim();
-  if(notas)conds.push('Notas: '+notas);
-  conds.forEach(function(line){
+  d.conds.forEach(function(line){
     var ls=pdf.splitTextToSize(pdfTxt(line),W-2*M);
     ls.forEach(function(ln){need(5);pdf.text(ln,M,y);y+=4.5});
   });
-  y+=8;
+  y+=14;
+  need(28);
+  pdf.setDrawColor(170);
+  pdf.setLineWidth(0.4);
+  pdf.line(M,y,M+70,y);
+  pdf.line(W-M-70,y,W-M,y);
+  y+=5;
+  pdf.setFontSize(8);
+  pdf.setTextColor(100);
+  pdf.text(pdfTxt(d.elaborado?('Elaborado por '+d.elaborado+'  ·  CROMAT'):'CROMAT'),M+35,y,{align:'center'});
+  pdf.text('Aceptacion del cliente  ·  Nombre y firma',W-M-35,y,{align:'center'});
+  y+=10;
   need(16);
   pdf.setDrawColor(224,224,216);
-  pdf.setLineWidth(0.4);
   pdf.line(M,y,W-M,y);
   y+=6;
   pdf.setFontSize(8);
