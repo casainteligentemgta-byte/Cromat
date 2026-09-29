@@ -83,6 +83,9 @@ security definer
 set search_path = public
 as $$
 begin
+  if k = 'crm_audit' then
+    return lower(coalesce(auth.email(), '')) = public.cromat_owner_email();
+  end if;
   return case public.cromat_rol()
     when 'admin' then k in (
       'crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo',
