@@ -1189,8 +1189,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     </div>
     <div class="fg" style="margin-top:10px" id="gc-catalogo-wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-        <input type="checkbox" id="gc-activo" checked> Agregar al catalogo automaticamente
+        <input type="checkbox" id="gc-activo"> Incluir en el catálogo
       </label>
+      <div style="font-size:11px;color:var(--ts);margin-top:4px;line-height:1.4">Si lo marcas, este análisis aparece en Catálogo para venderlo. Si no, se queda solo en Guardados.</div>
     </div>
     <button class="btn btn-primary" id="gc-btn" style="width:100%;margin-top:10px" onclick="confirmarGuardarAnalisis()">Guardar</button>
   </div>
@@ -5378,22 +5379,70 @@ function abrirCosto(id){
   document.getElementById('gc-costo').value=(+c.costo||0).toFixed(2);
   document.getElementById('gc-precio').value=(+c.precio||0).toFixed(2);
   document.getElementById('gc-preview-items').textContent='Tipo: '+(c.tipo||'')+(c.fecha?' · '+fch(c.fecha):'');
-  document.getElementById('gc-activo').checked=false;
-  document.getElementById('gc-catalogo-wrap').style.display='none';
+  document.getElementById('gc-activo').checked=costoEstaEnCatalogo(c);
+  document.getElementById('gc-catalogo-wrap').style.display='';
   openModal('modal-guardar-calc');
 }
-function syncCostoCatalogo(c,prevNombre){
+function costoItemCatalogo(c){
+  if(!c)return null;
+  var cat=LS.g('crm_catalogo')||[];
+  if(c.catalogId){
+    var porId=cat.find(function(p){return p.id===c.catalogId});
+    if(porId)return porId;
+  }
+  var porCosto=cat.find(function(p){return p.costoId===c.id});
+  if(porCosto)return porCosto;
+  return cat.find(function(p){return p.tipo===c.tipo&&p.nombre===c.nombre})||null;
+}
+function costoEstaEnCatalogo(c){
+  var p=costoItemCatalogo(c);
+  return !!(p&&p.activo!==false);
+}
+function aplicarCostoEnCatalogo(c,enCat){
   var cat=LS.g('crm_catalogo')||[];
   var i=-1;
   if(c.catalogId)i=cat.findIndex(function(p){return p.id===c.catalogId});
-  if(i<0)i=cat.findIndex(function(p){return p.tipo===c.tipo&&p.nombre===(prevNombre||c.nombre)});
-  if(i<0)return;
-  cat[i].nombre=c.nombre;
-  cat[i].material=c.material;
-  cat[i].desc=c.material||cat[i].desc;
-  cat[i].precio=c.precio;
-  cat[i].costo=c.costo;
+  if(i<0)i=cat.findIndex(function(p){return p.costoId===c.id});
+  if(i<0)i=cat.findIndex(function(p){return p.tipo===c.tipo&&p.nombre===c.nombre});
+  if(enCat){
+    if(i>=0){
+      cat[i].nombre=c.nombre;
+      cat[i].material=c.material;
+      cat[i].desc=c.material||cat[i].desc||c.nombre;
+      cat[i].precio=c.precio;
+      cat[i].costo=c.costo;
+      cat[i].tipo=c.tipo;
+      cat[i].activo=true;
+      cat[i].costoId=c.id;
+      c.catalogId=cat[i].id;
+    }else{
+      var catObj={id:uid(),costoId:c.id,nombre:c.nombre,tipo:c.tipo,material:c.material,precio:c.precio,costo:c.costo,activo:true,foto:'',desc:c.material||c.nombre,dias:1,horas:0};
+      cat.push(catObj);
+      c.catalogId=catObj.id;
+    }
+    c.activo=true;
+  }else if(i>=0){
+    cat[i].activo=false;
+    cat[i].costoId=c.id;
+    c.catalogId=cat[i].id;
+    c.activo=false;
+  }else{
+    c.activo=false;
+    c.catalogId=c.catalogId||'';
+  }
   LS.s('crm_catalogo',cat);
+}
+function toggleCostoCatalogo(id,enCat){
+  if(!requireTab('costos'))return;
+  var lista=LS.g('crm_costos')||[];
+  var i=lista.findIndex(function(x){return x.id===id});
+  if(i<0)return;
+  if(typeof enCat!=='boolean')enCat=!costoEstaEnCatalogo(lista[i]);
+  aplicarCostoEnCatalogo(lista[i],enCat);
+  LS.s('crm_costos',lista);
+  nubesubirAhora();
+  renderCostos();
+  if(typeof renderCatalogo==='function')renderCatalogo();
 }
 function confirmarGuardarAnalisis(silencio){
   if(!requireTab('costos'))return;
@@ -5408,7 +5457,6 @@ function confirmarGuardarAnalisis(silencio){
   if(id){
     var i=lista.findIndex(function(x){return x.id===id});
     if(i<0){alert('Analisis no encontrado');return}
-    var prevNombre=lista[i].nombre;
     lista[i].nombre=nombre;
     lista[i].material=material;
     lista[i].costo=costo;
@@ -5423,8 +5471,9 @@ function confirmarGuardarAnalisis(silencio){
       lista[i].detalle.impPct=splitEdit.impPct;
       lista[i].detalle.reparto=splitEdit.reparto;
     }
+    lista[i].activo=!!activo;
+    aplicarCostoEnCatalogo(lista[i],!!activo);
     LS.s('crm_costos',lista);
-    syncCostoCatalogo(lista[i],prevNombre);
     closeModal('modal-guardar-calc');
     fillTxImpSelect();
     nubesubirAhora();
@@ -5494,7 +5543,10 @@ function renderCostos(){
       +'<button class="swipe-del" type="button" aria-label="Borrar" onclick="event.stopPropagation();eliminarCosto(\''+c.id+'\')">'
       +'<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>'
       +'</button>'
-      +'<div class="list-item swipe-front" onclick="abrirCostoTap(event,\''+escHtml(c.id)+'\')"><div class="li-top"><span class="li-name">'+escHtml(c.nombre)+'</span><span class="tag tag-teal">'+escHtml(c.tipo)+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(c.fecha)+(c.material?' &bull; '+escHtml(c.material):'')+'</span><span style="font-weight:700;color:var(--coral)">'+usd(c.precio)+'</span></div></div>'
+      +'<div class="list-item swipe-front" onclick="abrirCostoTap(event,\''+escHtml(c.id)+'\')"><div class="li-top"><span class="li-name">'+escHtml(c.nombre)+'</span><span class="tag tag-teal">'+escHtml(c.tipo)+'</span></div><div style="display:flex;justify-content:space-between"><span class="li-sub">'+fch(c.fecha)+(c.material?' &bull; '+escHtml(c.material):'')+'</span><span style="font-weight:700;color:var(--coral)">'+usd(c.precio)+'</span></div>'
+      +'<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--ts)" onclick="event.stopPropagation()">'
+      +'<input type="checkbox" '+(costoEstaEnCatalogo(c)?'checked':'')+' onchange="toggleCostoCatalogo(\''+escHtml(c.id)+'\',this.checked)"> En catálogo</label>'
+      +'</div>'
       +'</div>'
   }).join('');
   bindSwipeDelete(el);
@@ -5561,7 +5613,8 @@ function verCosto(id){
   var d=c.detalle||{};
   var split=d.reparto&&d.reparto.length?detalleRepartoDe(d,costo,precio):null;
   var html='';
-  html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><span class="tag tag-teal">'+escHtml(c.tipo||'')+'</span><span class="li-sub">'+fch(c.fecha)+(c.material?' · '+escHtml(c.material):'')+'</span></div>';
+  html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span class="tag tag-teal">'+escHtml(c.tipo||'')+'</span>'+(costoEstaEnCatalogo(c)?'<span class="tag tag-green">En catálogo</span>':'<span class="tag tag-gray">Solo guardado</span>')+'<span class="li-sub">'+fch(c.fecha)+(c.material?' · '+escHtml(c.material):'')+'</span></div>';
+  html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:12px"><input type="checkbox" '+(costoEstaEnCatalogo(c)?'checked':'')+' onchange="toggleCostoCatalogo(\''+escHtml(c.id)+'\',this.checked);verCosto(\''+escHtml(c.id)+'\')"> Incluir en el catálogo</label>';
   html+='<div class="kpi-grid" style="margin-bottom:12px">';
   html+='<div class="kpi"><div class="kpi-v">'+usd(costo)+'</div><div class="kpi-l">Costo</div></div>';
   html+='<div class="kpi coral"><div class="kpi-v">'+usd(precio)+'</div><div class="kpi-l">Precio</div></div>';
@@ -5600,9 +5653,12 @@ function editarCostoDesdeVista(id){
 function eliminarCosto(id){
   if(!requireTab('costos'))return;
   if(!confirmarBorrar('Eliminar este analisis?'))return;
+  var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===id});
+  if(c&&costoEstaEnCatalogo(c))aplicarCostoEnCatalogo(c,false);
   LS.s('crm_costos',(LS.g('crm_costos')||[]).filter(function(x){return x.id!==id}));
   renderCostos();
   fillTxImpSelect();
+  if(typeof renderCatalogo==='function')renderCatalogo();
 }
 
 // ===== CATALOGO =====
