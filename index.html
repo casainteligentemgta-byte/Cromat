@@ -82,6 +82,8 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .fg{margin-bottom:10px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.gc-gasto-row{display:grid;grid-template-columns:1fr 92px 32px;gap:6px;align-items:center;margin-bottom:6px}
+.gc-gasto-row .fi{min-width:0}
 /* LISTS */
 .list-item{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer}
 .list-item:active{background:var(--s1)}
@@ -1183,10 +1185,16 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="fg"><label class="fl">Nombre del analisis</label><input class="fi" type="text" id="gc-nombre" placeholder="Ej: Toalla grande 50x100..."></div>
     <div class="fg"><label class="fl">Material / descripcion</label><input class="fi" type="text" id="gc-material" placeholder="Ej: Polyester 200g..."></div>
     <div id="gc-preview-items" style="font-size:11px;color:var(--tm);margin-bottom:10px"></div>
-    <div class="row2">
-      <div class="fg"><label class="fl">Costo total ($)</label><input class="fi" type="number" id="gc-costo" min="0" step="0.01"></div>
-      <div class="fg"><label class="fl">Precio venta ($)</label><input class="fi" type="number" id="gc-precio" min="0" step="0.01"></div>
+    <div id="gc-gastos-wrap" style="display:none;margin-bottom:12px">
+      <div class="st">Gastado en cada cosa</div>
+      <div id="gc-gastos-list"></div>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="agregarGastoAnalisis()">+ Agregar gasto</button>
     </div>
+    <div class="row2">
+      <div class="fg"><label class="fl">Costo total ($)</label><input class="fi" type="number" id="gc-costo" min="0" step="0.01" oninput="actualizarMargenGc()"></div>
+      <div class="fg"><label class="fl">Precio venta ($)</label><input class="fi" type="number" id="gc-precio" min="0" step="0.01" oninput="actualizarMargenGc()"></div>
+    </div>
+    <div id="gc-margen-hint" style="font-size:11px;color:var(--tm);margin:-4px 0 10px"></div>
     <div class="fg" style="margin-top:10px" id="gc-catalogo-wrap">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px">
         <input type="checkbox" id="gc-activo" checked> Agregar al catalogo automaticamente
@@ -5334,6 +5342,76 @@ function cDs(){
   };
 }
 // GUARDAR ANALISIS
+var gcGastosTemp=[];
+function sumaGastosAnalisis(gastos){
+  return (gastos||[]).reduce(function(a,g){return a+(parseFloat(g.monto)||0)},0);
+}
+function leerGastosAnalisis(){
+  return (gcGastosTemp||[]).map(function(g){
+    return {label:String(g.label||'').trim(),monto:parseFloat(g.monto)||0};
+  }).filter(function(g){return g.label||g.monto}).map(function(g){
+    if(!g.label)g.label='Gasto';
+    return g;
+  });
+}
+function actualizarMargenGc(){
+  var costoEl=document.getElementById('gc-costo');
+  var precioEl=document.getElementById('gc-precio');
+  var el=document.getElementById('gc-margen-hint');
+  if(!el||!costoEl||!precioEl)return;
+  var costo=parseFloat(costoEl.value)||0;
+  var precio=parseFloat(precioEl.value)||0;
+  var gan=precio-costo;
+  var pct=precio>0?gan/precio*100:0;
+  el.textContent='Ganancia: '+usd(gan)+' · margen '+pct.toFixed(1)+'%';
+}
+function syncCostoDesdeGastos(){
+  var costoEl=document.getElementById('gc-costo');
+  if(!costoEl)return;
+  if(gcGastosTemp.length)costoEl.value=sumaGastosAnalisis(gcGastosTemp).toFixed(2);
+  actualizarMargenGc();
+}
+function renderGcGastos(){
+  var el=document.getElementById('gc-gastos-list');
+  if(!el)return;
+  if(!gcGastosTemp.length){
+    el.innerHTML='<div class="empty" style="padding:12px">Sin desglose. Agrega tela, impresion, costura u otro gasto.</div>';
+    return;
+  }
+  el.innerHTML=gcGastosTemp.map(function(g,i){
+    var monto=g.monto==null||g.monto===''?'':g.monto;
+    return '<div class="gc-gasto-row">'
+      +'<input class="fi" type="text" value="'+escHtml(g.label||'')+'" placeholder="Concepto" oninput="gcGastoEdit('+i+',\'label\',this.value)">'
+      +'<input class="fi" type="number" min="0" step="0.01" value="'+escHtml(String(monto))+'" placeholder="0.00" oninput="gcGastoEdit('+i+',\'monto\',this.value)">'
+      +'<button class="btn btn-ghost btn-sm" type="button" style="color:var(--dt);padding:6px 0;justify-content:center" onclick="quitarGastoAnalisis('+i+')" aria-label="Quitar gasto">&#x2715;</button>'
+      +'</div>';
+  }).join('');
+}
+function gcGastoEdit(i,campo,val){
+  if(!gcGastosTemp[i])return;
+  if(campo==='monto')gcGastosTemp[i].monto=val===''?'':(parseFloat(val)||0);
+  else gcGastosTemp[i].label=val;
+  if(campo==='monto')syncCostoDesdeGastos();
+}
+function agregarGastoAnalisis(){
+  gcGastosTemp.push({label:'',monto:''});
+  renderGcGastos();
+  var list=document.getElementById('gc-gastos-list');
+  var inp=list&&list.querySelector('.gc-gasto-row:last-child input[type="text"]');
+  if(inp)inp.focus();
+}
+function quitarGastoAnalisis(i){
+  gcGastosTemp.splice(i,1);
+  renderGcGastos();
+  syncCostoDesdeGastos();
+}
+function cargarGastosAnalisis(gastos,mostrar){
+  gcGastosTemp=(gastos||[]).map(function(g){return {label:g.label||'',monto:g.monto==null?'':(+g.monto||0)}});
+  var wrap=document.getElementById('gc-gastos-wrap');
+  if(wrap)wrap.style.display=mostrar?'':'none';
+  renderGcGastos();
+  actualizarMargenGc();
+}
 function resultadoAnalisis(tipo){
   return tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
 }
@@ -5364,6 +5442,7 @@ function guardarAnalisis(tipo){
   document.getElementById('gc-preview-items').textContent='Tipo: '+tipo;
   document.getElementById('gc-activo').checked=false;
   document.getElementById('gc-catalogo-wrap').style.display='';
+  cargarGastosAnalisis((res.detalle&&res.detalle.gastos)||[],false);
   confirmarGuardarAnalisis(true);
 }
 function abrirCosto(id){
@@ -5380,6 +5459,7 @@ function abrirCosto(id){
   document.getElementById('gc-preview-items').textContent='Tipo: '+(c.tipo||'')+(c.fecha?' · '+fch(c.fecha):'');
   document.getElementById('gc-activo').checked=false;
   document.getElementById('gc-catalogo-wrap').style.display='none';
+  cargarGastosAnalisis((c.detalle&&c.detalle.gastos)||[],true);
   openModal('modal-guardar-calc');
 }
 function syncCostoCatalogo(c,prevNombre){
@@ -5414,7 +5494,13 @@ function confirmarGuardarAnalisis(silencio){
     lista[i].costo=costo;
     lista[i].precio=precio;
     if(precio>0)lista[i].margen=(precio-costo)/precio*100;
-    if(lista[i].detalle&&lista[i].detalle.reparto&&lista[i].detalle.reparto.length){
+    if(!lista[i].detalle)lista[i].detalle={};
+    var wrapG=document.getElementById('gc-gastos-wrap');
+    if(wrapG&&wrapG.style.display!=='none'){
+      lista[i].detalle.gastos=leerGastosAnalisis();
+    }
+    lista[i].detalle.ganancia=precio-costo;
+    if(lista[i].detalle.reparto&&lista[i].detalle.reparto.length){
       var d0=lista[i].detalle;
       var splitEdit=detalleRepartoDe(Object.assign({},d0,{ganancia:precio-costo}),costo,precio);
       lista[i].detalle.ganancia=splitEdit.ganancia;
