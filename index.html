@@ -662,10 +662,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
           </select>
         </div>
         <div class="field-row">
-          <span class="field-label">Costo impresion ($)</span>
+          <span class="field-label" id="tx-pr-lbl">Costo impresion ($/m)</span>
           <input class="field-input" type="number" id="tx-pr" value="7" min="0" step="0.5" oninput="txImpManualEdit()">
         </div>
         <div id="tx-imp-hint" style="font-size:10px;color:var(--tm);text-align:right;padding:2px 0 8px"></div>
+        <div class="field-row" id="tx-imp-sub-row"><span class="result-label">Costo impresion total</span><span class="result-val" id="tx-imp-sub">$0.00</span></div>
         <div class="field-row"><span class="field-label">Costo costura ($)</span><input class="field-input" type="number" id="tx-co" value="3" min="0" step="0.5" oninput="cTx()"></div>
         <div class="field-row"><span class="field-label">Ganancia ($)</span><input class="field-input" type="number" id="tx-gan" value="10" min="0" step="0.5" oninput="cTx()"></div>
       </div>
@@ -4519,7 +4520,7 @@ function showCalc(id,btn){
   document.querySelectorAll('#calc-tabs-inner .ctab').forEach(function(t){t.classList.remove('on')});
   document.getElementById('cp-'+id).classList.add('on');
   if(btn)btn.classList.add('on');
-  if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();fillTxTelaSelect();txApplyTelaPrecio();}
+  if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();fillTxTelaSelect();txApplyTelaPrecio();_cTxTotals()}
 }
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
@@ -4925,10 +4926,17 @@ function calcDTFUnit(){
   return numEl('d-tinta',8)*area+numEl('d-film',3)*area+numEl('d-polvo-kg',12)/1000*numEl('d-polvo-m2',50)*area+numEl('d-mano',1)+numEl('d-luz',0.3);
 }
 function txPrecioPass(n){
-  return calcImpresion(n).total_trabajo;
+  return calcImpresion(n).precio_ml;
 }
 function txPrecioGuardado(c){
   if(!c)return 0;
+  if(c.tipo==='DTF')return c.precio||0;
+  if(c.precio_ml!=null&&+c.precio_ml>0)return +c.precio_ml;
+  var ancho=numEl('i-ancho',1.60);
+  if(c.area>0&&ancho>0){
+    var largo=c.area/ancho;
+    if(largo>0)return (c.precio||0)/largo;
+  }
   return c.precio||0;
 }
 function txPrecioDTF(){
@@ -4954,36 +4962,55 @@ function fillTxImpSelect(){
   var prev=sel.value;
   var html='<option value="">Manual</option><optgroup label="Sublimacion (passes)">';
   [4,6,8,12].forEach(function(n){
-    html+='<option value="pass:'+n+'">'+PASS_MODES[n].label+' — '+usd(txPrecioPass(n))+'</option>';
+    html+='<option value="pass:'+n+'">'+PASS_MODES[n].label+' — '+usd(txPrecioPass(n))+'/m</option>';
   });
   html+='</optgroup><optgroup label="DTF"><option value="dtf">DTF (calculadora) — '+usd(txPrecioDTF())+'</option></optgroup>';
   var costos=(LS.g('crm_costos')||[]).filter(function(c){return c.tipo==='Impresion'||c.tipo==='DTF'});
   if(costos.length){
     html+='<optgroup label="Analisis guardados">';
-    costos.forEach(function(c){html+='<option value="c:'+c.id+'">'+escHtml(c.nombre)+' — '+usd(txPrecioGuardado(c))+'</option>'});
+    costos.forEach(function(c){html+='<option value="c:'+c.id+'">'+escHtml(c.nombre)+' — '+usd(txPrecioGuardado(c))+(c.tipo==='DTF'?'':'/m')+'</option>'});
     html+='</optgroup>';
   }
   var cat=(LS.g('crm_catalogo')||[]).filter(function(p){return p.activo&&(p.tipo==='Impresion'||p.tipo==='DTF')});
   if(cat.length){
     html+='<optgroup label="Catalogo">';
-    cat.forEach(function(p){html+='<option value="p:'+p.id+'">'+escHtml(p.nombre)+' — '+usd(p.precio||0)+'</option>'});
+    cat.forEach(function(p){html+='<option value="p:'+p.id+'">'+escHtml(p.nombre)+' — '+usd(p.precio||0)+(p.tipo==='DTF'?'':'/m')+'</option>'});
     html+='</optgroup>';
   }
   sel.innerHTML=html;
   if(Array.prototype.some.call(sel.options,function(o){return o.value===prev}))sel.value=prev;
   else sel.value='';
 }
+function txImpEsLineal(val){
+  if(!val)return true;
+  if(val==='dtf')return false;
+  if(val.indexOf('c:')===0){
+    var c=(LS.g('crm_costos')||[]).find(function(x){return x.id===val.slice(2)});
+    return !(c&&c.tipo==='DTF');
+  }
+  if(val.indexOf('p:')===0){
+    var p=(LS.g('crm_catalogo')||[]).find(function(x){return x.id===val.slice(2)});
+    return !(p&&p.tipo==='DTF');
+  }
+  return true;
+}
 function txImpHint(val){
   var el=document.getElementById('tx-imp-hint');
   if(!el)return;
-  if(!val){el.textContent='';return}
+  if(!val){el.textContent='Por metro lineal · se multiplica por los metros de tela';return}
   if(val.indexOf('pass:')===0){
     var n=+val.split(':')[1];
-    el.textContent='Precio total del trabajo · '+PASS_MODES[n].label;
+    el.textContent='Por metro lineal · '+PASS_MODES[n].label;
     return;
   }
   if(val==='dtf'){el.textContent='Precio unitario de la calculadora DTF';return}
-  el.textContent='Precio total del trabajo';
+  el.textContent=txImpEsLineal(val)?'Por metro lineal · se multiplica por los metros de tela':'Precio total del trabajo';
+}
+function txActualizarImpUi(lineal){
+  var lbl=document.getElementById('tx-pr-lbl');
+  if(lbl)lbl.textContent=lineal?'Costo impresion ($/m)':'Costo impresion ($)';
+  var row=document.getElementById('tx-imp-sub-row');
+  if(row)row.style.display=lineal?'':'none';
 }
 function txApplyImpPrecio(){
   var sel=document.getElementById('tx-imp-select');
@@ -4991,6 +5018,7 @@ function txApplyImpPrecio(){
   if(!sel||!inp)return;
   var val=sel.value;
   txImpHint(val);
+  txActualizarImpUi(txImpEsLineal(val));
   if(!val){inp.readOnly=false;inp.style.opacity='1';return}
   var precio=txGetImpPrecio(val);
   if(precio==null)return;
@@ -5007,8 +5035,8 @@ function txImpManualEdit(){
   if(sel)sel.value='';
   var inp=document.getElementById('tx-pr');
   if(inp){inp.readOnly=false;inp.style.opacity='1'}
-  var hint=document.getElementById('tx-imp-hint');
-  if(hint)hint.textContent='';
+  txImpHint('');
+  txActualizarImpUi(true);
   cTx();
 }
 var TELAS_CATALOGO=[
@@ -5173,7 +5201,13 @@ function _cTxTotals(){
   var tm=parseFloat(document.getElementById('tx-tela-m').value)||1;
   var tela=tpm*tm;
   document.getElementById('tx-tela-sub').textContent=usd(tela);
-  var pr=parseFloat(document.getElementById('tx-pr').value)||0;
+  var prUnit=parseFloat(document.getElementById('tx-pr').value)||0;
+  var sel=document.getElementById('tx-imp-select');
+  var lineal=txImpEsLineal(sel&&sel.value);
+  txActualizarImpUi(lineal);
+  var pr=lineal?prUnit*tm:prUnit;
+  var impSub=document.getElementById('tx-imp-sub');
+  if(impSub)impSub.textContent=usd(pr);
   var co=parseFloat(document.getElementById('tx-co').value)||0;
   var gan=parseFloat(document.getElementById('tx-gan').value)||0;
   var costo=tela+pr+co;
@@ -5183,11 +5217,10 @@ function _cTxTotals(){
   document.getElementById('tr-precio').textContent=usd(precio);
   var margen=precio>0?gan/precio*100:0;
   document.getElementById('tr-sem').innerHTML=margen>=30?'<span class="semaforo ok">&#10003; '+margen.toFixed(1)+'%</span>':margen>=20?'<span class="semaforo warn">&#9888; '+margen.toFixed(1)+'%</span>':'<span class="semaforo bad">&#x2717; '+margen.toFixed(1)+'%</span>';
-  var sel=document.getElementById('tx-imp-select');
   var impNom='Impresion';
   if(sel&&sel.value&&sel.selectedIndex>=0){
     var ot=sel.options[sel.selectedIndex];
-    if(ot&&ot.text)impNom='Impresion ('+ot.text.replace(/\s+—\s+\$[\d.]+$/,'').trim()+')';
+    if(ot&&ot.text)impNom='Impresion ('+ot.text.replace(/\s+—\s+\$[\d.]+(\/m)?$/,'').trim()+')';
   }
   var prodEl=document.getElementById('tx-prod');
   var prodNom=prodEl&&prodEl.selectedIndex>=0?prodEl.options[prodEl.selectedIndex].text:'';
@@ -5202,6 +5235,7 @@ function _cTxTotals(){
   if(telaNom!=='Tela')notas.push({label:'Tela',val:telaNom.replace(/^Tela \(|\)$/g,'')});
   notas.push({label:'Metros de tela',val:String(tm)});
   notas.push({label:'Precio tela',val:usd(tpm)+'/m'});
+  notas.push({label:'Precio impresion',val:lineal?usd(prUnit)+'/m':usd(prUnit)});
   window._txResult={
     costo:costo,precio:precio,gan:gan,
     detalle:{
@@ -5533,7 +5567,7 @@ function confirmarGuardarAnalisis(silencio){
     lista[mismo].costo=costo;
     lista[mismo].precio=precio;
     if(precio>0)lista[mismo].margen=(precio-costo)/precio*100;
-    if(tipo==='Impresion'){lista[mismo].costo_m2=res.costo_m2||0;lista[mismo].area=res.area||0}
+    if(tipo==='Impresion'){lista[mismo].costo_m2=res.costo_m2||0;lista[mismo].area=res.area||0;lista[mismo].precio_ml=res.precio_ml||0}
     LS.s('crm_costos',lista);
     closeModal('modal-guardar-calc');
     fillTxImpSelect();
@@ -5544,7 +5578,7 @@ function confirmarGuardarAnalisis(silencio){
   }
   var obj={id:uid(),tipo:tipo,nombre:nombre,material:material,costo:costo,precio:precio,fecha:hoy(),activo:activo,detalle:res.detalle||null};
   if(precio>0)obj.margen=(precio-(costo||0))/precio*100;
-  if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0}
+  if(tipo==='Impresion'){obj.costo_m2=res.costo_m2||0;obj.area=res.area||0;obj.precio_ml=res.precio_ml||0}
   if(activo){
     var cat=LS.g('crm_catalogo')||[];
     var catObj={id:uid(),nombre:nombre,tipo:tipo,material:material,precio:precio,costo:costo,activo:true,foto:'',desc:material,dias:1,horas:0};
