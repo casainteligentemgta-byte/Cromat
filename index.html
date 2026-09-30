@@ -84,6 +84,9 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .gc-gasto-row{display:grid;grid-template-columns:1fr 92px 32px;gap:6px;align-items:center;margin-bottom:6px}
 .gc-gasto-row .fi{min-width:0}
+.gc-gasto-row input[type="number"]{text-align:right;-moz-appearance:textfield}
+.gc-gasto-row input[type="number"]::-webkit-inner-spin-button,
+.gc-gasto-row input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 /* LISTS */
 .list-item{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px;cursor:pointer}
 .list-item:active{background:var(--s1)}
@@ -5382,7 +5385,7 @@ function renderGcGastos(){
     var monto=g.monto==null||g.monto===''?'':g.monto;
     return '<div class="gc-gasto-row">'
       +'<input class="fi" type="text" value="'+escHtml(g.label||'')+'" placeholder="Concepto" oninput="gcGastoEdit('+i+',\'label\',this.value)">'
-      +'<input class="fi" type="number" min="0" step="0.01" value="'+escHtml(String(monto))+'" placeholder="0.00" oninput="gcGastoEdit('+i+',\'monto\',this.value)">'
+      +'<input class="fi" type="number" min="0" step="0.01" inputmode="decimal" value="'+escHtml(String(monto))+'" placeholder="0.00" onfocus="this.select()" oninput="gcGastoEdit('+i+',\'monto\',this.value)">'
       +'<button class="btn btn-ghost btn-sm" type="button" style="color:var(--dt);padding:6px 0;justify-content:center" onclick="quitarGastoAnalisis('+i+')" aria-label="Quitar gasto">&#x2715;</button>'
       +'</div>';
   }).join('');
