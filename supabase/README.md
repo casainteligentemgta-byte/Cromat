@@ -25,7 +25,7 @@ Pegarlas solo en **Usuarios → Conectar nube** deja la nube **en ese teléfono*
 
 1. Crea el proyecto en Supabase.
 2. Authentication → Providers → Email. **Desactiva Confirm email** (el SMTP gratis bloquea invitados desde el primer intento con «excediste el número de intentos»).
-3. SQL Editor: pega y corre `schema.sql` (si ya lo corriste, vuelve a pegarlo: confirma cuentas a medias, deja al dueño admin y permite guardar en `cromat_data`).
+3. SQL Editor: pega y corre `schema.sql` (si ya lo corriste, vuelve a pegarlo: confirma cuentas a medias, deja al dueño admin, lista el equipo con correo y permite guardar en `cromat_data`).
 4. Configura URL y anon como arriba.
 5. En Cromat: entra con **casainteligentemgta@gmail.com**. Ese correo queda como dueño / admin; nadie puede bajarle el rol ni quitarle el acceso. Si esa cuenta ya existía con otro rol, vuelve a pegar `schema.sql` y entra de nuevo: el SQL la deja admin al instante.
 6. **Usuarios** → nombre, correo, rol → **Crear invitación y abrir correo**. Se abre el mail con el enlace. También puedes copiar o mandar por WhatsApp.

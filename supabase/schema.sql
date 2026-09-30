@@ -250,6 +250,35 @@ grant execute on function public.cromat_rol() to authenticated;
 grant execute on function public.cromat_org_id() to authenticated;
 grant execute on function public.cromat_can_key(text) to authenticated;
 
+create or replace function public.cromat_equipo()
+returns table (
+  user_id uuid,
+  nombre text,
+  usuario text,
+  email text,
+  rol text,
+  activo boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p.user_id,
+    p.nombre,
+    p.usuario,
+    coalesce(nullif(trim(p.email), ''), u.email, '')::text,
+    p.rol,
+    p.activo
+  from public.cromat_profiles p
+  left join auth.users u on u.id = p.user_id
+  where p.org_id = public.cromat_org_id()
+  order by p.nombre
+$$;
+
+grant execute on function public.cromat_equipo() to authenticated;
+
 -- Guarda un bloque de datos de la empresa (evita fallos raros del upsert + RLS).
 create or replace function public.cromat_save_data(p_key text, p_value jsonb)
 returns void

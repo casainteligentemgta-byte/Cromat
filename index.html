@@ -238,6 +238,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
   </div>
   <div class="st">Presupuestos recientes</div>
   <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
+  <div id="dash-equipo-wrap" style="display:none">
+    <div class="st" style="margin-top:14px">Equipo</div>
+    <div id="dash-equipo"><div class="empty">Sin usuarios</div></div>
+  </div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
   <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
   <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin:16px 0 0;line-height:1.4"></div>
@@ -2000,25 +2004,68 @@ function abrirUsuarios(){
   renderUsuarios();
   openModal('modal-usuarios');
 }
+function correoDeUsuario(u){
+  if(!u)return '';
+  if(u.email)return String(u.email).trim();
+  if(u.usuario&&String(u.usuario).indexOf('@')>=0)return String(u.usuario).trim();
+  return '';
+}
+function htmlFilaEquipo(u,admin){
+  var id=u.user_id||u.id||'';
+  var yo=AUTH&&id&&AUTH.id===id;
+  var dueño=esDueñoPerfil(u)||esDueñoEmail(u.email);
+  var mail=correoDeUsuario(u)||authHandle(u);
+  var inact=u.activo===false;
+  var rol=dueño?'admin':u.rol;
+  var html='<div class="list-item">'
+    +'<div class="li-top"><span class="li-name">'+escHtml(u.nombre||u.usuario||'Sin nombre')+'</span>'
+    +'<span class="tag '+(inact?'tag-gray':'tag-teal')+'">'+escHtml(authRol(rol).l)+'</span></div>'
+    +'<div class="li-sub">'+(mail?escHtml(mail):'Sin correo')
+    +(yo?' · tu sesion':'')
+    +(inact?' · inactivo':'')
+    +(dueño?' · dueño':'')+'</div>';
+  if(admin){
+    if(dueño){
+      html+='<div class="li-sub" style="margin-top:6px">Dueño fijo. No se puede cambiar el rol ni quitar.</div>';
+    }else{
+      var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
+      html+='<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
+        +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+escHtml(id)+'\',this.value)">'+opts+'</select>'
+        +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+escHtml(id)+'\')">'+(inact?'Activar':'Quitar')+'</button>')
+        +'</div>';
+    }
+  }
+  return html+'</div>';
+}
 function renderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el)return;
   if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudRenderUsuarios==='function'){cloudRenderUsuarios();return}
   var lista=authUsers();
-  el.innerHTML=lista.map(function(u){
-    var yo=AUTH&&u.id===AUTH.id;
-    var dueño=esDueñoPerfil(u);
-    var opts=Object.keys(ROLES).map(function(k){return'<option value="'+k+'"'+(u.rol===k?' selected':'')+'>'+ROLES[k].l+'</option>'}).join('');
-    return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(u.nombre)+'</span><span class="tag tag-teal">'+escHtml(authRol(u.rol).l)+'</span></div>'
-      +'<div class="li-sub">'+escHtml(authHandle(u))+(yo?' · tu sesion':'')+(u.activo===false?' · inactivo':'')+(dueño?' · dueño':'')+'</div>'
-      +(dueño
-        ?'<div class="li-sub" style="margin-top:6px">Dueño fijo. No se puede cambiar el rol ni quitar.</div>'
-        :'<div style="display:flex;gap:6px;margin-top:8px;align-items:center">'
-          +'<select class="fi" style="flex:1" onchange="cambiarRolUsuario(\''+u.id+'\',this.value)">'+opts+'</select>'
-          +(yo?'':'<button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarUsuario(\''+u.id+'\')">X</button>')
-          +'</div>')
-      +'</div>';
-  }).join('');
+  if(!lista.length){el.innerHTML='<div class="empty">Sin usuarios</div>';return}
+  el.innerHTML=lista.map(function(u){return htmlFilaEquipo(u,true)}).join('');
+}
+function pintarEquipo(lista){
+  var wrap=document.getElementById('dash-equipo-wrap');
+  var el=document.getElementById('dash-equipo');
+  if(!wrap||!el)return;
+  if(!authCanUsers()){wrap.style.display='none';return}
+  wrap.style.display='';
+  lista=(lista||[]).filter(function(u){return u&&u.activo!==false});
+  if(!lista.length){el.innerHTML='<div class="empty">Sin usuarios en el equipo</div>';return}
+  el.innerHTML=lista.map(function(u){return htmlFilaEquipo(u,false)}).join('');
+}
+function renderEquipo(){
+  if(!authCanUsers()){
+    var wrap=document.getElementById('dash-equipo-wrap');
+    if(wrap)wrap.style.display='none';
+    return;
+  }
+  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudCargarEquipo==='function'){
+    cloudCargarEquipo(pintarEquipo);
+    return;
+  }
+  pintarEquipo(authUsers());
 }
 function crearUsuario(){
   if(!authCanUsers())return;
@@ -2040,6 +2087,7 @@ function crearUsuario(){
     document.getElementById('nu-usuario').value='';
     document.getElementById('nu-clave').value='';
     renderUsuarios();
+    renderEquipo();
   }).catch(function(){alert('Este navegador no permite guardar claves de forma segura')});
 }
 function cambiarRolUsuario(id,rol){
@@ -2057,6 +2105,7 @@ function cambiarRolUsuario(id,rol){
   authSaveUsers(lista);
   if(AUTH&&AUTH.id===id){AUTH.rol=rol;authTouch();authApplyUI()}
   renderUsuarios();
+  renderEquipo();
 }
 function eliminarUsuario(id){
   if(!authCanUsers())return;
@@ -2070,6 +2119,7 @@ function eliminarUsuario(id){
   if(!confirm('Eliminar a '+u.nombre+'?'))return;
   authSaveUsers(lista.filter(function(x){return x.id!==id}));
   renderUsuarios();
+  renderEquipo();
 }
 
 // ===== NAV =====
@@ -2122,6 +2172,7 @@ function renderDash(){
   var sEl=document.getElementById('dash-stock');
   if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
   else{sEl.innerHTML=bajo.map(function(i){return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span><span class="tag tag-red">BAJO</span></div><div class="li-sub">Stock: '+escHtml(i.stock)+' '+escHtml(i.unidad)+' (min: '+escHtml(i.min)+')</div></div>'}).join('')}
+  renderEquipo();
 }
 
 // ===== CLIENTES =====
@@ -6535,6 +6586,28 @@ function cloudCrearInvitacion(){
     cloudAbrirCorreoInvitacion(email,code,nombre,rol);
   },function(){fin();alert('Sin conexion')});
 }
+function cloudCargarEquipo(cb){
+  if(!sb){cb([]);return}
+  function norm(lista){
+    return (lista||[]).map(function(u){
+      var id=u.user_id||u.id;
+      var email=correoDeUsuario(u);
+      if(!email&&AUTH&&id===AUTH.id&&SB_USER&&SB_USER.email)email=SB_USER.email;
+      return Object.assign({},u,{email:email});
+    });
+  }
+  sb.rpc('cromat_equipo').then(function(r){
+    if(!r.error&&r.data){cb(norm(r.data));return}
+    sb.from('cromat_profiles').select('user_id,nombre,usuario,email,rol,activo').order('nombre').then(function(x){
+      if(x.error){
+        return sb.from('cromat_profiles').select('user_id,nombre,usuario,rol,activo').order('nombre').then(function(y){
+          cb(norm((!y.error&&y.data)||[]));
+        });
+      }
+      cb(norm(x.data||[]));
+    });
+  });
+}
 function cloudRenderUsuarios(){
   var el=document.getElementById('lista-usuarios');
   if(!el||!sb)return;
@@ -6569,6 +6642,7 @@ function cloudRenderUsuarios(){
       }).join('');
     }
     el.innerHTML=html||'<div class="empty">Sin usuarios</div>';
+    renderEquipo();
   }
   function cargarInvites(users){
     return sb.from('cromat_invites').select('id,code,rol,nombre_sugerido,email,used_at').is('used_at',null).order('created_at',{ascending:false}).then(function(r){
@@ -6613,6 +6687,7 @@ function cloudCambiarRol(id,rol){
       if(r.error){alert(cloudErr(r.error));cloudRenderUsuarios();return}
       if(AUTH&&AUTH.id===id){AUTH.rol=rol;authApplyUI()}
       cloudRenderUsuarios();
+      renderEquipo();
     });
   });
 }
@@ -6632,6 +6707,7 @@ function cloudDesactivarUsuario(id){
     sb.from('cromat_profiles').update({activo:next}).eq('user_id',id).then(function(x){
       if(x.error)alert(cloudErr(x.error));
       cloudRenderUsuarios();
+      renderEquipo();
     });
   });
 }
