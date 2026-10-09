@@ -137,7 +137,6 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .pres-doc-head{background:#0A0A0A;padding:16px 14px 14px;text-align:center;border-bottom:3px solid #FF6B35}
 .pres-doc-brand{font-size:26px;font-weight:800;letter-spacing:0.8px;line-height:1}
 .pres-doc-brand .c1{color:#FF6B35}.pres-doc-brand .c2{color:#5ec8d4}
-.pres-doc-web{font-size:12px;color:#5ec8d4;font-weight:600;margin-top:7px;letter-spacing:0.4px}
 .pres-doc-id{padding:10px 0 12px;border-bottom:0.5px solid #e8e8e0;margin-bottom:12px}
 .pres-doc-num{font-size:15px;font-weight:800;color:#028090;white-space:nowrap;letter-spacing:0.2px}
 .pres-doc-dates{font-size:11px;color:#666;margin-top:4px;line-height:1.45}
@@ -1558,8 +1557,7 @@ function presDocModelo(p){
   var tel=c?[c.tel,c.tel2].filter(Boolean).join(' / '):'';
   var emisor=[
     {k:'Empresa',v:'CROMAT'},
-    {k:'Actividad',v:'Impresion, sublimacion y textil'},
-    {k:'Web',v:'cromat.xyz'}
+    {k:'Actividad',v:'Impresion, sublimacion y textil'}
   ];
   var cliente=[
     {k:'Nombre',v:(c&&c.nombre)||p.clienteNombre||'Sin cliente'},
@@ -2707,7 +2705,6 @@ function htmlPresupuestoFormal(p){
   var html='<div class="pres-doc">';
   html+='<div class="pres-doc-head">';
   html+='<div class="pres-doc-brand"><span class="c1">CRO</span><span class="c2">MAT</span></div>';
-  html+='<div class="pres-doc-web">cromat.xyz</div>';
   html+='</div>';
   html+='<div class="pres-doc-body">';
   html+='<div class="pres-doc-id"><div class="pres-doc-num">N° '+escHtml(d.numero)+'</div>';
@@ -2735,7 +2732,7 @@ function htmlPresupuestoFormal(p){
   html+='<div class="pres-firma">'+(d.elaborado?'Elaborado por '+escHtml(d.elaborado)+'<br>':'')+'CROMAT</div>';
   html+='<div class="pres-firma">Aceptacion del cliente<br>Nombre y firma</div>';
   html+='</div>';
-  html+='<div class="pres-foot">CROMAT · Impresion, sublimacion y textil · cromat.xyz<br>Este documento es una cotizacion y no constituye factura.</div>';
+  html+='<div class="pres-foot">CROMAT · Impresion, sublimacion y textil<br>Este documento es una cotizacion y no constituye factura.</div>';
   html+='</div></div>';
   return html;
 }
@@ -4740,22 +4737,18 @@ function construirPdfPresupuesto(p){
   function need(h){if(y+h>maxY){pdf.addPage();y=18}}
   function txt(s,x,yy,opt){pdf.text(pdfTxt(s),x,yy,opt||{})}
   pdf.setFillColor(10,10,10);
-  pdf.rect(0,0,W,24,'F');
+  pdf.rect(0,0,W,20,'F');
   pdf.setFillColor(255,107,53);
-  pdf.rect(0,24,W,2.2,'F');
+  pdf.rect(0,20,W,2.2,'F');
   pdf.setFont('helvetica','bold');
   pdf.setFontSize(22);
   pdf.setTextColor(255,107,53);
   var logoW=pdf.getTextWidth('CROMAT');
   var logoX=(W-logoW)/2;
-  pdf.text('CRO',logoX,12);
+  pdf.text('CRO',logoX,13.5);
   pdf.setTextColor(94,200,212);
-  pdf.text('MAT',logoX+pdf.getTextWidth('CRO'),12);
-  pdf.setFont('helvetica','normal');
-  pdf.setFontSize(10);
-  pdf.setTextColor(94,200,212);
-  pdf.text('cromat.xyz',W/2,19,{align:'center'});
-  y=34;
+  pdf.text('MAT',logoX+pdf.getTextWidth('CRO'),13.5);
+  y=30;
   pdf.setFont('helvetica','bold');
   pdf.setFontSize(13);
   pdf.setTextColor(2,128,144);
@@ -4881,7 +4874,7 @@ function construirPdfPresupuesto(p){
   y+=6;
   pdf.setFontSize(8);
   pdf.setTextColor(120);
-  pdf.text(pdfTxt('CROMAT  ·  Impresion, sublimacion y textil  ·  cromat.xyz'),W/2,y,{align:'center'});
+  pdf.text(pdfTxt('CROMAT  ·  Impresion, sublimacion y textil'),W/2,y,{align:'center'});
   y+=4;
   pdf.text(pdfTxt('Este documento es una cotizacion y no constituye factura.'),W/2,y,{align:'center'});
   return pdf.output('blob');
