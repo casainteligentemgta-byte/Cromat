@@ -316,6 +316,11 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <button class="ptab on" id="ctab-mes" onclick="setPeriodo('mes')">Mes</button>
     <button class="ptab" id="ctab-custom" onclick="setPeriodo('custom')">Rango</button>
   </div>
+  <div id="conta-mes-pick" style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+    <button class="btn btn-ghost btn-sm" type="button" onclick="cambiarMesConta(-1)" aria-label="Mes anterior" style="min-width:36px;padding:6px 8px">‹</button>
+    <select class="fi" id="conta-mes" style="flex:1" onchange="onMesContaChange()" aria-label="Elegir mes"></select>
+    <button class="btn btn-ghost btn-sm" type="button" onclick="cambiarMesConta(1)" aria-label="Mes siguiente" style="min-width:36px;padding:6px 8px">›</button>
+  </div>
   <div id="conta-rango" style="display:none;gap:6px;margin-bottom:10px;flex-wrap:wrap">
     <input class="fi" type="date" id="conta-desde" style="max-width:140px" onchange="renderConta()">
     <input class="fi" type="date" id="conta-hasta" style="max-width:140px" onchange="renderConta()">
@@ -364,7 +369,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
     <div class="dist-row" style="margin-top:8px;border-bottom:none"><span class="result-label">Fijos + agregados</span><span style="font-size:12px;font-weight:700" id="conta-gastos-split">$0</span></div>
   </div>
   <div class="card" style="margin-bottom:10px">
-    <div class="st">Por categoria (mes)</div>
+    <div class="st" id="conta-cats-title">Por categoria (mes)</div>
     <div id="conta-cats"><div class="empty">Sin desglose</div></div>
   </div>
   <div class="btn-row">
@@ -1813,6 +1818,7 @@ function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){
   var el=document.getElementById(id);
   el.classList.remove('open');
+  if(id==='modal-orden')window._anticipoPago=null;
   if(id==='modal-cliente'){
     el.style.zIndex='';
     if(_presClienteNuevo){
@@ -2193,7 +2199,7 @@ function goTab(id){
   if(id==='ordenes')renderOrdenes();
   if(id==='conta'){
     if(periodoConta!=='mes')setPeriodo('mes');
-    else renderConta();
+    else{fillMesContaOpts();renderConta()}
   }
   if(id==='fondos')renderFondos();
   if(id==='costos'){renderCostos();precargarHtml2Pdf()}
@@ -2953,7 +2959,10 @@ function crearOPdesde(presId){
     return;
   }
   if(!p.anticipoPago){abrirAnticipo(presId);return;}
+  window._anticipoPago=p.anticipoPago;
   abrirOrden(null,p);
+  var antMonto=pagoEsSinAnticipo(p.anticipoPago)?0:(parseFloat(p.anticipoPago.monto)||parseFloat(p.anticipo)||0);
+  document.getElementById('op-anticipo').value=antMonto;
 }
 
 // ===== ORDENES =====
@@ -3293,6 +3302,7 @@ function guardarOrden(){
     }
   }
   var pagoAnt=window._anticipoPago||null;
+  window._anticipoPago=null;
   if(esNueva&&pagoAnt)obj.anticipoPago=pagoAnt;
   if(esNueva){
     obj.creadoPor=actorAhora();
@@ -3679,6 +3689,8 @@ function renderLog(){
 
 // ===== CONTABILIDAD =====
 var periodoConta='mes';
+var periodoMesYm='';
+var MESES_ES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 var CONTA_CFG_DEFAULT={costoPct:35,impPct:10,negPct:80,ceoPct:15,operPct:5};
 var MOV_CAT_LABEL={ventas:'Ventas',servicios:'Servicios',insumos:'Insumos/Materiales',operativos:'Gastos operativos',equipo:'Equipo/Mantenimiento',salarios:'Salarios',otro:'Otro'};
 var _contaPctReady=false;
@@ -3813,6 +3825,19 @@ function tipoCobroMov(m){
   if(m&&m.opId)return 'op';
   return '';
 }
+function topeCobroOP(o){
+  if(!o)return 0;
+  var m=opMontoDe(o);
+  // Con monto: solo lo cobrado de la OP (igual que antes).
+  if(m>0.009)return opCobradoDe(o);
+  var a=opAnticipoDe(o);
+  var s=opSaldoPagoDe(o);
+  if(s<=0&&o.saldoCobrado)s=Math.max(0,m-a);
+  var p=presDeOP(o);
+  var pt=p?Math.max(0,parseFloat(p.total)||presTotalDe(p)||0):0;
+  // Sin monto: no anular anticipos/presupuestos reales.
+  return Math.max(money2(a+s),pt);
+}
 function cobrosDelPeriodo(movs,ym,desde,hasta){
   movs=movs||LS.g('crm_movimientos')||[];
   var ops=LS.g('crm_ordenes')||[];
@@ -3823,7 +3848,10 @@ function cobrosDelPeriodo(movs,ym,desde,hasta){
   function cupoDe(id){
     var o=id&&opById[id];
     if(!o)return 1e12;
-    return Math.max(0,Math.min(opMontoDe(o),opCobradoDe(o))-(byOp[id]||0));
+    var tope=topeCobroOP(o);
+    // OP sin monto ni cobros conocidos: no descartar el asiento del libro.
+    if(!(tope>0.009))return 1e12;
+    return Math.max(0,tope-(byOp[id]||0));
   }
   function addOp(id,n){
     n=money2(n);
@@ -3859,13 +3887,19 @@ function cobrosDelPeriodo(movs,ym,desde,hasta){
     var falta=cupoDe(o.id);
     if(falta<=0.009)return;
     var ant=opAnticipoDe(o);
-    var antF=o.anticipoPago&&o.anticipoPago.fecha;
+    var antF=(o.anticipoPago&&o.anticipoPago.fecha)||'';
+    // Solo si no hay asiento en el libro: usar fecha de la OP para no perder el anticipo.
+    if(!antF&&ant>0.009){
+      var yaMov=movs.some(function(m){return m&&m.tipo==='ingreso'&&m.opId===o.id&&!!tipoCobroMov(m)});
+      if(!yaMov)antF=o.fecha||'';
+    }
     if(ant>0&&antF&&fechaEnPeriodo(antF,ym,desde,hasta)&&falta>0.009){
       var a=addOp(o.id,Math.min(ant,falta));
       if(a>0){backfill=money2(backfill+a);falta=cupoDe(o.id)}
     }
     var sal=opSaldoPagoDe(o);
-    var salF=(o.saldoPago&&o.saldoPago.fecha)||'';
+    if(sal<=0&&o.saldoCobrado)sal=Math.max(0,opMontoDe(o)-ant);
+    var salF=(o.saldoPago&&o.saldoPago.fecha)||o.fechaCobroSaldo||'';
     if(sal>0&&salF&&fechaEnPeriodo(salF,ym,desde,hasta)&&falta>0.009){
       var b=addOp(o.id,Math.min(sal,falta));
       if(b>0)backfill=money2(backfill+b);
@@ -4128,15 +4162,100 @@ function periodoRango(){
   var hoyStr=hoy(),desde,hasta;
   if(periodoConta==='dia'){desde=hoyStr;hasta=hoyStr}
   else if(periodoConta==='semana'){var d=new Date();d.setDate(d.getDate()-7);desde=fechaISO(d);hasta=hoyStr}
-  else if(periodoConta==='mes'){desde=hoyStr.slice(0,7)+'-01';hasta=hoyStr}
+  else if(periodoConta==='mes'){
+    var ym=mesContaYm();
+    desde=ym+'-01';
+    hasta=(ym===hoyStr.slice(0,7))?hoyStr:ultimoDiaMes(ym);
+  }
   else{desde=document.getElementById('conta-desde').value;hasta=document.getElementById('conta-hasta').value}
   return {desde:desde,hasta:hasta};
+}
+function labelMesYm(ym){
+  if(!ym||String(ym).length<7)return 'mes';
+  var mo=+String(ym).slice(5,7);
+  if(!(mo>=1&&mo<=12))return String(ym);
+  return MESES_ES[mo-1]+' '+String(ym).slice(0,4);
+}
+function ultimoDiaMes(ym){
+  var y=+String(ym).slice(0,4),m=+String(ym).slice(5,7);
+  return ym+'-'+('0'+new Date(y,m,0).getDate()).slice(-2);
+}
+function mesContaYm(){
+  var cur=hoy().slice(0,7);
+  if(periodoConta!=='mes')return cur;
+  var el=document.getElementById('conta-mes');
+  var v=(el&&el.value)||periodoMesYm||cur;
+  if(!/^\d{4}-\d{2}$/.test(v))v=cur;
+  periodoMesYm=v;
+  return v;
+}
+function mesesDisponiblesConta(){
+  var cur=hoy().slice(0,7);
+  var seen={},out=[];
+  function add(ym){
+    if(!ym||!/^\d{4}-\d{2}$/.test(ym)||seen[ym])return;
+    if(ym>cur)return;
+    seen[ym]=1;out.push(ym);
+  }
+  add(cur);
+  add(periodoMesYm);
+  var d=new Date();
+  for(var i=0;i<24;i++){
+    add(d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2));
+    d.setMonth(d.getMonth()-1);
+  }
+  function scanFecha(f){
+    f=String(f||'');
+    if(f.length>=7)add(f.slice(0,7));
+  }
+  (LS.g('crm_movimientos')||[]).forEach(function(m){scanFecha(m&&m.fecha)});
+  (LS.g('crm_ordenes')||[]).forEach(function(o){
+    if(!o)return;
+    scanFecha(o.fecha);
+    scanFecha(o.fechaCobroSaldo);
+    scanFecha(o.anticipoPago&&o.anticipoPago.fecha);
+    scanFecha(o.saldoPago&&o.saldoPago.fecha);
+  });
+  out.sort(function(a,b){return a<b?1:a>b?-1:0});
+  return out;
+}
+function fillMesContaOpts(){
+  var sel=document.getElementById('conta-mes');
+  if(!sel)return;
+  var cur=hoy().slice(0,7);
+  if(!periodoMesYm||!/^\d{4}-\d{2}$/.test(periodoMesYm))periodoMesYm=cur;
+  var opts=mesesDisponiblesConta();
+  if(opts.indexOf(periodoMesYm)<0)opts.unshift(periodoMesYm);
+  sel.innerHTML=opts.map(function(ym){
+    return '<option value="'+ym+'">'+escHtml(labelMesYm(ym))+(ym===cur?' (actual)':'')+'</option>';
+  }).join('');
+  sel.value=periodoMesYm;
+}
+function onMesContaChange(){
+  var el=document.getElementById('conta-mes');
+  periodoMesYm=el&&el.value?el.value:hoy().slice(0,7);
+  renderConta();
+}
+function cambiarMesConta(delta){
+  var opts=mesesDisponiblesConta();
+  var cur=mesContaYm();
+  var i=opts.indexOf(cur);
+  if(i<0)i=0;
+  // opts ordenados de más reciente a más antiguo; -1 = anterior (más viejo), +1 = siguiente (más nuevo)
+  var next=opts[i-delta];
+  if(!next)return;
+  periodoMesYm=next;
+  fillMesContaOpts();
+  renderConta();
 }
 function setPeriodo(p){
   periodoConta=p;
   ['dia','semana','mes','custom'].forEach(function(x){document.getElementById('ctab-'+x).classList.remove('on')});
   document.getElementById('ctab-'+p).classList.add('on');
+  var mesPick=document.getElementById('conta-mes-pick');
+  if(mesPick)mesPick.style.display=p==='mes'?'flex':'none';
   document.getElementById('conta-rango').style.display=p==='custom'?'flex':'none';
+  if(p==='mes')fillMesContaOpts();
   renderConta();
 }
 function fillMovCats(selected){
@@ -4178,13 +4297,18 @@ function renderConta(){
     if(catFil&&movCatKey(m)!==catFil)return false;
     return true;
   });
-  var ym=hoy().slice(0,7);
-  var cob=cobrosDelPeriodo(movs,ym);
+  var ym=periodoConta==='mes'?mesContaYm():null;
+  var cob=ym?cobrosDelPeriodo(movs,ym):cobrosDelPeriodo(movs,null,r.desde,r.hasta);
   var ing=cob.total;
-  var extra=gastosAgregados(movs,null,null,ym);
-  var fijos=totalGastosFijos();
+  var extra=ym?gastosAgregados(movs,null,null,ym):gastosAgregados(movs,r.desde,r.hasta);
+  var fijos=ym?totalGastosFijos():fijosEnRango(r.desde,r.hasta,periodoConta);
   var gas=fijos+extra;
   var cobrar=totalPorCobrar();
+  var lblPeriodo=periodoConta==='dia'?'hoy':periodoConta==='semana'?'semana':periodoConta==='custom'?'rango':labelMesYm(ym||mesContaYm());
+  var ingLbl=document.querySelector('#c-ingresos')&&document.getElementById('c-ingresos').parentNode.querySelector('.kpi-l');
+  var gasLbl=document.querySelector('#c-gastos2')&&document.getElementById('c-gastos2').parentNode.querySelector('.kpi-l');
+  if(ingLbl)ingLbl.textContent='Ingresos '+lblPeriodo;
+  if(gasLbl)gasLbl.textContent='Gastos '+lblPeriodo;
   document.getElementById('c-ingresos').textContent=usd(ing);
   document.getElementById('c-gastos2').textContent=usd(gas);
   document.getElementById('c-balance').textContent=usd(ing-gas);
@@ -4192,10 +4316,15 @@ function renderConta(){
   if(split)split.textContent=usd(fijos)+' + '+usd(extra)+' = '+usd(gas);
   var ingSplit=document.getElementById('conta-ing-split');
   if(ingSplit){
-    var nota=periodoConta==='mes'?'':'Hoy / Semana / Rango filtra la lista de abajo. ';
     var resCol=(ing-gas)<0?'var(--dt)':'var(--gt)';
-    ingSplit.innerHTML=nota+'<span class="dash-split-ing">Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+'</span> · <span class="dash-split-gas">Gastos '+usd(gas)+'</span> · <span style="color:'+resCol+'">Resultado '+usd(ing-gas)+'</span>';
+    ingSplit.innerHTML='<span class="dash-split-ing">Cobrado OP '+usd(cob.op)+' + otros '+usd(cob.otros)+' = '+usd(cob.total)+'</span> · <span class="dash-split-gas">Gastos '+usd(gas)+'</span> · <span style="color:'+resCol+'">Resultado '+usd(ing-gas)+'</span>';
   }
+  var cobrosTitle=document.querySelector('#conta-cobros-card .st');
+  if(cobrosTitle)cobrosTitle.textContent=periodoConta==='mes'?('Cobrado · '+labelMesYm(ym)):'Cobrado ('+lblPeriodo+')';
+  var cobrosHint=document.querySelector('#conta-cobros-card .st + div');
+  if(cobrosHint&&cobrosHint.style)cobrosHint.textContent=periodoConta==='mes'
+    ?('Desliza a la izquierda para quitar un cobro de '+labelMesYm(ym)+'. Se resta de ingresos, fondos y de la OP.')
+    :'Desliza a la izquierda para quitar un cobro. Se resta de ingresos, fondos y de la OP.';
   var cobrosEl=document.getElementById('conta-cobros');
   if(cobrosEl){
     var filasCob=cob.filas||[];
@@ -4209,7 +4338,8 @@ function renderConta(){
         +'</div></div>';
     }
     if(!filasCob.length&&!(cob.otros>0.009)&&!(cob.opSinId>0.009)){
-      htmlC='<div class="empty">Sin cobros este mes</div>';
+      htmlC='<div class="empty">Sin cobros '+(periodoConta==='mes'?('en '+labelMesYm(ym)):('en el '+lblPeriodo))+'</div>';
+      if(cob.omitido>0.009)htmlC+='<div style="font-size:11px;color:var(--wt);line-height:1.4;margin-top:8px">Hay asientos de cobro que no se cuentan porque superan lo cobrado de la OP (−'+usd(cob.omitido)+'). Revisa el monto de la OP.</div>';
     }else{
       filasCob.forEach(function(f){
         var nom=escHtml(f.nombre||'OP');
@@ -4228,6 +4358,8 @@ function renderConta(){
     bindSwipeDelete(cobrosEl);
   }
   renderGastosFijos();
+  var fijosTitle=document.querySelector('#conta-fijos-card .st');
+  if(fijosTitle)fijosTitle.textContent=periodoConta==='mes'?('Gastos fijos · '+labelMesYm(ym)):'Gastos fijos del mes';
   var balEl=document.getElementById('c-balance');
   if(balEl)balEl.style.color=(ing-gas)<0?'var(--dt)':'var(--gt)';
   document.getElementById('c-cobrar').textContent=usd(cobrar);
@@ -4268,7 +4400,9 @@ function renderConta(){
     }).join('')+(ops.length>8?'<div class="li-sub" style="margin-top:4px">+'+(ops.length-8)+' más</div>':'');
   }
   var byCat={};
-  var movsMes=movs.filter(function(m){return m.fecha&&String(m.fecha).startsWith(ym)});
+  var movsMes=ym
+    ?movs.filter(function(m){return m.fecha&&String(m.fecha).startsWith(ym)})
+    :movs.filter(function(m){return fechaEnPeriodo(m.fecha,null,r.desde,r.hasta)});
   movsMes.forEach(function(m){
     var k=movCatKey(m);
     if(!byCat[k])byCat[k]={ing:0,gas:0};
@@ -4278,7 +4412,8 @@ function renderConta(){
   getGastosFijos().forEach(function(f){
     var k=f.cat&&MOV_CAT_LABEL[f.cat]?f.cat:'operativos';
     if(!byCat[k])byCat[k]={ing:0,gas:0};
-    byCat[k].gas+=(parseFloat(f.monto)||0);
+    var parte=ym?(parseFloat(f.monto)||0):(totalGastosFijos()?((parseFloat(f.monto)||0)*(fijos/totalGastosFijos())):0);
+    byCat[k].gas+=parte;
   });
   if(cob.backfill){
     if(!byCat.ventas)byCat.ventas={ing:0,gas:0};
@@ -4286,6 +4421,8 @@ function renderConta(){
   }
   var catKeys=Object.keys(byCat);
   var catsEl=document.getElementById('conta-cats');
+  var catsTitle=document.getElementById('conta-cats-title');
+  if(catsTitle)catsTitle.textContent='Por categoria ('+lblPeriodo+')';
   if(!catKeys.length){catsEl.innerHTML='<div class="empty">Sin desglose</div>'}
   else{
     catsEl.innerHTML=catKeys.map(function(k){
@@ -4392,7 +4529,7 @@ function limpiarPagoOPMes(o,ym){
   if(opPendienteDe(o)>0.009)o.saldoCobrado=false;
 }
 function deshacerCobrosMesOP(opId){
-  var ym=hoy().slice(0,7);
+  var ym=mesContaYm();
   var quitar=borrarMovsIngreso(function(m){return m.opId===opId&&fechaEnPeriodo(m.fecha,ym)});
   var ops=LS.g('crm_ordenes')||[];
   var i=ops.findIndex(function(o){return o.id===opId});
@@ -4412,12 +4549,13 @@ function abrirCobroMesTap(ev,key){
 }
 function eliminarCobroMes(key){
   if(!requireTab('conta'))return;
-  var ym=hoy().slice(0,7);
+  var ym=mesContaYm();
+  var lbl=labelMesYm(ym);
   if(key==='otros'){
-    if(!confirmarBorrar('Quitar los otros ingresos de este mes? Se restan de la contabilidad y de fondos.'))return;
+    if(!confirmarBorrar('Quitar los otros ingresos de '+lbl+'? Se restan de la contabilidad y de fondos.'))return;
     borrarMovsIngreso(function(m){return !tipoCobroMov(m)&&fechaEnPeriodo(m.fecha,ym)});
   }else if(key==='sin-ficha'){
-    if(!confirmarBorrar('Quitar los cobros de OP sin ficha de este mes? Se restan de la contabilidad y de fondos.'))return;
+    if(!confirmarBorrar('Quitar los cobros de OP sin ficha de '+lbl+'? Se restan de la contabilidad y de fondos.'))return;
     borrarMovsIngreso(function(m){return tipoCobroMov(m)&&!m.opId&&fechaEnPeriodo(m.fecha,ym)});
   }else{
     var o=(LS.g('crm_ordenes')||[]).find(function(x){return x.id===key});
@@ -4425,7 +4563,7 @@ function eliminarCobroMes(key){
     var cob=cobrosDelPeriodo(LS.g('crm_movimientos')||[],ym);
     var monto=(cob.byOp&&cob.byOp[key])||(o?opCobradoDe(o):0);
     var nom=o&&o.clienteNombre?o.clienteNombre:'OP #'+cod;
-    if(!confirmarBorrar('Quitar el cobro de '+nom+' ('+usd(monto)+')? Se resta de ingresos, fondos y de la OP.'))return;
+    if(!confirmarBorrar('Quitar el cobro de '+nom+' ('+usd(monto)+') en '+lbl+'? Se resta de ingresos, fondos y de la OP.'))return;
     deshacerCobrosMesOP(key);
   }
   renderConta();
@@ -6251,16 +6389,18 @@ var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciad
 var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals','crm_audit'];
 var CLOUD_KEY_ROLES={
   crm_clientes:['admin','ventas'],
-  crm_presupuestos:['admin','ventas','diseno'],
-  crm_ordenes:['admin','ventas','operadora'],
+  crm_presupuestos:['admin','ventas','diseno','conta'],
+  crm_ordenes:['admin','ventas','operadora','conta'],
   crm_costos:['admin','operadora','diseno'],
   crm_catalogo:['admin','ventas','diseno'],
   crm_inventario:['admin','operadora'],
-  crm_movimientos:['admin','conta'],
+  // Ventas/operadora cobran; si no pueden subir el libro, Contabilidad ve ingresos en $0.
+  crm_movimientos:['admin','conta','ventas','operadora'],
   crm_fondos_config:['admin','conta'],
   crm_fondos_audit:['admin','conta'],
   crm_conta_config:['admin','conta'],
-  imp_vals:['admin','operadora','diseno']
+  // Conta necesita los fijos; si se borran al sincronizar, aparecen los $450 por defecto.
+  imp_vals:['admin','operadora','diseno','conta']
 };
 function leerCfgNube(){
   if(SB_URL.indexOf('https://')===0&&SB_KEY&&SB_KEY.indexOf('__')!==0)return{url:SB_URL,key:SB_KEY};
