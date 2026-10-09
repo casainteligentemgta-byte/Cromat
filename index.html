@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; font-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; font-src 'self'">
 <title>CromatGestion</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -4586,6 +4586,8 @@ function precargarHtml2Pdf(){
   if((window.jspdf&&window.jspdf.jsPDF)||window.jsPDF||_html2pdfCargando)return _html2pdfCargando||Promise.resolve();
   _html2pdfCargando=new Promise(function(ok,fail){
     var s=document.createElement('script');
+    s.crossOrigin='anonymous';
+    s.integrity='sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/';
     s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
     s.onload=function(){ok()};
     s.onerror=function(){_html2pdfCargando=null;fail(new Error('No se pudo cargar el generador de PDF'))};
