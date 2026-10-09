@@ -440,6 +440,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <button class="ctab" onclick="showCalc('dtf',this)">DTF</button>
       <button class="ctab" onclick="showCalc('3d',this)">3D</button>
       <button class="ctab" onclick="showCalc('diseno',this)">Diseno</button>
+      <button class="ctab" onclick="showCalc('seguridad',this)">Seguridad</button>
     </div>
     <!-- IMPRESION -->
 <div id="cp-imp" class="cpanel on">
@@ -756,6 +757,48 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Diseno')">Guardar este analisis</button>
       </div>
     </div>
+    <!-- SEGURIDAD -->
+    <div id="cp-seguridad" class="cpanel">
+      <div class="card">
+        <div class="st">Calculadora Seguridad / EPP</div>
+        <div class="field-row"><span class="field-label">Producto</span>
+          <select class="field-input" id="sg-prod" onchange="sgOnProd()" style="width:auto;min-width:150px;max-width:62%;color:var(--tp);background:var(--s2);border:none;text-align:right">
+            <option value="jeans">Jeans</option>
+            <option value="casco">Casco</option>
+            <option value="lentes">Lentes</option>
+            <option value="botas">Botas</option>
+            <option value="guantes">Guantes</option>
+            <option value="chaleco">Chaleco</option>
+            <option value="orejeras">Orejeras</option>
+            <option value="mascarilla">Mascarilla</option>
+            <option value="overol">Overol</option>
+            <option value="arnes">Arnes</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="field-row" id="sg-prod-nom-row" style="display:none">
+          <span class="field-label">Nombre del producto</span>
+          <input class="field-input" type="text" id="sg-prod-nom" placeholder="Ej: Cinturon" oninput="cSeg()" style="width:auto;min-width:140px;max-width:62%;color:var(--tp)">
+        </div>
+        <div class="field-row"><span class="field-label">Talla / medida</span><input class="field-input" type="text" id="sg-talla" placeholder="Ej: 32 / M" oninput="cSeg()" style="width:auto;min-width:90px;max-width:50%;color:var(--tp)"></div>
+        <div class="field-row"><span class="field-label">Cantidad</span><input class="field-input" type="number" id="sg-cant" value="1" min="1" step="1" oninput="cSeg()"></div>
+        <div class="field-row"><span class="field-label">Costo del producto ($)</span><input class="field-input" type="number" id="sg-costo" value="0" min="0" step="0.01" oninput="cSeg()"></div>
+        <div class="field-row"><span class="field-label">Envio ($)</span><input class="field-input" type="number" id="sg-envio" value="0" min="0" step="0.01" oninput="cSeg()"></div>
+        <div class="field-row"><span class="field-label">Ganancia ($)</span><input class="field-input" type="number" id="sg-gan" value="0" min="0" step="0.01" oninput="cSeg()"></div>
+      </div>
+      <div class="result-box">
+        <div class="result-row"><span class="result-label">Costo producto</span><span class="result-val" id="sgr-prod">-</span></div>
+        <div class="result-row"><span class="result-label">Envio</span><span class="result-val" id="sgr-envio">-</span></div>
+        <div class="result-row"><span class="result-label">Costo directo</span><span class="result-val teal" id="sgr-costo">-</span></div>
+        <div class="result-row"><span class="result-label">Ganancia</span><span class="result-val coral" id="sgr-gan">-</span></div>
+        <div class="total-row"><span class="total-label">Precio venta<span id="sgr-cant-lbl"></span></span><span class="total-val" id="sgr-precio">-</span></div>
+        <div id="sgr-unit" style="font-size:11px;color:var(--tm);text-align:right;margin-top:6px"></div>
+        <div id="sgr-sem"></div>
+      </div>
+      <div style="text-align:right;margin-top:8px">
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Seguridad')">Guardar este analisis</button>
+      </div>
+    </div>
   </div>
   <div id="vista-calc-saved" style="display:none">
     <div class="search-row">
@@ -767,6 +810,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <option value="DTF">DTF</option>
         <option value="3D">3D</option>
         <option value="Diseno">Diseno</option>
+        <option value="Seguridad">Seguridad</option>
       </select>
     </div>
     <div id="lista-costos"></div>
@@ -1385,7 +1429,7 @@ function fechaISO(d){
 }
 function hoy(){return fechaISO(new Date())}
 // Detectar si un producto lleva talla por nombre (global - usada en presupuestos y OPs)
-var LLEVA_TALLA_KWORDS=['camisa','camiseta','polo','franela','corta viento','cortaviento','chaqueta','traje de baño','vestido','pantalon','pantalón','short','bermuda','toalla','delantal','uniforme','mono','sudadera','hoodie','blusa','playera'];
+var LLEVA_TALLA_KWORDS=['camisa','camiseta','polo','franela','corta viento','cortaviento','chaqueta','traje de baño','vestido','pantalon','pantalón','jean','jeans','short','bermuda','toalla','delantal','uniforme','mono','sudadera','hoodie','blusa','playera','bota','botas','casco','chaleco','overol','guante','guantes'];
 function productollevaTalla(nombre){
   if(!nombre)return false;
   var n=nombre.toLowerCase();
@@ -4521,6 +4565,7 @@ function showCalc(id,btn){
   document.getElementById('cp-'+id).classList.add('on');
   if(btn)btn.classList.add('on');
   if(id==='textil'){fillTxImpSelect();txApplyImpPrecio();fillTxTelaSelect();txApplyTelaPrecio();_cTxTotals()}
+  if(id==='seguridad')cSeg();
 }
 function setVistaCostos(v){
   document.getElementById('vista-calc-live').style.display=v==='calc'?'':'none';
@@ -4553,7 +4598,7 @@ function panelCostosActivo(){
 }
 function nombreCalcActiva(){
   var p=panelCostosActivo();
-  var map={'cp-imp':'Impresion','cp-textil':'Textil','cp-dtf':'DTF','cp-3d':'3D','cp-diseno':'Diseno'};
+  var map={'cp-imp':'Impresion','cp-textil':'Textil','cp-dtf':'DTF','cp-3d':'3D','cp-diseno':'Diseno','cp-seguridad':'Seguridad'};
   return (p&&map[p.id])||'Costos';
 }
 function descargarBlob(blob,nombre){
@@ -4608,11 +4653,11 @@ function lineasCostosPdf(){
   if(!src)return lineas;
   var pass=src.querySelector('.pass-btn.active');
   if(pass)push('fila','Modo de impresion',valorCampoPdf(pass));
-  src.querySelectorAll('.st, .field-row, .result-row').forEach(function(el){
+  src.querySelectorAll('.st, .field-row, .result-row, .total-row').forEach(function(el){
     if(el.classList.contains('st')){push('sec',valorCampoPdf(el),'');return}
-    var lab=el.querySelector('.field-label,.result-label');
+    var lab=el.querySelector('.field-label,.result-label,.total-label');
     var inp=el.querySelector('input,select,textarea');
-    var val=el.querySelector('.result-val');
+    var val=el.querySelector('.result-val,.total-val');
     push('fila',valorCampoPdf(lab),inp?valorCampoPdf(inp):valorCampoPdf(val));
   });
   [['ir-area','Area total'],['ir-tinta','Total tinta + purgas / m2'],['ir-pap','Costo papel / m2'],
@@ -5337,6 +5382,67 @@ function c3D(){
     }
   };
 }
+// SEGURIDAD / EPP
+function segNombreProducto(){
+  var sel=document.getElementById('sg-prod');
+  var v=sel&&sel.value;
+  if(v==='otro'){
+    var n=(document.getElementById('sg-prod-nom').value||'').trim();
+    return n||'Otro';
+  }
+  if(sel&&sel.selectedIndex>=0){
+    var o=sel.options[sel.selectedIndex];
+    return (o&&o.text)||'Seguridad';
+  }
+  return 'Seguridad';
+}
+function sgOnProd(){
+  var sel=document.getElementById('sg-prod');
+  var wrap=document.getElementById('sg-prod-nom-row');
+  if(wrap)wrap.style.display=(sel&&sel.value==='otro')?'':'none';
+  cSeg();
+}
+function cSeg(){
+  var cant=parseFloat(document.getElementById('sg-cant')&&document.getElementById('sg-cant').value);
+  if(!(cant>0))cant=1;
+  var costoU=parseFloat(document.getElementById('sg-costo')&&document.getElementById('sg-costo').value)||0;
+  var envio=parseFloat(document.getElementById('sg-envio')&&document.getElementById('sg-envio').value)||0;
+  var gan=parseFloat(document.getElementById('sg-gan')&&document.getElementById('sg-gan').value)||0;
+  var costoProd=costoU*cant;
+  var costo=costoProd+envio;
+  var precio=costo+gan;
+  var prod=segNombreProducto();
+  var talla=(document.getElementById('sg-talla')&&document.getElementById('sg-talla').value||'').trim();
+  var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt};
+  setTxt('sgr-prod',usd(costoProd));
+  setTxt('sgr-envio',usd(envio));
+  setTxt('sgr-costo',usd(costo));
+  setTxt('sgr-gan',usd(gan));
+  setTxt('sgr-precio',usd(precio));
+  var cantLbl=document.getElementById('sgr-cant-lbl');
+  if(cantLbl)cantLbl.textContent=cant>1?' ('+cant+' uds)':'';
+  var unitEl=document.getElementById('sgr-unit');
+  if(unitEl)unitEl.textContent=cant>1?'Unitario: '+usd(precio/cant):'';
+  var margen=precio>0?gan/precio*100:0;
+  var sem=document.getElementById('sgr-sem');
+  if(sem)sem.innerHTML=margen>=30?'<span class="semaforo ok">&#10003; '+margen.toFixed(1)+'%</span>':margen>=20?'<span class="semaforo warn">&#9888; '+margen.toFixed(1)+'%</span>':'<span class="semaforo bad">&#x2717; '+margen.toFixed(1)+'%</span>';
+  var notas=[{label:'Producto',val:prod}];
+  if(talla)notas.push({label:'Talla',val:talla});
+  notas.push({label:'Cantidad',val:String(cant)});
+  notas.push({label:'Costo unitario',val:usd(costoU)});
+  if(cant>1)notas.push({label:'Precio unitario',val:usd(precio/cant)});
+  window._segResult={
+    costo:costo,precio:precio,gan:gan,
+    detalle:{
+      gastos:[
+        {label:'Costo producto'+(cant>1?' × '+cant:''),monto:costoProd},
+        {label:'Envio',monto:envio}
+      ],
+      ganancia:gan,
+      notas:notas
+    }
+  };
+}
 // DISENO
 function cDs(){
   var h=parseFloat(document.getElementById('ds-h').value)||15;
@@ -5450,7 +5556,7 @@ function cargarGastosAnalisis(gastos,mostrar){
   actualizarMargenGc();
 }
 function resultadoAnalisis(tipo){
-  return tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:window._dsResult;
+  return tipo==='Impresion'?window._impResult:tipo==='Textil'?window._txResult:tipo==='DTF'?window._dtfResult:tipo==='3D'?window._3dResult:tipo==='Seguridad'?window._segResult:window._dsResult;
 }
 function nombreAutoAnalisis(tipo,res){
   var extra='';
@@ -5458,6 +5564,10 @@ function nombreAutoAnalisis(tipo,res){
     var modo=document.getElementById('ir-modo');
     var modoTxt=modo&&modo.textContent?modo.textContent.split('—')[0].trim():'';
     extra=(modoTxt?(' · '+modoTxt):'')+(res&&res.area?(' · '+Number(res.area).toFixed(1)+' m²'):'');
+  }
+  if(tipo==='Seguridad'){
+    var prod=segNombreProducto();
+    extra=prod?(' · '+prod):'';
   }
   return tipo+extra+' · '+fch(hoy());
 }
@@ -6075,7 +6185,7 @@ function bindSwipeDelete(root){
   setPass(4);  // default 4 pass
   fillTxImpSelect();
   fillTxTelaSelect();
-  cTx();cDTF();c3D();cDs();
+  cTx();cDTF();c3D();cDs();cSeg();
   // Marcar edición manual del anticipo
   var antEl=document.getElementById('p-anticipo');
   if(antEl) antEl.addEventListener('input',function(){this._manualEdit=true;recalcPres();});
