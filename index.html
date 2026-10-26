@@ -6671,22 +6671,31 @@ function cloudEntrar(nombre,code){
           return cloudCargarPerfil();
         });
       };
+      var unirConocida=function(){
+        return sb.rpc('cromat_auto_join_team',{p_nombre:nombre||''}).then(function(x){
+          if(x.error)throw x.error;
+          return cloudCargarPerfil();
+        });
+      };
       var sinEmpresa=function(e){
         var m=(e&&(e.message||e.details||e.code))||'';
         if(/invalid_invite|invite_required|no hay perfil/i.test(m))throw {message:'need_invite_code'};
         throw e;
       };
-      if(_sbModo==='invite'||code)return redimir().then(function(x){return x},sinEmpresa);
-      return redimir().then(function(x){return x},function(e){
-        var m=(e&&(e.message||e.details||e.code))||'';
-        if(/invalid_invite/i.test(m)){
-          return sb.rpc('cromat_bootstrap',{p_nombre:nombre||''}).then(function(x){
-            if(x.error)throw x.error;
-            return cloudCargarPerfil();
-          },sinEmpresa);
-        }
-        throw e;
-      });
+      var seguirInvite=function(){
+        if(_sbModo==='invite'||code)return redimir().then(function(x){return x},sinEmpresa);
+        return redimir().then(function(x){return x},function(e){
+          var m=(e&&(e.message||e.details||e.code))||'';
+          if(/invalid_invite/i.test(m)){
+            return sb.rpc('cromat_bootstrap',{p_nombre:nombre||''}).then(function(x){
+              if(x.error)throw x.error;
+              return cloudCargarPerfil();
+            },sinEmpresa);
+          }
+          throw e;
+        });
+      };
+      return unirConocida().then(function(x){return x},seguirInvite);
     });
   };
   if(esDueñoEmail(SB_USER&&SB_USER.email)){
