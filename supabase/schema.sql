@@ -483,3 +483,80 @@ end;
 $$;
 
 grant execute on function public.cromat_unlock_login(text) to anon, authenticated;
+
+-- Elis Cuba: si ya autenticó y no tiene perfil, entra al equipo sin código.
+create or replace function public.cromat_auto_join_team(p_nombre text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  em text := lower(trim(coalesce(auth.email(), '')));
+  oid uuid;
+  nom text := coalesce(nullif(trim(p_nombre), ''), '');
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+  if exists (select 1 from public.cromat_profiles where user_id = auth.uid()) then
+    return (select org_id from public.cromat_profiles where user_id = auth.uid());
+  end if;
+  if em <> 'eliscubamoran@gmail.com' then
+    raise exception 'invite_required';
+  end if;
+  select id into oid from public.cromat_orgs order by created_at asc limit 1;
+  if oid is null then
+    raise exception 'invite_required';
+  end if;
+  if nom = '' then
+    nom := 'Elis Cuba';
+  end if;
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
+  values (
+    auth.uid(),
+    oid,
+    nom,
+    split_part(em, '@', 1),
+    'ventas',
+    true,
+    auth.email()
+  )
+  on conflict (user_id) do update
+    set nombre = excluded.nombre,
+        usuario = excluded.usuario,
+        activo = true,
+        email = excluded.email;
+  return oid;
+end;
+$$;
+
+grant execute on function public.cromat_auto_join_team(text) to authenticated;
+
+-- Si la cuenta de Elis ya existe, déjala en el equipo ahora.
+do $$
+declare
+  uid uuid;
+  oid uuid;
+begin
+  select id into uid from auth.users where lower(email) = 'eliscubamoran@gmail.com' limit 1;
+  if uid is null then
+    return;
+  end if;
+  update auth.users
+  set email_confirmed_at = coalesce(email_confirmed_at, now())
+  where id = uid;
+  select id into oid from public.cromat_orgs order by created_at asc limit 1;
+  if oid is null then
+    return;
+  end if;
+  insert into public.cromat_profiles (user_id, org_id, nombre, usuario, rol, activo, email)
+  values (uid, oid, 'Elis Cuba', 'eliscubamoran', 'ventas', true, 'eliscubamoran@gmail.com')
+  on conflict (user_id) do update
+    set nombre = excluded.nombre,
+        usuario = excluded.usuario,
+        activo = true,
+        email = excluded.email;
+end;
+$$;
+

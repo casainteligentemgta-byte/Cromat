@@ -32,3 +32,9 @@ Pegarlas solo en **Usuarios → Conectar nube** deja la nube **en ese teléfono*
 7. La otra persona abre el enlace, elige **Me invitaron**, pone su correo y una clave de 8+ caracteres.
 
 El enlace es `https://tu-dominio/?invite=CODIGO`. El código también se puede pegar a mano.
+
+## Elis Cuba
+
+Correo: **eliscubamoran@gmail.com**. Rol: Ventas.
+
+La cuenta de Authentication ya está. Para dejarla en el equipo, en supabase.com → SQL Editor pega y corre `crear-elis.sql` (o vuelve a pegar este `schema.sql`). Luego entra en [cromat-sandy.vercel.app](https://cromat-sandy.vercel.app) con **Ya tengo cuenta**. La clave no se guarda en este repo.
