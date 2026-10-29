@@ -762,7 +762,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
         <div class="st">Calculadora Seguridad / EPP</div>
         <div class="field-row"><span class="field-label">Producto</span>
           <select class="field-input" id="sg-prod" onchange="sgOnProd()" style="width:auto;min-width:150px;max-width:62%;color:var(--tp);background:var(--s2);border:none;text-align:right">
-            <option value="jeans">Jeans</option>
+            <option value="jeans">Jeans 3C caballeros 14.5 oz Am</option>
             <option value="casco">Casco</option>
             <option value="lentes">Lentes</option>
             <option value="botas">Botas</option>
@@ -779,7 +779,10 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
           <span class="field-label">Nombre del producto</span>
           <input class="field-input" type="text" id="sg-prod-nom" placeholder="Ej: Cinturon" oninput="cSeg()" style="width:auto;min-width:140px;max-width:62%;color:var(--tp)">
         </div>
-        <div class="field-row"><span class="field-label">Talla / medida</span><input class="field-input" type="text" id="sg-talla" placeholder="Ej: 32 / M" oninput="cSeg()" style="width:auto;min-width:90px;max-width:50%;color:var(--tp)"></div>
+        <div class="field-row" id="sg-talla-row">
+          <span class="field-label">Talla / medida</span>
+          <select class="field-input" id="sg-talla" onchange="cSeg()" style="width:auto;min-width:90px;max-width:50%;color:var(--tp);background:var(--s2);border:none;text-align:right"></select>
+        </div>
         <div class="field-row"><span class="field-label">Cantidad</span><input class="field-input" type="number" id="sg-cant" value="1" min="1" step="1" oninput="cSeg()"></div>
         <div class="field-row"><span class="field-label">Costo del producto ($)</span><input class="field-input" type="number" id="sg-costo" value="0" min="0" step="0.01" oninput="cSeg()"></div>
         <div class="field-row"><span class="field-label">Envio ($)</span><input class="field-input" type="number" id="sg-envio" value="0" min="0" step="0.01" oninput="cSeg()"></div>
@@ -1429,10 +1432,44 @@ function fechaISO(d){
 function hoy(){return fechaISO(new Date())}
 // Detectar si un producto lleva talla por nombre (global - usada en presupuestos y OPs)
 var LLEVA_TALLA_KWORDS=['camisa','camiseta','polo','franela','corta viento','cortaviento','chaqueta','traje de baño','vestido','pantalon','pantalón','jean','jeans','short','bermuda','toalla','delantal','uniforme','mono','sudadera','hoodie','blusa','playera','bota','botas','casco','chaleco','overol','guante','guantes'];
+var TALLAS_LETRA=['XS','S','M','L','XL','XXL','XXXL'];
+// Jeans / pantalones caballeros: cintura americana pares 26–48
+var TALLAS_JEAN=['26','28','30','32','34','36','38','40','42','44','46','48'];
 function productollevaTalla(nombre){
   if(!nombre)return false;
   var n=nombre.toLowerCase();
   return LLEVA_TALLA_KWORDS.some(function(k){return n.indexOf(k)>=0});
+}
+function esJeanOPantalon(nombre){
+  var n=normTxt(nombre);
+  if(!n)return false;
+  return n.indexOf('jean')>=0||n.indexOf('pantalon')>=0;
+}
+function tallasParaProducto(nombre){
+  return esJeanOPantalon(nombre)?TALLAS_JEAN:TALLAS_LETRA;
+}
+function sumTallasDetalle(td,tallas){
+  if(!td)return 0;
+  if(tallas&&tallas.length){
+    return tallas.reduce(function(s,t){return s+(+td[t]||0)},0);
+  }
+  return Object.keys(td).reduce(function(s,k){return s+(+td[k]||0)},0);
+}
+function tallasTxtDeDetalle(td,nombre){
+  if(!td)return '';
+  var orden=tallasParaProducto(nombre);
+  var vistos={};
+  var parts=[];
+  orden.forEach(function(t){
+    var v=+td[t]||0;
+    if(v>0){parts.push(t+'x'+v);vistos[t]=true;}
+  });
+  Object.keys(td).forEach(function(t){
+    if(vistos[t])return;
+    var v=+td[t]||0;
+    if(v>0)parts.push(t+'x'+v);
+  });
+  return parts.join(', ');
 }
 function normTxt(s){
   return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -1525,7 +1562,7 @@ function presFechaVence(p){
 }
 function presItemTallasTxt(it){
   if(!it||!it.tallasDetalle)return '';
-  return PRES_TALLAS.filter(function(t){return +it.tallasDetalle[t]>0}).map(function(t){return t+'x'+it.tallasDetalle[t]}).join(', ');
+  return tallasTxtDeDetalle(it.tallasDetalle,it.productoNombre||it.nombre||it.desc||'');
 }
 function presItemDesc(it){
   var nom=String((it&&(it.productoNombre||it.nombre))||'').trim();
@@ -2510,13 +2547,18 @@ function buildProdOpts(selVal){
   return opts;
 }
 // ---- Talla helpers ----
-var PRES_TALLAS=['XS','S','M','L','XL','XXL','XXXL'];
+var PRES_TALLAS=TALLAS_LETRA;
 var _ptTimer=null;
 
+function presTallasItem(i){
+  var it=presItems[i]||{};
+  return tallasParaProducto(it.productoNombre||it.desc||'');
+}
 function presSetTalla(i,t,v){
   if(!presItems[i].tallasDetalle)presItems[i].tallasDetalle={};
   presItems[i].tallasDetalle[t]=+v||0;
-  var total=PRES_TALLAS.reduce(function(s,tt){return s+(presItems[i].tallasDetalle[tt]||0)},0);
+  var total=sumTallasDetalle(presItems[i].tallasDetalle,presTallasItem(i));
+  if(!total)total=sumTallasDetalle(presItems[i].tallasDetalle);
   presItems[i].qty=total||1;
   var el=document.getElementById('ptt-'+i);
   if(el)el.textContent=total+' und';
@@ -2573,6 +2615,7 @@ function presTienesTalla(i,val){
 }
 
 function presSelProd(i,val){
+  var prevJean=esJeanOPantalon(presItems[i].productoNombre||presItems[i].desc||'');
   presItems[i].productoId=val;
   presItems[i].productoNombre='';
   if(val){
@@ -2584,6 +2627,8 @@ function presSelProd(i,val){
     var llevaTalla=productollevaTalla(nom);
     if(llevaTalla&&presItems[i].sinTalla===undefined)presItems[i].sinTalla=false;
     if(!llevaTalla)presItems[i].sinTalla=true;
+    // Si cambia de letra ↔ cintura jean, limpiar desglose incompatible
+    if(prevJean!==esJeanOPantalon(nom))presItems[i].tallasDetalle={};
   }else{presItems[i].precio=0;presItems[i].desc='';presItems[i].sinTalla=true;}
   if(!presItems[i].tallasDetalle)presItems[i].tallasDetalle={};
   renderPresItems();
@@ -2598,8 +2643,10 @@ function renderPresItems(){
     var sinTalla=(it.sinTalla!==undefined)?it.sinTalla:!llevaTallaAuto;
     var tallaBlock='';
     if(!sinTalla){
-      // Mostrar grid de tallas
-      var tallaCols=PRES_TALLAS.map(function(tl){
+      // Mostrar grid de tallas (letras o cintura jean 26–48)
+      var tallasList=tallasParaProducto(nom);
+      var cols=esJeanOPantalon(nom)?6:7;
+      var tallaCols=tallasList.map(function(tl){
         var v=(it.tallasDetalle&&it.tallasDetalle[tl])||0;
         var bg=v>0?'var(--coral)':'var(--s1)';
         var col=v>0?'#fff':'var(--ts)';
@@ -2613,13 +2660,14 @@ function renderPresItems(){
           +'</button>'
           +'</div>'
       }).join('');
-      var totalT=PRES_TALLAS.reduce(function(s,tl){return s+(it.tallasDetalle&&it.tallasDetalle[tl]||0)},0);
+      var totalT=sumTallasDetalle(it.tallasDetalle,tallasList);
+      var lblTalla=esJeanOPantalon(nom)?'TALLAS (cintura)':'TALLAS';
       tallaBlock='<div style="margin:6px 0 4px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-        +'<span style="font-size:11px;font-weight:600;color:var(--ts)">TALLAS</span>'
+        +'<span style="font-size:11px;font-weight:600;color:var(--ts)">'+lblTalla+'</span>'
         +'<button class="btn btn-ghost btn-sm" onclick="presTienesTalla('+i+',\'sin\')">Sin talla</button>'
         +'</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">'+tallaCols+'</div>'
+        +'<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:4px">'+tallaCols+'</div>'
         +'<div style="font-size:11px;color:var(--ts);margin-top:4px">Total: <strong id="ptt-'+i+'">'+totalT+' und</strong></div>'
         +'</div>';
     } else {
@@ -2980,7 +3028,7 @@ function renderOrdenes(){
     if(!lista.length){el.innerHTML='<div class="empty">Sin ordenes</div>';return}
     var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
-      var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?OP_TALLAS.reduce(function(s,t){return s+(it.tallasDetalle[t]||0)},0):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
+      var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?opTotalItem(it):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
       var pend=opPendienteDe(o),cob=opCobradoDe(o),tot=opMontoDe(o);
       var money=tot>0?'<div class="li-sub" style="margin-bottom:6px">'+(pend>0.009?usd(cob)+' cobrado · <span style="color:var(--wt);font-weight:700">'+usd(pend)+' por cobrar</span>':usd(tot)+' cobrado')+'</div>':'<div style="margin-bottom:6px"></div>';
       return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(o.clienteNombre)+'</span><span class="tag '+(colores[o.estado]||'tag-gray')+'">'+(opEstadoLabel(o.estado||'pendiente')).toUpperCase()+'</span></div><div class="li-sub" style="margin-bottom:2px">'+escHtml(o.servicio)+(o.fechaEntrega?' &bull; Entrega: '+fch(o.fechaEntrega):'')+(o.metros?'  &bull; '+o.metros+'ml':'')+'</div><div class="li-sub" style="margin-bottom:6px">'+itemsSub+'</div>'+money+'<div style="display:flex;gap:4px;margin-top:4px"><button class="btn btn-teal btn-sm" onclick="verOP(\''+o.id+'\')">Ver OP</button><button class="btn btn-ghost btn-sm" style="color:var(--dt)" onclick="eliminarOrden(\''+o.id+'\')">Eliminar</button></div></div>'
@@ -3005,9 +3053,12 @@ function selOpProducto(){
   tag.innerHTML='<div class="prod-tag">'+escHtml(nombre)+'</div>';
 }
 var opItems=[];
-var OP_TALLAS=['XS','S','M','L','XL','XXL','XXXL'];
+var OP_TALLAS=TALLAS_LETRA;
 function opEsTextil(){
   return opGetServicio()==='Sublimacion Textil';
+}
+function opTallasItem(it){
+  return tallasParaProducto((it&&(it.nombre||it.desc))||'');
 }
 function opRenderItems(){
   var el=document.getElementById('op-items-list');
@@ -3020,16 +3071,18 @@ function opRenderItems(){
     // sinTalla puede venir del presupuesto o ser detectado
     var itemSinTalla=it.sinTalla!==false; // default true si no está definido
     if(esTextil&&!itemSinTalla){
-      // Item con talla: mostrar grid
-      var tallasRow=OP_TALLAS.map(function(t){
+      // Item con talla: mostrar grid (letras o cintura jean 26–48)
+      var tallasList=opTallasItem(it);
+      var cols=esJeanOPantalon(it.nombre||it.desc||'')?6:7;
+      var tallasRow=tallasList.map(function(t){
         var v=(it.tallasDetalle&&it.tallasDetalle[t])||0;
         return'<div style="text-align:center">'
           +'<div style="font-size:10px;font-weight:700;color:var(--ts);margin-bottom:2px">'+t+'</div>'
           +'<input class="fi" type="number" value="'+(v||'')+'" min="0" placeholder="0" style="font-size:12px;padding:4px;text-align:center;width:100%" oninput="opSetTalla('+i+',\''+t+'\',+this.value)">'
           +'</div>'
       }).join('');
-      cuerpo='<div style="font-size:11px;color:var(--tm);margin-bottom:4px">Desglose por talla:</div>'
-        +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">'+tallasRow+'</div>'
+      cuerpo='<div style="font-size:11px;color:var(--tm);margin-bottom:4px">Desglose por talla'+(esJeanOPantalon(it.nombre||'')?' (cintura)':'')+':</div>'
+        +'<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:4px;margin-bottom:6px">'+tallasRow+'</div>'
         +'<div style="font-size:12px;color:var(--ts)">Total: <strong>'+total+' unidades</strong></div>';
     } else if(esTextil&&itemSinTalla){
       // Item textil sin talla: mostrar cantidad + medidas
@@ -3056,7 +3109,8 @@ function opRenderItems(){
 }
 function opTotalItem(it){
   if(it.sinTalla!==false||!it.tallasDetalle)return it.qty||0;
-  var tot=OP_TALLAS.reduce(function(s,t){return s+((it.tallasDetalle[t])||0)},0);
+  var tot=sumTallasDetalle(it.tallasDetalle,opTallasItem(it));
+  if(!tot)tot=sumTallasDetalle(it.tallasDetalle);
   return tot||it.qty||0;
 }
 function opSetTalla(i,talla,val){
@@ -3192,15 +3246,18 @@ function abrirOrden(id,desdePresup){
     if(esTextilPres){
       // Solo mostrar prendas en los items de la OP textil
       opItems=itemsPrendas.map(function(it){
+        var nomPrenda=it.productoNombre||it.desc||'Producto';
         var td=it.tallasDetalle?JSON.parse(JSON.stringify(it.tallasDetalle)):{};
-        var sinT=it.sinTalla!==undefined?it.sinTalla:!productollevaTalla(it.productoNombre||'');
-        // Si es prenda sin tallas capturadas aún, poner total en talla M
+        var sinT=it.sinTalla!==undefined?it.sinTalla:!productollevaTalla(nomPrenda);
+        var tallasList=tallasParaProducto(nomPrenda);
+        // Si es prenda sin tallas capturadas aún, poner total en talla media
         if(!sinT&&!Object.keys(td).some(function(k){return td[k]>0})){
-          td['M']=it.qty||1;
+          var tallaDef=esJeanOPantalon(nomPrenda)?'32':'M';
+          td[tallaDef]=it.qty||1;
         }
         return{
-          nombre:it.productoNombre||it.desc||'Producto',
-          qty:sinT?(it.qty||1):PRES_TALLAS.reduce(function(s,t){return s+(td[t]||0)},0)||it.qty||1,
+          nombre:nomPrenda,
+          qty:sinT?(it.qty||1):sumTallasDetalle(td,tallasList)||it.qty||1,
           tallasDetalle:td,
           sinTalla:sinT,
           metros:0,
@@ -3392,17 +3449,21 @@ function verOP(id){
       if(it.desc)html+='<div style="font-size:11px;color:var(--ts);margin-bottom:8px">'+escHtml(it.desc)+'</div>';
 
       if(esTextilOP){
-        // Tabla de tallas
+        // Tabla de tallas (letras o cintura jean)
         var td=it.tallasDetalle||{};
-        var hayTallas=OP_TALLAS.some(function(t){return td[t]>0});
+        var tallasOP=opTallasItem(it);
+        var hayTallas=tallasOP.some(function(t){return td[t]>0})||Object.keys(td).some(function(k){return +td[k]>0});
         if(hayTallas){
+          // Mostrar solo tallas del sistema del producto; si hay legacy, incluirlas
+          var colsShow=tallasOP.slice();
+          Object.keys(td).forEach(function(k){if(+td[k]>0&&colsShow.indexOf(k)<0)colsShow.push(k)});
           html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
           html+='<tr>';
-          OP_TALLAS.forEach(function(t){html+='<th style="background:var(--s1);padding:4px 6px;text-align:center;border:0.5px solid var(--bd);font-weight:700">'+t+'</th>'});
+          colsShow.forEach(function(t){html+='<th style="background:var(--s1);padding:4px 6px;text-align:center;border:0.5px solid var(--bd);font-weight:700">'+t+'</th>'});
           html+='<th style="background:var(--s1);padding:4px 6px;text-align:center;border:0.5px solid var(--bd);font-weight:700;color:var(--coral)">TOTAL</th>';
           html+='</tr><tr>';
           var tot=0;
-          OP_TALLAS.forEach(function(t){var v=td[t]||0;tot+=v;html+='<td style="padding:6px;text-align:center;border:0.5px solid var(--bd);font-weight:'+(v>0?'700':'400')+';color:'+(v>0?'var(--tp)':'var(--tm)')+'">'+v+'</td>'});
+          colsShow.forEach(function(t){var v=td[t]||0;tot+=v;html+='<td style="padding:6px;text-align:center;border:0.5px solid var(--bd);font-weight:'+(v>0?'700':'400')+';color:'+(v>0?'var(--tp)':'var(--tm)')+'">'+v+'</td>'});
           html+='<td style="padding:6px;text-align:center;border:0.5px solid var(--bd);font-weight:700;color:var(--coral)">'+tot+'</td>';
           html+='</tr></table></div>';
         } else {
@@ -5389,10 +5450,41 @@ function segNombreProducto(){
   }
   return 'Seguridad';
 }
+function sgFillTallaSelect(keep){
+  var el=document.getElementById('sg-talla');
+  if(!el)return;
+  var sel=document.getElementById('sg-prod');
+  var v=sel&&sel.value;
+  var prev=keep!=null?keep:(el.value||'');
+  // Jeans 3C caballeros: solo cintura 26–48 pares
+  if(v==='jeans'){
+    if(el.tagName!=='SELECT'){
+      var selN=document.createElement('select');
+      selN.id='sg-talla';selN.className='field-input';
+      selN.setAttribute('onchange','cSeg()');
+      selN.style.cssText='width:auto;min-width:90px;max-width:50%;color:var(--tp);background:var(--s2);border:none;text-align:right';
+      el.parentNode.replaceChild(selN,el);el=selN;
+    }
+    el.innerHTML=TALLAS_JEAN.map(function(t){return'<option value="'+t+'">'+t+'</option>'}).join('');
+    if(TALLAS_JEAN.indexOf(prev)>=0)el.value=prev;
+    else el.value='32';
+    return;
+  }
+  // Otros: texto libre (talla/medida)
+  if(el.tagName==='SELECT'){
+    var inp=document.createElement('input');
+    inp.type='text';inp.id='sg-talla';inp.className='field-input';
+    inp.placeholder='Ej: 32 / M';inp.setAttribute('oninput','cSeg()');
+    inp.style.cssText='width:auto;min-width:90px;max-width:50%;color:var(--tp)';
+    inp.value=prev&&TALLAS_JEAN.indexOf(prev)<0?prev:'';
+    el.parentNode.replaceChild(inp,el);
+  }
+}
 function sgOnProd(){
   var sel=document.getElementById('sg-prod');
   var wrap=document.getElementById('sg-prod-nom-row');
   if(wrap)wrap.style.display=(sel&&sel.value==='otro')?'':'none';
+  sgFillTallaSelect();
   cSeg();
 }
 function cSeg(){
@@ -5405,7 +5497,8 @@ function cSeg(){
   var costo=costoProd+envio;
   var precio=costo+gan;
   var prod=segNombreProducto();
-  var talla=(document.getElementById('sg-talla')&&document.getElementById('sg-talla').value||'').trim();
+  var tallaEl=document.getElementById('sg-talla');
+  var talla=(tallaEl&&tallaEl.value||'').trim();
   var setTxt=function(id,txt){var el=document.getElementById(id);if(el)el.textContent=txt};
   setTxt('sgr-prod',usd(costoProd));
   setTxt('sgr-envio',usd(envio));
@@ -6178,7 +6271,7 @@ function bindSwipeDelete(root){
   setPass(4);  // default 4 pass
   fillTxImpSelect();
   fillTxTelaSelect();
-  cTx();cDTF();c3D();cDs();cSeg();
+  cTx();cDTF();c3D();cDs();sgFillTallaSelect();cSeg();
   // Marcar edición manual del anticipo
   var antEl=document.getElementById('p-anticipo');
   if(antEl) antEl.addEventListener('input',function(){this._manualEdit=true;recalcPres();});
