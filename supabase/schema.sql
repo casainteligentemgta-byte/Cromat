@@ -91,9 +91,14 @@ begin
       'crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo',
       'crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals'
     )
-    when 'ventas' then k in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo')
-    when 'operadora' then k in ('crm_ordenes','crm_inventario','crm_costos','imp_vals')
-    when 'conta' then k in ('crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config')
+    -- Ventas/operadora registran cobros: deben poder subir crm_movimientos.
+    when 'ventas' then k in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo','crm_movimientos')
+    when 'operadora' then k in ('crm_ordenes','crm_inventario','crm_costos','imp_vals','crm_movimientos')
+    -- Conta necesita OP/presupuestos e imp_vals para ingresos, CxC y gastos fijos.
+    when 'conta' then k in (
+      'crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config',
+      'crm_ordenes','crm_presupuestos','imp_vals'
+    )
     when 'diseno' then k in ('crm_presupuestos','crm_costos','crm_catalogo','imp_vals')
     else false
   end;
