@@ -1449,11 +1449,22 @@ function tallasParaProducto(nombre){
   return esJeanOPantalon(nombre)?TALLAS_JEAN:TALLAS_LETRA;
 }
 function sumTallasDetalle(td,tallas){
-  if(!td)return 0;
+  if(!td||typeof td!=='object')return 0;
+  var sum=0,i,k,n;
   if(tallas&&tallas.length){
-    return tallas.reduce(function(s,t){return s+(+td[t]||0)},0);
+    for(i=0;i<tallas.length;i++){
+      n=Number(td[String(tallas[i])]);
+      if(isFinite(n)&&n>0)sum+=n;
+    }
+    return sum;
   }
-  return Object.keys(td).reduce(function(s,k){return s+(+td[k]||0)},0);
+  for(k in td){
+    if(!Object.prototype.hasOwnProperty.call(td,k))continue;
+    if(k==='length')continue;
+    n=Number(td[k]);
+    if(isFinite(n)&&n>0)sum+=n;
+  }
+  return sum;
 }
 function tallasTxtDeDetalle(td,nombre){
   if(!td)return '';
@@ -1484,7 +1495,16 @@ function esNombreMetrosTextil(s){
 function presItemEsMetros(it){
   return !!(it&&(esNombreMetrosTextil(it.desc)||esNombreMetrosTextil(it.productoNombre)));
 }
-function presItemQty(it){return +it.qty||1}
+function presItemQty(it){
+  if(!it)return 1;
+  // Con tallas: la cantidad es siempre la suma del desglose
+  if(it.sinTalla===false&&it.tallasDetalle){
+    var sum=sumTallasDetalle(it.tallasDetalle,tallasParaProducto(it.productoNombre||it.nombre||it.desc||''));
+    if(!sum)sum=sumTallasDetalle(it.tallasDetalle);
+    if(sum>0)return sum;
+  }
+  return +it.qty||1;
+}
 function presItemMonto(it){
   return (+it.precio||0)*presItemQty(it);
 }
@@ -2555,17 +2575,28 @@ function presTallasItem(i){
   return tallasParaProducto(it.productoNombre||it.desc||'');
 }
 function presSetTalla(i,t,v){
-  if(!presItems[i].tallasDetalle)presItems[i].tallasDetalle={};
-  presItems[i].tallasDetalle[t]=+v||0;
+  t=String(t);
+  if(!presItems[i].tallasDetalle||typeof presItems[i].tallasDetalle!=='object'||Array.isArray(presItems[i].tallasDetalle)){
+    presItems[i].tallasDetalle={};
+  }
+  var n=Number(v);
+  if(!isFinite(n)||n<0)n=0;
+  n=Math.floor(n);
+  if(n===0)delete presItems[i].tallasDetalle[t];
+  else presItems[i].tallasDetalle[t]=n;
   var total=sumTallasDetalle(presItems[i].tallasDetalle,presTallasItem(i));
   if(!total)total=sumTallasDetalle(presItems[i].tallasDetalle);
   presItems[i].qty=total||1;
-  var el=document.getElementById('ptt-'+i);
+  presItems[i].sinTalla=false;
+  var el=document.getElementById('pres-talla-tot-'+i);
   if(el)el.textContent=total+' und';
+  var cantEl=document.getElementById('p-cant-'+i);
+  if(cantEl)cantEl.textContent=(total||1)+' und';
   recalcPres();
 }
 
 function ptDown(i,t){
+  t=String(t);
   _ptTimer=setTimeout(function(){
     _ptTimer=null;
     var cur=(presItems[i].tallasDetalle&&presItems[i].tallasDetalle[t])||0;
@@ -2591,10 +2622,13 @@ function ptDown(i,t){
 }
 
 function ptUp(i,t){
+  t=String(t);
   if(_ptTimer){
     clearTimeout(_ptTimer);_ptTimer=null;
-    if(!presItems[i].tallasDetalle)presItems[i].tallasDetalle={};
-    var cur=(presItems[i].tallasDetalle[t]||0)+1;
+    if(!presItems[i].tallasDetalle||typeof presItems[i].tallasDetalle!=='object'||Array.isArray(presItems[i].tallasDetalle)){
+      presItems[i].tallasDetalle={};
+    }
+    var cur=(Number(presItems[i].tallasDetalle[t])||0)+1;
     presSetTalla(i,t,cur);
     var btnEl=document.getElementById('ptb-'+i+'-'+t);
     if(btnEl){
@@ -2668,8 +2702,10 @@ function renderPresItems(){
         +'<button class="btn btn-ghost btn-sm" onclick="presTienesTalla('+i+',\'sin\')">Sin talla</button>'
         +'</div>'
         +'<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:4px">'+tallaCols+'</div>'
-        +'<div style="font-size:11px;color:var(--ts);margin-top:4px">Total: <strong id="ptt-'+i+'">'+totalT+' und</strong></div>'
+        +'<div style="font-size:11px;color:var(--ts);margin-top:4px">Total: <strong id="pres-talla-tot-'+i+'">'+totalT+' und</strong></div>'
         +'</div>';
+      // Mantener qty alineada con el desglose al pintar
+      it.qty=totalT||it.qty||1;
     } else {
       // Sin talla: mostrar medidas opcionales
       var medidas=it.medidas||'';
@@ -2687,7 +2723,7 @@ function renderPresItems(){
       +'<div class="row3" style="margin-bottom:4px;align-items:end">'
       +(sinTalla
         ?'<div><label class="fl">'+(presItemEsMetros(it)?'Cantidad (ml)':'Cantidad')+'</label><input class="fi" type="number" value="'+presItemQty(it)+'" min="0" step="0.1" oninput="presItems['+i+'].qty=+this.value;recalcPres()"></div>'
-        :'<div><label class="fl">Cantidad</label><div class="fi" style="border:none;background:transparent;padding-left:0">'+presItemQty(it)+' und</div></div>')
+        :'<div><label class="fl">Cantidad</label><div class="fi" id="p-cant-'+i+'" style="border:none;background:transparent;padding-left:0">'+presItemQty(it)+' und</div></div>')
       +'<div><label class="fl">Precio</label><input class="fi" type="number" value="'+(+it.precio||0)+'" min="0" step="0.01" oninput="presItems['+i+'].precio=+this.value;recalcPres()"></div>'
       +'<div><label class="fl">Importe</label><div id="p-imp-'+i+'" style="font-weight:700;font-size:15px;padding:8px 0">'+usd(presItemMonto(it))+'</div></div>'
       +'</div>'
