@@ -214,9 +214,64 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 /* ITEM SELECTOR */
 .prod-tag{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--at);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px}
 @media print{.bnav,.nb,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
+/* LOGIN: tapa la app hasta que hay sesión. Sin JS también queda el overlay encima. */
+html{background:var(--negro)}
+body:not(.in){background:var(--negro);padding-bottom:0;overflow:hidden}
+body:not(.in) .topbar,
+body:not(.in) .main,
+body:not(.in) .bnav,
+body:not(.in) .modal-bg{display:none!important}
+#login-screen{display:flex;position:fixed;inset:0;background:var(--negro);z-index:2000;align-items:flex-start;justify-content:center;padding:48px 16px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom,24px));overflow-y:auto;-webkit-overflow-scrolling:touch}
+@media(min-height:640px){#login-screen{align-items:center;padding-top:24px}}
+body.in #login-screen{display:none}
+.login-wrap{width:100%;max-width:360px;margin:auto}
+.login-brand{text-align:center;margin-bottom:24px}
+.login-logo{font-size:36px;display:inline-block}
+.login-card{background:var(--s2);border-radius:16px;padding:22px 18px;border:0.5px solid var(--bd)}
+#login-titulo{font-weight:700;font-size:18px;margin-bottom:6px;color:var(--tp)}
+#login-sub{font-size:13px;color:var(--ts);margin-bottom:16px;line-height:1.45}
+#login-nube-off{font-size:13px;color:var(--ts);line-height:1.55}
+#login-nube-off strong{color:var(--tp)}
+.login-link{display:inline;background:none;border:none;padding:0;color:var(--teal);font-size:12px;cursor:pointer;text-decoration:underline}
+.login-links{margin-top:12px;font-size:12px;text-align:center;line-height:1.8;color:#888}
+.login-note{font-size:11px;color:#888;margin-top:12px;line-height:1.45}
 </style>
 </head>
 <body>
+
+<div id="login-screen" role="dialog" aria-labelledby="login-titulo" aria-modal="true">
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="logo login-logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
+      <div class="tagline" style="display:inline-block;margin-top:8px">GESTION EMPRESARIAL</div>
+    </div>
+    <div class="login-card">
+      <div id="login-titulo">Iniciar sesión</div>
+      <div id="login-sub">Entra con el correo de la empresa.</div>
+      <div id="login-nube-off" style="display:none">
+        <p style="margin-bottom:10px">Cromat es el sistema interno de la marca. En este despliegue <strong>no está conectada la nube</strong> (<code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code>), así que no se puede entrar ni ver finanzas, salarios ni la configuración.</p>
+        <p>Un administrador debe pegar esas dos variables en Vercel → Settings → Environment Variables (Production y Preview) y volver a publicar.</p>
+      </div>
+      <form id="login-campos" onsubmit="authLogin();return false">
+        <div class="fg" id="login-nombre-wrap" style="display:none"><label class="fl">Tu nombre</label><input class="fi" type="text" id="login-nombre" placeholder="Ej: Luis Mata" autocomplete="name"></div>
+        <div class="fg" id="login-invite-wrap" style="display:none"><label class="fl">Código de invitación</label><input class="fi" type="text" id="login-invite" placeholder="Ej: 7K2M9QPA" autocomplete="off" style="text-transform:uppercase"></div>
+        <div class="fg" id="login-email-wrap"><label class="fl" id="login-email-lbl">Correo</label><input class="fi" type="email" id="login-email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+        <div class="fg" id="login-pass-wrap"><label class="fl" id="login-pass-lbl">Clave</label><input class="fi" type="password" id="login-pass" autocomplete="current-password"></div>
+        <div class="fg" id="login-pass2-wrap" style="display:none"><label class="fl">Repite la clave nueva</label><input class="fi" type="password" id="login-pass2" autocomplete="new-password"></div>
+        <div id="login-msg" style="font-size:12px;margin-bottom:10px;display:none"></div>
+        <button class="btn btn-primary" id="login-btn" type="submit" style="width:100%;justify-content:center;padding:12px">Entrar</button>
+        <div class="login-links" id="login-forgot-wrap"><button type="button" class="login-link" id="login-forgot-link" onclick="cloudSetModo('forgot');return false">Olvidé mi contraseña</button></div>
+        <div id="login-cloud-links" class="login-links" style="display:none">
+          <button type="button" class="login-link" onclick="cloudSetModo('login');return false" id="login-link-in">Ya tengo cuenta</button>
+          <span> · </span>
+          <button type="button" class="login-link" onclick="cloudSetModo('invite');return false" id="login-link-inv">Me invitaron</button>
+        </div>
+        <div id="login-local-note" class="login-note"></div>
+      </form>
+      <noscript><p class="login-note">Cromat necesita JavaScript para iniciar sesión.</p></noscript>
+    </div>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
@@ -1356,19 +1411,7 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
       <button class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center" id="nu-enviar-btn" onclick="crearUsuario()">Enviar</button>
     </div>
     <div id="nu-invite-out" style="display:none;margin-top:10px;padding:10px;background:var(--s1);border-radius:8px;font-size:13px;line-height:1.5"></div>
-    <div id="nu-cloud-cfg" style="display:none;margin-top:16px">
-      <div class="st">Conectar nube (Supabase)</div>
-      <p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">En supabase.com → tu proyecto → <strong>Project Settings → API</strong>:</p>
-      <ul style="font-size:12px;color:var(--ts);margin:0 0 10px 18px;line-height:1.5;padding:0">
-        <li><strong>Project URL</strong> — empieza por https:// y termina en .supabase.co</li>
-        <li><strong>anon public</strong> — la clave larga que empieza por eyJ. Es pública a propósito.</li>
-        <li>No copies <strong>service_role</strong>. Esa es secreta y no va en Cromat.</li>
-      </ul>
-      <p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">Para que todo el equipo entre a la misma nube, pega también esas dos en Vercel → Settings → Environment Variables: <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code>, y vuelve a publicar. Pegarlas solo aquí deja la nube en este teléfono.</p>
-      <div class="fg"><label class="fl">Project URL</label><input class="fi" type="url" id="sb-url" placeholder="https://xxxx.supabase.co"></div>
-      <div class="fg"><label class="fl">anon public</label><input class="fi" type="text" id="sb-key" placeholder="eyJ..." autocomplete="off"></div>
-      <button class="btn btn-teal" style="width:100%;margin-top:8px" onclick="guardarConfigNube()">Guardar y recargar</button>
-    </div>
+    <div id="nu-cloud-cfg" style="display:none;margin-top:16px"></div>
   </div>
 </div>
 
@@ -1966,30 +2009,21 @@ function authMsg(txt,err){
 }
 function authShowLogin(){
   var cloud=typeof CLOUD_ON!=='undefined'&&CLOUD_ON;
-  var setup=!cloud&&!authUsers().length;
   var titulo=document.getElementById('login-titulo');
   var sub=document.getElementById('login-sub');
-  var nom=document.getElementById('login-nombre-wrap');
-  var inv=document.getElementById('login-invite-wrap');
-  var btn=document.getElementById('login-btn');
-  var pass=document.getElementById('login-pass');
   var scr=document.getElementById('login-screen');
-  var lbl=document.getElementById('login-email-lbl');
-  var links=document.getElementById('login-cloud-links');
-  var note=document.getElementById('login-local-note');
+  var off=document.getElementById('login-nube-off');
+  var campos=document.getElementById('login-campos');
   if(!scr)return;
-  if(cloud&&typeof cloudSetModo==='function'){cloudSetModo(window._sbModo||'login')}
+  document.body.classList.remove('in');
+  AUTH=null;
+  if(off)off.style.display=cloud?'none':'';
+  if(campos)campos.style.display=cloud?'':'none';
+  if(cloud&&typeof cloudSetModo==='function')cloudSetModo(window._sbModo||'login');
   else{
-    if(titulo)titulo.textContent=setup?'Crear administrador':'Iniciar sesión';
-    if(sub)sub.textContent=setup?'Primera vez: crea el usuario dueño (clave de 8 caracteres o más) y luego invita al equipo.':'Entra con tu usuario y clave.';
-    if(nom)nom.style.display=setup?'':'none';
-    if(inv)inv.style.display='none';
-    if(btn)btn.textContent=setup?'Crear y entrar':'Entrar';
-    if(lbl)lbl.textContent='Usuario';
-    if(links)links.style.display='none';
-    if(note)note.textContent='Los datos se guardan en este dispositivo. Quien use este teléfono ve la misma información. Aún no hay nube activa.';
+    if(titulo)titulo.textContent='Cromat no está conectado';
+    if(sub)sub.textContent='Falta la nube. La app permanece bloqueada hasta que un administrador la active.';
   }
-  if(pass)pass.autocomplete=setup||(cloud&&window._sbModo!=='login')?'new-password':'current-password';
   scr.style.display='flex';
   var salir=document.getElementById('btn-salir');if(salir)salir.style.display='none';
   var us=document.getElementById('btn-ajustes');if(us)us.style.display='none';
@@ -1998,7 +2032,9 @@ function authShowLogin(){
 }
 function authApplyUI(){
   if(!AUTH)return;
-  document.getElementById('login-screen').style.display='none';
+  document.body.classList.add('in');
+  var scr=document.getElementById('login-screen');
+  if(scr)scr.style.display='none';
   document.getElementById('btn-salir').style.display='';
   var chip=document.getElementById('auth-chip');
   if(chip){chip.classList.add('on');chip.style.display='inline-flex'}
@@ -2022,41 +2058,14 @@ function authSetSession(u){
   goTab(authFirstTab());
 }
 function authLogin(){
-  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudAuth==='function'){cloudAuth();return}
-  var usuario=(document.getElementById('login-email').value||'').trim().toLowerCase();
-  var pass=document.getElementById('login-pass').value||'';
-  var btn=document.getElementById('login-btn');
-  if(!usuario||!pass){authMsg('Escribe usuario y clave.',true);return}
-  btn.disabled=true;btn.style.opacity='0.6';
-  var fin=function(){btn.disabled=false;btn.style.opacity='1'};
-  var lista=authUsers();
-  if(!lista.length){
-    if(claveCorta(pass)){authMsg('La clave debe tener al menos 8 caracteres.',true);fin();return}
-    var nombre=(document.getElementById('login-nombre').value||'').trim()||usuario;
-    var salt=newSalt();
-    hashClave(pass,salt).then(function(h){
-      var admin={id:uid(),nombre:nombre,usuario:usuario,email:esDueñoEmail(usuario)?OWNER_EMAIL:'',pass:h,salt:salt,rol:'admin',activo:true};
-      authSaveUsers([admin]);
-      authMsg('');
-      authSetSession(admin);
-      fin();
-    }).catch(function(){authMsg('Este navegador no permite guardar claves de forma segura.',true);fin()});
+  if(typeof CLOUD_ON==='undefined'||!CLOUD_ON){
+    authMsg('La nube no está configurada. No se puede entrar.',true);
     return;
   }
-  var u=lista.find(function(x){return x.usuario===usuario&&x.activo!==false});
-  if(!u){authMsg('Usuario o clave incorrectos.',true);fin();return}
-  verificarClave(u,pass).then(function(ok){
-    if(!ok){authMsg('Usuario o clave incorrectos.',true);fin();return}
-    if(!u.salt){
-      var salt=newSalt();
-      hashClave(pass,salt).then(function(h){
-        u.pass=h;u.salt=salt;authSaveUsers(lista);
-      }).catch(function(){});
-    }
-    authMsg('');
-    authSetSession(u);
-    fin();
-  }).catch(function(){authMsg('Este navegador no permite comprobar la clave.',true);fin()});
+  if(window._sbModo==='forgot'&&typeof cloudOlvido==='function'){cloudOlvido();return}
+  if(window._sbModo==='recovery'&&typeof cloudNuevaClave==='function'){cloudNuevaClave();return}
+  if(typeof cloudAuth==='function'){cloudAuth();return}
+  authMsg('Nube no disponible.',true);
 }
 function authLogout(){
   if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON&&typeof cloudLogout==='function'){cloudLogout();return}
@@ -2068,25 +2077,21 @@ function authLogout(){
   authShowLogin();
 }
 function authBoot(){
-  if(typeof CLOUD_ON!=='undefined'&&CLOUD_ON){authShowLogin();return}
-  var raw=localStorage.getItem('cromat_session');
-  var ses=null;
-  try{ses=raw?JSON.parse(raw):null}catch(e){ses=null}
-  if(ses&&ses.id){
-    if(ses.t&&(Date.now()-ses.t)>AUTH_IDLE_MS){
-      localStorage.removeItem('cromat_session');
-      AUTH=null;authShowLogin();return;
-    }
-    var u=authUsers().find(function(x){return x.id===ses.id&&x.activo!==false});
-    if(u){
-      var rol=u.rol;
-      if(esDueñoPerfil(u))rol='admin';
-      AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,email:u.email||u.usuario,rol:rol,t:Date.now()};
-      authTouch();authApplyUI();return
-    }
-  }
   AUTH=null;
   authShowLogin();
+}
+function htmlConfigNube(){
+  return '<div class="st">Conectar nube (Supabase)</div>'
+    +'<p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">En supabase.com → tu proyecto → <strong>Project Settings → API</strong>:</p>'
+    +'<ul style="font-size:12px;color:var(--ts);margin:0 0 10px 18px;line-height:1.5;padding:0">'
+    +'<li><strong>Project URL</strong> — empieza por https:// y termina en .supabase.co</li>'
+    +'<li><strong>anon public</strong> — la clave larga que empieza por eyJ. Es pública a propósito.</li>'
+    +'<li>No copies <strong>service_role</strong>. Esa es secreta y no va en Cromat.</li>'
+    +'</ul>'
+    +'<p style="font-size:12px;color:var(--ts);margin-bottom:8px;line-height:1.45">Para que todo el equipo entre a la misma nube, pega también esas dos en Vercel → Settings → Environment Variables: <code>SUPABASE_URL</code> y <code>SUPABASE_ANON_KEY</code>, y vuelve a publicar. Pegarlas solo aquí deja la nube en este teléfono.</p>'
+    +'<div class="fg"><label class="fl">Project URL</label><input class="fi" type="url" id="sb-url" placeholder="https://xxxx.supabase.co"></div>'
+    +'<div class="fg"><label class="fl">anon public</label><input class="fi" type="text" id="sb-key" placeholder="eyJ..." autocomplete="off"></div>'
+    +'<button class="btn btn-teal" type="button" style="width:100%;margin-top:8px" onclick="guardarConfigNube()">Guardar y recargar</button>';
 }
 function abrirUsuarios(){
   if(!authCanUsers())return;
@@ -2105,12 +2110,18 @@ function abrirUsuarios(){
   if(cloudB)cloudB.style.display=cloud?'':'none';
   if(out){out.style.display='none';out.innerHTML=''}
   if(cfg){
-    cfg.style.display=(!cloud&&authCanUsers())?'':'none';
-    try{
-      var c=JSON.parse(localStorage.getItem('cromat_sb_cfg')||'null');
-      if(c&&c.url){var u=document.getElementById('sb-url'); if(u)u.value=c.url}
-      if(c&&c.key){var k=document.getElementById('sb-key'); if(k)k.value=c.key}
-    }catch(e){}
+    if(!cloud&&authCanUsers()){
+      cfg.style.display='';
+      cfg.innerHTML=htmlConfigNube();
+      try{
+        var c=JSON.parse(localStorage.getItem('cromat_sb_cfg')||'null');
+        if(c&&c.url){var u=document.getElementById('sb-url'); if(u)u.value=c.url}
+        if(c&&c.key){var k=document.getElementById('sb-key'); if(k)k.value=c.key}
+      }catch(e){}
+    }else{
+      cfg.style.display='none';
+      cfg.innerHTML='';
+    }
   }
   renderUsuarios();
   openModal('modal-usuarios');
@@ -2235,6 +2246,7 @@ function eliminarUsuario(id){
 
 // ===== NAV =====
 function goTab(id){
+  if(!AUTH){authShowLogin();return}
   if(!authCan(id)){id=authFirstTab();if(!authCan(id))return}
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('on')});
   document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('on')});
@@ -6331,45 +6343,12 @@ function bindSwipeDelete(root){
 
 <!-- MODAL SELECTOR PRODUCTO PRESUPUESTO -->
 
-<!-- LOGIN / PRIMER ADMIN -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--negro);z-index:2000;align-items:center;justify-content:center;padding:24px">
-  <div style="width:100%;max-width:340px">
-    <div style="text-align:center;margin-bottom:24px">
-      <div class="logo" style="font-size:32px"><span class="c1">CRO</span><span class="c2">MAT</span></div>
-      <div class="tagline" style="display:inline-block;margin-top:6px">GESTION EMPRESARIAL</div>
-    </div>
-    <div style="background:var(--s2);border-radius:12px;padding:18px">
-      <div id="login-titulo" style="font-weight:700;font-size:16px;margin-bottom:8px;color:var(--tp)">Iniciar sesión</div>
-      <div id="login-sub" style="font-size:12px;color:var(--ts);margin-bottom:12px"></div>
-      <div class="fg" id="login-nombre-wrap" style="display:none"><label class="fl">Tu nombre</label><input class="fi" type="text" id="login-nombre" placeholder="Ej: Luis Mata" autocomplete="name"></div>
-      <div class="fg" id="login-invite-wrap" style="display:none"><label class="fl">Codigo de invitacion</label><input class="fi" type="text" id="login-invite" placeholder="Ej: 7K2M9QPA" autocomplete="off" style="text-transform:uppercase"></div>
-      <div class="fg"><label class="fl" id="login-email-lbl">Usuario</label><input class="fi" type="text" id="login-email" autocomplete="username"></div>
-      <div class="fg"><label class="fl">Clave</label><input class="fi" type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()"></div>
-      <div id="login-msg" style="font-size:12px;margin-bottom:10px;display:none"></div>
-      <div id="login-sql-box" style="display:none;margin-top:8px">
-        <div style="font-size:11px;color:var(--ts);margin-bottom:6px;line-height:1.4">En supabase.com → SQL Editor pega esto, dale Run, y Vane vuelve a entrar.</div>
-        <textarea class="fi" id="login-sql" rows="4" readonly style="font-size:11px;font-family:monospace"></textarea>
-        <button class="btn btn-teal btn-sm" type="button" style="margin-top:6px" onclick="cloudCopiarSql()">Copiar SQL</button>
-      </div>
-      <button class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:12px" onclick="authLogin()">Entrar</button>
-      <div id="login-cloud-links" style="display:none;margin-top:10px;font-size:12px;text-align:center;line-height:1.7">
-        <a href="#" onclick="cloudSetModo('login');return false" id="login-link-in">Ya tengo cuenta</a>
-        <span style="color:#888"> · </span>
-        <a href="#" onclick="cloudSetModo('signup');return false" id="login-link-up">Crear empresa</a>
-        <span style="color:#888"> · </span>
-        <a href="#" onclick="cloudSetModo('invite');return false" id="login-link-inv">Me invitaron</a>
-      </div>
-      <div id="login-local-note" style="font-size:11px;color:#888;margin-top:12px;line-height:1.45">Los datos se guardan en este dispositivo. Quien use este teléfono ve la misma información. Aún no hay nube activa.</div>
-    </div>
-  </div>
-</div>
-
 <script>
 // ===== NUBE (Supabase) =====
 // Empresa compartida: public.cromat_data (org_id, key, value). RLS por rol.
 var SB_URL='__SB_URL__';
 var SB_KEY='__SB_KEY__';
-var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciado=false,CLOUD_ORG=null;
+var sb=null,SB_USER=null,_sbReady=false,_sbTimer=null,_sbModo='login',_sbIniciado=false,_sbRecuperando=false,CLOUD_ORG=null;
 var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos','crm_catalogo','crm_inventario','crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','imp_vals','crm_audit'];
 var CLOUD_KEY_ROLES={
   crm_clientes:['admin','ventas'],
@@ -6413,12 +6392,15 @@ function cloudErr(e){
   if(/need_invite_code/i.test(m))return 'Tu correo ya está. Pega el código de invitaciones pendientes (engranaje → Usuarios) y pulsa Unirme.';
   if(/invite_required/i.test(m))return 'Esta empresa ya existe. Pide el código de invitación (engranaje → Usuarios → pendientes) y pulsa Me invitaron.';
   if(/invalid_invite/i.test(m))return 'Codigo invalido o ya usado. Pídele a Luis el código de Usuarios → invitaciones pendientes.';
-  if(/Invalid login/i.test(m))return 'Correo o clave incorrectos. Usa el mismo correo de la invitación y la clave de 8+ caracteres.';
-  if(/not confirmed|email_not_confirmed/i.test(t))return 'Esa cuenta existe pero Supabase no la confirmó. Abajo hay un SQL: córrelo en SQL Editor y entra otra vez.';
-  if(/over_email|email rate limit|rate.limit|too many requests|429|exced|intentos|after \d+ seconds/i.test(t))return 'Supabase bloqueó el correo de confirmación. No crees la cuenta otra vez: Ya tengo cuenta, mismo correo y clave. Si sigue, corre el SQL de abajo.';
-  if(/already registered|already been registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesion.';
-  if(/Password should/i.test(m))return 'La clave debe tener al menos 6 caracteres (Supabase).';
-  return m||'Error de nube';
+  if(/Invalid login|invalid_credentials|invalid login credentials/i.test(t))return 'Correo o clave incorrectos.';
+  if(/not confirmed|email_not_confirmed/i.test(t))return 'Esa cuenta existe pero no está confirmada. Pídele al administrador que la active en Supabase y vuelve a entrar.';
+  if(/over_email|email rate limit|rate.limit|too many requests|429|exced|intentos|after \d+ seconds/i.test(t))return 'Supabase limitó los correos por un rato. Espera unos minutos e inténtalo de nuevo. Si ya tienes cuenta, entra con el mismo correo y clave.';
+  if(/already registered|already been registered/i.test(m))return 'Ese correo ya tiene cuenta. Inicia sesión.';
+  if(/Password should|weak_password|same_password/i.test(t))return 'La clave debe tener al menos 8 caracteres y ser distinta de la anterior.';
+  if(/For security purposes|only request this after/i.test(t))return 'Espera unos segundos y vuelve a pedir el correo.';
+  if(/User not found|unable to validate email/i.test(t))return 'No se pudo enviar el correo. Revisa que esté bien escrito.';
+  if(/Auth session missing|session_not_found/i.test(t))return 'El enlace de recuperación expiró. Pide uno nuevo.';
+  return m||'No se pudo completar. Revisa internet e inténtalo otra vez.';
 }
 function cloudErrNube(e){
   var m=cloudErr(e);
@@ -6646,23 +6628,41 @@ function cloudPull(){
   },function(e){_sbReady=true;_sbLastErr=cloudErrNube(e);syncEstado('err','Sin conexión')});
 }
 function cloudSetModo(m){
-  _sbModo=m==='signup'||m==='invite'?m:'login';
+  _sbModo=m==='signup'||m==='invite'||m==='forgot'||m==='recovery'?m:'login';
   var titulo=document.getElementById('login-titulo');
   var sub=document.getElementById('login-sub');
   var nom=document.getElementById('login-nombre-wrap');
   var inv=document.getElementById('login-invite-wrap');
+  var passWrap=document.getElementById('login-pass-wrap');
+  var pass2=document.getElementById('login-pass2-wrap');
+  var emailWrap=document.getElementById('login-email-wrap');
   var btn=document.getElementById('login-btn');
   var lbl=document.getElementById('login-email-lbl');
   var links=document.getElementById('login-cloud-links');
   var note=document.getElementById('login-local-note');
+  var forgot=document.getElementById('login-forgot-wrap');
+  var pass=document.getElementById('login-pass');
   if(lbl)lbl.textContent='Correo';
-  if(links)links.style.display='';
-  if(note)note.textContent='Los datos de Cromat viven en la nube. Cada persona entra con su correo y ve solo lo de su rol.';
-  if(nom)nom.style.display=_sbModo==='login'?'none':'';
+  if(links)links.style.display=(_sbModo==='recovery')?'none':'';
+  if(note){
+    note.textContent=_sbModo==='invite'
+      ?'Si te invitaron, usa el mismo correo de la invitación y una clave de 8 caracteres o más.'
+      :'Cromat es el sistema interno de la marca. Cada persona entra con su correo y ve lo de su rol.';
+  }
+  if(nom)nom.style.display=(_sbModo==='invite'||_sbModo==='signup')?'':'none';
   if(inv)inv.style.display=_sbModo==='invite'?'':'none';
-  if(titulo)titulo.textContent=_sbModo==='signup'?'Crear empresa':_sbModo==='invite'?'Unirme al equipo':'Iniciar sesión';
-  if(sub)sub.textContent=_sbModo==='signup'?'Primer dueño: crea la empresa con tu correo. Luego invita al equipo.':_sbModo==='invite'?'Abre el enlace, o entra con el mismo correo de la invitación. El código es opcional si te invitaron a ese correo.': 'Entra con el correo de la empresa.';
-  if(btn)btn.textContent=_sbModo==='signup'?'Crear y entrar':_sbModo==='invite'?'Unirme':'Entrar';
+  if(passWrap)passWrap.style.display=_sbModo==='forgot'?'none':'';
+  if(pass2)pass2.style.display=_sbModo==='recovery'?'':'none';
+  if(emailWrap)emailWrap.style.display=_sbModo==='recovery'?'none':'';
+  if(forgot)forgot.style.display=_sbModo==='login'?'':'none';
+  if(pass){
+    pass.autocomplete=_sbModo==='login'?'current-password':'new-password';
+    if(_sbModo==='recovery')pass.placeholder='Mínimo 8 caracteres';
+  }
+  if(titulo)titulo.textContent=_sbModo==='signup'?'Crear empresa':_sbModo==='invite'?'Unirme al equipo':_sbModo==='forgot'?'Recuperar clave':_sbModo==='recovery'?'Nueva clave':'Iniciar sesión';
+  if(sub)sub.textContent=_sbModo==='signup'?'Primer dueño: crea la empresa con tu correo. Luego invita al equipo.':_sbModo==='invite'?'Abre el enlace, o entra con el mismo correo de la invitación. El código es opcional si te invitaron a ese correo.':_sbModo==='forgot'?'Escribe tu correo y te enviamos un enlace para elegir una clave nueva.':_sbModo==='recovery'?'Elige una clave nueva de 8 caracteres o más.':'Entra con el correo de la empresa.';
+  if(btn)btn.textContent=_sbModo==='signup'?'Crear y entrar':_sbModo==='invite'?'Unirme':_sbModo==='forgot'?'Enviar enlace':_sbModo==='recovery'?'Guardar clave':'Entrar';
+  authMsg('');
 }
 function cloudAuthEsLimite(e){
   var t=String((e&&(e.message||e.details||e.code||e.error_description))||'')+' '+String((e&&e.status)||'');
@@ -6676,26 +6676,54 @@ function cloudAuthNoConfirmada(e){
   var t=String((e&&(e.message||e.details||e.code))||'');
   return /not confirmed|email_not_confirmed/i.test(t);
 }
-function cloudSqlConfirm(email){
-  var em=String(email||'').trim().toLowerCase().replace(/'/g,"''");
-  return "update auth.users\nset email_confirmed_at = coalesce(email_confirmed_at, now())\nwhere email_confirmed_at is null;\n\nupdate auth.users\nset email_confirmed_at = now()\nwhere lower(email)='"+em+"';";
+function cloudSiteUrl(){
+  return String(location.origin||'').replace(/\/$/,'')+'/';
 }
-function cloudMostrarSql(email){
-  var box=document.getElementById('login-sql-box');
-  var ta=document.getElementById('login-sql');
-  if(ta)ta.value=cloudSqlConfirm(email);
-  if(box)box.style.display='';
+function cloudOlvido(){
+  var email=(document.getElementById('login-email').value||'').trim().toLowerCase();
+  if(!email||email.indexOf('@')<1){authMsg('Escribe tu correo para recuperar la clave.',true);return}
+  if(!sb){authMsg('Nube no disponible.',true);return}
+  var btn=document.getElementById('login-btn');
+  var prev=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.textContent='Enviando…'}
+  authMsg('Enviando…',false);
+  sb.auth.resetPasswordForEmail(email,{redirectTo:cloudSiteUrl()}).then(function(r){
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||'Enviar enlace'}
+    if(r&&r.error){authMsg(cloudErr(r.error),true);return}
+    authMsg('Si ese correo está en Cromat, te enviamos un enlace. Revisa bandeja de entrada y spam.',false);
+  },function(e){
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||'Enviar enlace'}
+    authMsg(cloudErr(e),true);
+  });
 }
-function cloudOcultarSql(){
-  var box=document.getElementById('login-sql-box');
-  if(box)box.style.display='none';
-}
-function cloudCopiarSql(){
-  var ta=document.getElementById('login-sql');
-  var t=ta&&ta.value||'';
-  if(!t)return;
-  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(function(){alert('SQL copiado. Pégalo en Supabase → SQL Editor y dale Run.')},function(){prompt('Copia esto:',t)});
-  else prompt('Copia esto:',t);
+function cloudNuevaClave(){
+  var pass=document.getElementById('login-pass').value||'';
+  var pass2=(document.getElementById('login-pass2')&&document.getElementById('login-pass2').value)||'';
+  if(claveCorta(pass)){authMsg('La clave debe tener al menos 8 caracteres.',true);return}
+  if(pass!==pass2){authMsg('Las dos claves no coinciden.',true);return}
+  if(!sb){authMsg('Nube no disponible.',true);return}
+  var btn=document.getElementById('login-btn');
+  var prev=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.style.opacity='0.6';btn.textContent='Guardando…'}
+  sb.auth.updateUser({password:pass}).then(function(r){
+    if(r&&r.error){
+      if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||'Guardar clave'}
+      authMsg(cloudErr(r.error),true);
+      return;
+    }
+    _sbRecuperando=false;
+    _sbIniciado=true;
+    authMsg('Clave actualizada. Entrando…',false);
+    conTope(cloudCargarPerfil(),15000,'No se pudo abrir la app. Entra otra vez con la clave nueva.').then(function(){
+      if(btn){btn.disabled=false;btn.style.opacity='1'}
+    },function(e){
+      if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||'Guardar clave'}
+      authMsg(cloudErr(e),true);
+    });
+  },function(e){
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||'Guardar clave'}
+    authMsg(cloudErr(e),true);
+  });
 }
 function cloudPedirCodigo(msg){
   cloudSetModo('invite');
@@ -6729,7 +6757,6 @@ function cloudAuth(){
   var pass=document.getElementById('login-pass').value||'';
   var nombre=(document.getElementById('login-nombre').value||'').trim();
   var code=(document.getElementById('login-invite').value||'').trim();
-  cloudOcultarSql();
   if(!email||!pass){authMsg('Escribe correo y clave.',true);return}
   if(_sbModo!=='login'&&claveCorta(pass)){authMsg('La clave debe tener al menos 8 caracteres.',true);return}
   if(_sbModo==='signup'&&!nombre){authMsg('Escribe tu nombre.',true);return}
@@ -6745,7 +6772,6 @@ function cloudAuth(){
     if(btn){btn.disabled=false;btn.style.opacity='1';btn.textContent=prev||(_sbModo==='invite'?'Unirme':'Entrar')}
   };
   var fallar=function(e){
-    if(cloudAuthNoConfirmada(e)||cloudAuthEsLimite(e))cloudMostrarSql(email);
     if(/invite_required|invalid_invite|need_invite_code|no hay perfil/i.test(String((e&&e.message)||''))){
       cloudPedirCodigo(cloudErr({message:'need_invite_code'}));
       fin();
@@ -6754,7 +6780,7 @@ function cloudAuth(){
     authMsg(cloudErr(e),true);fin();
   };
   var entrar=function(session){
-    if(!session){cloudMostrarSql(email);authMsg('La cuenta existe. Corre el SQL de abajo y luego pulsa Ya tengo cuenta.',true);fin();return}
+    if(!session){authMsg('La cuenta existe pero no se pudo abrir sesión. Pídele al administrador que la confirme en Supabase y entra con Ya tengo cuenta.',true);fin();return}
     SB_USER=session.user;
     conTope(cloudEntrar(nombre,code),15000,'La invitación no respondió. Revisa el código (son 8 letras) y pulsa Unirme otra vez.').then(function(){fin()},fallar);
   };
@@ -6774,11 +6800,11 @@ function cloudAuth(){
     var err=r&&r.error;
     if(err&&cloudAuthNoConfirmada(err)){fallar(err);return}
     if(_sbModo==='login'){fallar(err||{message:'Correo o clave incorrectos.'});return}
-    return conTope(registrar(),8000,'Supabase se quedó enviando el correo de confirmación. Corre el SQL y entra con Ya tengo cuenta.').then(function(u){
+    return conTope(registrar(),8000,'Supabase se quedó enviando el correo. Espera un momento y entra con Ya tengo cuenta.').then(function(u){
       if(u&&u.data&&u.data.session){entrar(u.data.session);return}
       return conTope(iniciar(),10000,'No se pudo entrar.').then(function(r2){
         if(r2&&r2.data&&r2.data.session){entrar(r2.data.session);return}
-        fallar((u&&u.error&&(cloudAuthEsLimite(u.error)||cloudAuthNoConfirmada(u.error))?u.error:null)||err||(u&&u.error)||(r2&&r2.error)||{message:'No se pudo entrar. Revisa la clave o corre el SQL.'});
+        fallar((u&&u.error&&(cloudAuthEsLimite(u.error)||cloudAuthNoConfirmada(u.error))?u.error:null)||err||(u&&u.error)||(r2&&r2.error)||{message:'No se pudo entrar. Revisa la clave o pide al administrador que confirme tu cuenta.'});
       },fallar);
     },function(e){fallar(err||e)});
   },fallar);
@@ -6864,7 +6890,7 @@ function cloudSesion(p){
 function cloudLogout(){
   var fin=function(){
     if(sb)sb.auth.signOut().finally(function(){
-      AUTH=null;SB_USER=null;CLOUD_ORG=null;_sbReady=false;_sbIniciado=false;
+      AUTH=null;SB_USER=null;CLOUD_ORG=null;_sbReady=false;_sbIniciado=false;_sbRecuperando=false;
       cloudClearLocal();
       localStorage.removeItem('cromat_session');
       localStorage.removeItem('cromat_owner');
@@ -7077,13 +7103,38 @@ function cloudDesactivarUsuario(id){
 }
 (function cloudInit(){
   if(!CLOUD_ON){
-    syncEstado('off','Local');
-    if(typeof authBoot==='function')authBoot();
+    syncEstado('off','Sin nube');
+    authShowLogin();
     return;
   }
   syncEstado('pend','Nube…');
-  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  try{
+    var q=new URLSearchParams(location.search);
+    var h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+    if(q.get('type')==='recovery'||h.get('type')==='recovery'){
+      _sbModo='recovery';
+      _sbRecuperando=true;
+    }
+    var inv=(q.get('invite')||'').trim();
+    if(inv){
+      _sbModo='invite';
+      var invEl=document.getElementById('login-invite');
+      if(invEl)invEl.value=inv.toUpperCase();
+    }
+  }catch(e){}
   sb.auth.onAuthStateChange(function(ev,session){
+    if(ev==='PASSWORD_RECOVERY'){
+      SB_USER=session&&session.user;
+      _sbRecuperando=true;
+      _sbIniciado=true;
+      AUTH=null;
+      cloudSetModo('recovery');
+      authShowLogin();
+      authMsg('Elige una clave nueva para tu cuenta.',false);
+      return;
+    }
+    if(_sbRecuperando)return;
     if(session&&session.user){
       SB_USER=session.user;
       if(!_sbIniciado){
@@ -7100,16 +7151,9 @@ function cloudDesactivarUsuario(id){
   });
   window.addEventListener('online',function(){cloudFlush()});
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')cloudFlush()});
-  try{
-    var inv=(new URLSearchParams(location.search).get('invite')||'').trim();
-    if(inv){
-      _sbModo='invite';
-      var invEl=document.getElementById('login-invite');
-      if(invEl)invEl.value=inv.toUpperCase();
-    }
-  }catch(e){}
   authShowLogin();
   if(_sbModo==='invite')cloudSetModo('invite');
+  if(_sbModo==='recovery')cloudSetModo('recovery');
 })();
 </script>
 

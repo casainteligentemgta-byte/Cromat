@@ -1,5 +1,18 @@
 # Nube Cromat (Supabase)
 
+Cromat entra con **Supabase Auth (correo + clave)**. Las cuentas ya creadas en Authentication y `cromat_profiles` se reutilizan tal cual: no hay que volver a registrarlas ni resetear claves.
+
+Al abrir [cromat.xyz](https://cromat.xyz) se ve la pantalla de inicio. La app (finanzas, salarios, configuración) solo aparece después de autenticarse. Si faltan `SUPABASE_URL` y `SUPABASE_ANON_KEY`, la pantalla de inicio avisa y no muestra el sistema.
+
+## Cómo crear un usuario nuevo
+
+1. Entra como administrador (engranaje → Usuarios).
+2. Escribe el correo, elige el rol y pulsa **Enviar**. Se crea una invitación.
+3. La persona abre el enlace (o pulsa **Me invitaron**), usa **ese mismo correo** y una clave de 8+ caracteres.
+4. Si la cuenta ya existe en Authentication, no la borres ni le cambies la clave: basta con que tenga fila en `cromat_profiles` (o que redima la invitación).
+
+No uses el SQL Editor para borrar o recrear `auth.users` de gente que ya entra.
+
 ## Qué hacer con Project URL y anon
 
 Son las dos únicas claves que Cromat necesita. Están en [supabase.com](https://supabase.com) → tu proyecto → **Project Settings → API**.
