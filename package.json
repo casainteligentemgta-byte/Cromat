@@ -3,6 +3,7 @@
   "private": true,
   "description": "Cromat gestión empresarial",
   "scripts": {
-    "build": "node scripts/inject-supabase.js && mkdir -p public && cp index.html public/index.html"
+    "build": "node scripts/inject-supabase.js && mkdir -p public && cp index.html public/index.html && cp static/robots.txt static/manifest.webmanifest static/favicon.svg public/",
+    "test": "node scripts/test-calcs.js"
   }
 }

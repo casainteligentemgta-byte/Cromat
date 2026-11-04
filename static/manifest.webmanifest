@@ -1,0 +1,20 @@
+{
+  "name": "Cromat",
+  "short_name": "Cromat",
+  "description": "Sistema interno de gestión de Cromat. Acceso solo para el equipo.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
