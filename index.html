@@ -24,7 +24,10 @@
   --tp:#F0F0EC;--ts:#AAAAAA;--tm:#666660;
   --bd:#3A3A38;--bds:#4A4A48;
 }}
-body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-bottom:80px}
+html{min-height:100%}
+body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding-bottom:80px;min-height:100vh}
+body.in{background:var(--s0)}
+html:has(body.in){background:var(--s0)}
 .topbar{background:var(--negro);padding:8px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:50;flex-wrap:nowrap}
 .logo{font-size:18px;font-weight:700;letter-spacing:0.5px;flex-shrink:0;line-height:1}
 .logo .c1{color:var(--coral)}.logo .c2{color:var(--teal)}
@@ -41,11 +44,21 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .main{padding:14px 14px 0}
 .sec{display:none}.sec.on{display:block}
 /* NAV */
-.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--s2);border-top:0.5px solid var(--bd);display:flex;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;padding-bottom:env(safe-area-inset-bottom,0px);scrollbar-width:none;z-index:100;min-height:56px}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--s2);border-top:0.5px solid var(--bd);display:flex;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;padding:0 4px env(safe-area-inset-bottom,0px);scrollbar-width:none;z-index:100;min-height:58px}
 .bnav::-webkit-scrollbar{display:none}
-.nb{flex:0 0 auto;min-width:60px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;cursor:pointer;border:none;background:transparent;color:var(--tm);font-size:9px;font-weight:500;white-space:nowrap}
-.nb svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.nb{flex:1 1 0;min-width:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:7px 8px 6px;cursor:pointer;border:none;background:transparent;color:var(--tm);font-size:10px;font-weight:600;white-space:nowrap;line-height:1.15;touch-action:manipulation}
+.nb svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .nb.on{color:var(--coral)}
+.subnav{display:none;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:2px 0 8px;margin-top:10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.subnav.on{display:flex}
+.subnav::-webkit-scrollbar{display:none}
+.stab{flex:0 0 auto;padding:7px 12px;border:0.5px solid var(--bd);border-radius:20px;font-size:12px;font-weight:600;background:var(--s2);color:var(--ts);cursor:pointer}
+.stab.on{background:var(--coral);color:#fff;border-color:var(--coral)}
+.csub{display:none}.csub.on{display:block}
+@media(min-width:720px){
+  .bnav{justify-content:center;padding:0 12px env(safe-area-inset-bottom,0px)}
+  .nb{flex:0 0 auto;max-width:140px;font-size:11px;min-width:84px}
+}
 /* CARDS */
 .card{background:var(--s2);border:0.5px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:10px}
 .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -213,13 +226,14 @@ body{background:var(--s0);color:var(--tp);font-family:-apple-system,BlinkMacSyst
 .dist-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px;font-weight:600;flex-shrink:0}
 /* ITEM SELECTOR */
 .prod-tag{display:inline-flex;align-items:center;gap:4px;background:var(--as);color:var(--at);padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;margin-bottom:6px}
-@media print{.bnav,.nb,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
+@media print{.bnav,.nb,.subnav,.btn,.modal-bg>div>div:last-child{display:none!important}body{padding:0}}
 /* LOGIN: tapa la app hasta que hay sesión. Sin JS también queda el overlay encima. */
 html{background:var(--negro)}
 body:not(.in){background:var(--negro);padding-bottom:0;overflow:hidden}
 body:not(.in) .topbar,
 body:not(.in) .main,
 body:not(.in) .bnav,
+body:not(.in) .subnav,
 body:not(.in) .modal-bg{display:none!important}
 #login-screen{display:flex;position:fixed;inset:0;background:var(--negro);z-index:2000;align-items:flex-start;justify-content:center;padding:48px 16px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom,24px));overflow-y:auto;-webkit-overflow-scrolling:touch}
 @media(min-height:640px){#login-screen{align-items:center;padding-top:24px}}
@@ -288,6 +302,8 @@ body.in #login-screen{display:none}
 
 <div class="main">
 
+<div id="subnav" class="subnav" role="tablist" aria-label="Subsecciones"></div>
+
 <!-- DASHBOARD -->
 <div id="s-dash" class="sec on">
   <div class="kpi-grid" style="margin-top:14px">
@@ -338,7 +354,8 @@ body.in #login-screen{display:none}
 
 <!-- ORDENES -->
 <div id="s-ordenes" class="sec">
-  <div class="btn-row" style="margin-top:14px">
+  <div class="st" style="margin-top:14px">Órdenes de producción · arte y archivos</div>
+  <div class="btn-row" style="margin-top:8px">
     <button class="btn btn-primary btn-sm" onclick="abrirOrden()">+ Nueva OP</button>
     <button class="btn btn-ghost btn-sm" id="btn-vista-kanban" onclick="setVistaOP('kanban')">Kanban</button>
     <button class="btn btn-ghost btn-sm" id="btn-vista-lista" onclick="setVistaOP('lista')">Lista</button>
@@ -364,7 +381,13 @@ body.in #login-screen{display:none}
 
 <!-- CONTABILIDAD -->
 <div id="s-conta" class="sec">
-  <div class="period-tabs" style="margin-top:14px">
+  <div class="ctabs" id="conta-subtabs" style="margin-top:14px" role="tablist" aria-label="Contabilidad">
+    <button class="ctab on" id="csub-cifras" type="button" onclick="setContaSub('cifras')">Cifras del mes</button>
+    <button class="ctab" id="csub-reparto" type="button" onclick="setContaSub('reparto')">Reparto</button>
+    <button class="ctab" id="csub-gastos" type="button" onclick="setContaSub('gastos')">Gastos fijos</button>
+    <button class="ctab" id="csub-movs" type="button" onclick="setContaSub('movs')">Movimientos</button>
+  </div>
+  <div class="period-tabs" id="conta-period-wrap">
     <button class="ptab" id="ctab-dia" onclick="setPeriodo('dia')">Hoy</button>
     <button class="ptab" id="ctab-semana" onclick="setPeriodo('semana')">Semana</button>
     <button class="ptab on" id="ctab-mes" onclick="setPeriodo('mes')">Mes</button>
@@ -374,72 +397,84 @@ body.in #login-screen{display:none}
     <input class="fi" type="date" id="conta-desde" style="max-width:140px" onchange="renderConta()">
     <input class="fi" type="date" id="conta-hasta" style="max-width:140px" onchange="renderConta()">
   </div>
-  <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
-    <div class="kpi ing"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos mes</div></div>
-    <div class="kpi gas"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos mes</div></div>
-    <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
-  </div>
-  <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Cifras del mes: lo cobrado y los gastos</div>
-  <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
-    <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
-    <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
-  </div>
-  <div class="card" id="conta-cobros-card" style="margin-bottom:10px">
-    <div class="st">Cobrado este mes</div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin:-2px 0 8px">Desliza a la izquierda para quitar un cobro. Se resta de ingresos, fondos y de la OP.</div>
-    <div id="conta-cobros"><div class="empty">Sin cobros</div></div>
-  </div>
-  <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
-    <div class="st">Cuentas por cobrar</div>
-    <div id="conta-cxc"><div class="empty">Sin saldos pendientes en OP</div></div>
-  </div>
-  <div class="card" style="margin-bottom:10px">
-    <div class="st">Reparto de ganancia</div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Ingreso bruto = lo cobrado este mes. El costo de producción se desglosa por partida (tinta, papel, electricidad, depreciación, etc.) según los análisis de las OP cobradas. Lo por cobrar no entra hasta que se cobre. Negocio / CEO / Operadora reparte la ganancia neta. Los gastos reales del mes están en el resultado de arriba.</div>
-    <div id="conta-dist"></div>
-    <div id="conta-pcts" style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--ts)">
-      <span>Costo sin análisis <input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
-      <span>Impuesto <input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
-      <span>Negocio <input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
-      <span>CEO <input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
-      <span>Operadora <input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+
+  <div id="conta-panel-cifras" class="csub on">
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="kpi ing"><div class="kpi-v" id="c-ingresos">$0</div><div class="kpi-l">Ingresos mes</div></div>
+      <div class="kpi gas"><div class="kpi-v" id="c-gastos2">$0</div><div class="kpi-l">Gastos mes</div></div>
+      <div class="kpi teal"><div class="kpi-v" id="c-balance">$0</div><div class="kpi-l">Resultado</div></div>
     </div>
-    <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
-  </div>
-  <div class="card" id="conta-fijos-card" style="margin-bottom:10px">
-    <div class="st">Gastos fijos del mes</div>
-    <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Se cuentan enteros en el mes. Cada gasto que registres abajo se suma encima.</div>
-    <div id="conta-fijos-list"></div>
-    <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
-      <input class="fi" id="fijo-nombre" placeholder="Ej: Alquiler" style="flex:1">
-      <input class="fi" id="fijo-monto" type="number" min="0" step="1" placeholder="$" style="max-width:88px">
-      <button class="btn btn-teal btn-sm" type="button" onclick="agregarGastoFijo()">+</button>
+    <div id="conta-ing-split" style="font-size:11px;color:var(--tm);margin:-4px 0 10px;line-height:1.4">Cifras del mes: lo cobrado y los gastos</div>
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+      <div class="kpi" style="border-left:3px solid var(--wt)"><div class="kpi-v" id="c-cobrar">$0</div><div class="kpi-l">Por cobrar (OP)</div></div>
+      <div class="kpi purple"><div class="kpi-v" id="c-nmovs">0</div><div class="kpi-l">Movimientos</div></div>
     </div>
-    <div class="dist-row" style="margin-top:8px;border-bottom:none"><span class="result-label">Fijos + agregados</span><span style="font-size:12px;font-weight:700" id="conta-gastos-split">$0</span></div>
+    <div class="card" id="conta-cobros-card" style="margin-bottom:10px">
+      <div class="st">Cobrado este mes</div>
+      <div style="font-size:11px;color:var(--tm);line-height:1.4;margin:-2px 0 8px">Desliza a la izquierda para quitar un cobro. Se resta de ingresos, fondos y de la OP.</div>
+      <div id="conta-cobros"><div class="empty">Sin cobros</div></div>
+    </div>
+    <div class="card" id="conta-cxc-card" style="margin-bottom:10px">
+      <div class="st">Cuentas por cobrar</div>
+      <div id="conta-cxc"><div class="empty">Sin saldos pendientes en OP</div></div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="st">Por categoria (mes)</div>
+      <div id="conta-cats"><div class="empty">Sin desglose</div></div>
+    </div>
   </div>
-  <div class="card" style="margin-bottom:10px">
-    <div class="st">Por categoria (mes)</div>
-    <div id="conta-cats"><div class="empty">Sin desglose</div></div>
+
+  <div id="conta-panel-reparto" class="csub">
+    <div class="card" style="margin-bottom:10px">
+      <div class="st">Reparto de ganancia</div>
+      <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Ingreso bruto = lo cobrado este mes. El costo de producción se desglosa por partida (tinta, papel, electricidad, depreciación, etc.) según los análisis de las OP cobradas. Lo por cobrar no entra hasta que se cobre. Negocio / CEO / Operadora reparte la ganancia neta. Los gastos reales del mes están en el resultado de arriba.</div>
+      <div id="conta-dist"></div>
+      <div id="conta-pcts" style="display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--bd);font-size:11px;color:var(--ts)">
+        <span>Costo sin análisis <input type="number" id="cd-costo-pct" value="35" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+        <span>Impuesto <input type="number" id="cd-imp-pct" value="10" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--coral);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+        <span>Negocio <input type="number" id="cd-pct-neg" value="80" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+        <span>CEO <input type="number" id="cd-pct-ceo" value="15" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+        <span>Operadora <input type="number" id="cd-pct-oper" value="5" min="0" max="100" style="width:42px;text-align:right;border:none;background:transparent;color:var(--teal);font-weight:600" onfocus="this.select()" oninput="onContaPct()">%</span>
+      </div>
+      <div id="cd-warn" style="display:none;font-size:11px;color:var(--dt);margin-top:8px;line-height:1.4"></div>
+    </div>
   </div>
-  <div class="btn-row">
-    <button class="btn btn-primary btn-sm" onclick="abrirMovimiento()">+ Movimiento</button>
-    <select class="fi btn-sm" id="conta-tipo-fil" style="max-width:120px" onchange="renderConta()">
-      <option value="">Tipo: todos</option>
-      <option value="ingreso">Ingresos</option>
-      <option value="gasto">Gastos</option>
-    </select>
-    <select class="fi btn-sm" id="conta-cat-fil" style="max-width:150px" onchange="renderConta()">
-      <option value="">Todas las categ.</option>
-      <option value="ventas">Ventas</option>
-      <option value="servicios">Servicios</option>
-      <option value="insumos">Insumos/Materiales</option>
-      <option value="operativos">Gastos operativos</option>
-      <option value="equipo">Equipo/Mantenimiento</option>
-      <option value="salarios">Salarios</option>
-      <option value="otro">Otro</option>
-    </select>
+
+  <div id="conta-panel-gastos" class="csub">
+    <div class="card" id="conta-fijos-card" style="margin-bottom:10px">
+      <div class="st">Gastos fijos del mes</div>
+      <div style="font-size:11px;color:var(--tm);line-height:1.4;margin-bottom:8px">Se cuentan enteros en el mes. Cada gasto que registres abajo se suma encima.</div>
+      <div id="conta-fijos-list"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <input class="fi" id="fijo-nombre" placeholder="Ej: Alquiler" style="flex:1">
+        <input class="fi" id="fijo-monto" type="number" min="0" step="1" placeholder="$" style="max-width:88px">
+        <button class="btn btn-teal btn-sm" type="button" onclick="agregarGastoFijo()">+</button>
+      </div>
+      <div class="dist-row" style="margin-top:8px;border-bottom:none"><span class="result-label">Fijos + agregados</span><span style="font-size:12px;font-weight:700" id="conta-gastos-split">$0</span></div>
+    </div>
   </div>
-  <div id="lista-movimientos"></div>
+
+  <div id="conta-panel-movs" class="csub">
+    <div class="btn-row">
+      <button class="btn btn-primary btn-sm" onclick="abrirMovimiento()">+ Movimiento</button>
+      <select class="fi btn-sm" id="conta-tipo-fil" style="max-width:120px" onchange="renderConta()">
+        <option value="">Tipo: todos</option>
+        <option value="ingreso">Ingresos</option>
+        <option value="gasto">Gastos</option>
+      </select>
+      <select class="fi btn-sm" id="conta-cat-fil" style="max-width:150px" onchange="renderConta()">
+        <option value="">Todas las categ.</option>
+        <option value="ventas">Ventas</option>
+        <option value="servicios">Servicios</option>
+        <option value="insumos">Insumos/Materiales</option>
+        <option value="operativos">Gastos operativos</option>
+        <option value="equipo">Equipo/Mantenimiento</option>
+        <option value="salarios">Salarios</option>
+        <option value="otro">Otro</option>
+      </select>
+    </div>
+    <div id="lista-movimientos"></div>
+  </div>
 </div>
 
 <!-- FONDOS -->
@@ -478,9 +513,10 @@ body.in #login-screen{display:none}
   </div>
 </div>
 
-<!-- COSTOS -->
+<!-- COSTOS / COTIZADOR -->
 <div id="s-costos" class="sec">
-  <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+  <div class="st" style="margin-top:14px">Cotizador · costo por m² / ml</div>
+  <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
     <div class="ctabs">
       <button class="ctab on" id="btn-vista-calc" onclick="setVistaCostos('calc')">Calculadoras</button>
       <button class="ctab" id="btn-vista-saved" onclick="setVistaCostos('saved')">Guardados</button>
@@ -908,44 +944,36 @@ body.in #login-screen{display:none}
 </div><!-- /main -->
 
 <!-- BOTTOM NAV -->
-<nav class="bnav">
-  <button class="nb on" id="nb-dash" onclick="goTab('dash')">
+<nav class="bnav" id="bnav" role="tablist" aria-label="Secciones">
+  <button class="nb on" id="nb-dash" type="button" role="tab" aria-selected="true" onclick="goTab('dash')">
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    Dashboard
+    Inicio
   </button>
-  <button class="nb" id="nb-clientes" onclick="goTab('clientes')">
+  <button class="nb" id="nb-ventas" type="button" role="tab" aria-selected="false" onclick="goGroup('ventas')">
     <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
-    Clientes
+    Ventas
   </button>
-  <button class="nb" id="nb-presupuestos" onclick="goTab('presupuestos')">
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    Presupuestos
-  </button>
-  <button class="nb" id="nb-ordenes" onclick="goTab('ordenes')">
+  <button class="nb" id="nb-ordenes" type="button" role="tab" aria-selected="false" onclick="goTab('ordenes')">
     <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-    Ordenes
+    Órdenes
   </button>
-  <button class="nb" id="nb-conta" onclick="goTab('conta')">
+  <button class="nb" id="nb-costos" type="button" role="tab" aria-selected="false" onclick="goTab('costos')">
+    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Cotizador
+  </button>
+  <button class="nb" id="nb-conta" type="button" role="tab" aria-selected="false" onclick="goTab('conta')">
     <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
     Contabilidad
   </button>
-  <button class="nb" id="nb-fondos" onclick="goTab('fondos')">
+  <button class="nb" id="nb-fondos" type="button" role="tab" aria-selected="false" onclick="goTab('fondos')">
     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
     Fondos
   </button>
-  <button class="nb" id="nb-costos" onclick="goTab('costos')">
-    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Costos
-  </button>
-  <button class="nb" id="nb-catalogo" onclick="goTab('catalogo')">
-    <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-    Catalogo
-  </button>
-  <button class="nb" id="nb-inventario" onclick="goTab('inventario')">
+  <button class="nb" id="nb-inventario" type="button" role="tab" aria-selected="false" onclick="goTab('inventario')">
     <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
     Inventario
   </button>
-  <button class="nb" id="nb-log" onclick="goTab('log')" style="display:none">
+  <button class="nb" id="nb-log" type="button" role="tab" aria-selected="false" onclick="goTab('log')" style="display:none">
     <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
     Log
   </button>
@@ -1432,7 +1460,7 @@ body.in #login-screen{display:none}
 </div>
 
 <style>
-@media print{.bnav,.modal-bg{display:none!important}body{padding:0}}
+@media print{.bnav,.subnav,.modal-bg{display:none!important}body{padding:0}}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" integrity="sha384-GFr3yTh5lJznCbZfpTtXnwboFsxqtTQoeTZCRHhE0579KrRmlCzen5AA8ohaB5ug" crossorigin="anonymous"></script>
@@ -1798,10 +1826,11 @@ function opPagoRevisado(o){
 }
 function nombreClienteKey(n){return String(n||'').trim().toLowerCase().replace(/\s+/g,' ')}
 function repararFichasComerciales(){
-  var clientes=cloudAsList(LS.g('crm_clientes'));
-  var presup=cloudAsList(LS.g('crm_presupuestos'));
-  var ordenes=cloudAsList(LS.g('crm_ordenes'));
-  var movs=cloudAsList(LS.g('crm_movimientos'));
+  function asList(v){return Array.isArray(v)?v:[]}
+  var clientes=asList(LS.g('crm_clientes'));
+  var presup=asList(LS.g('crm_presupuestos'));
+  var ordenes=asList(LS.g('crm_ordenes'));
+  var movs=asList(LS.g('crm_movimientos'));
   var byId={},byNom={};
   var cambioCli=false,cambioPre=false,cambioOp=false;
   clientes.forEach(function(c){
@@ -2029,6 +2058,8 @@ function authShowLogin(){
   var us=document.getElementById('btn-ajustes');if(us)us.style.display='none';
   var chip=document.getElementById('auth-chip');if(chip){chip.classList.remove('on');chip.style.display='none'}
   document.querySelectorAll('.bnav .nb').forEach(function(b){b.style.display='none'});
+  var sn=document.getElementById('subnav');
+  if(sn){sn.classList.remove('on');sn.innerHTML=''}
 }
 function authApplyUI(){
   if(!AUTH)return;
@@ -2044,9 +2075,10 @@ function authApplyUI(){
   if(rol)rol.textContent=authRol(AUTH.rol).l;
   var us=document.getElementById('btn-ajustes');
   if(us)us.style.display=authCanUsers()?'flex':'none';
-  ['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario','log'].forEach(function(id){
-    var b=document.getElementById('nb-'+id);
-    if(b)b.style.display=authCan(id)?'':'none';
+  NAV_GROUPS.forEach(function(g){
+    var b=document.getElementById('nb-'+g.id);
+    if(!b)return;
+    b.style.display=groupVisibleTabs(g).length?'':'none';
   });
 }
 function authSetSession(u){
@@ -2055,7 +2087,7 @@ function authSetSession(u){
   AUTH={id:u.id,nombre:u.nombre,usuario:u.usuario,email:u.email||u.usuario,rol:rol,t:Date.now()};
   authTouch();
   authApplyUI();
-  goTab(authFirstTab());
+  openAfterLogin();
 }
 function authLogin(){
   if(typeof CLOUD_ON==='undefined'||!CLOUD_ON){
@@ -2245,14 +2277,168 @@ function eliminarUsuario(id){
 }
 
 // ===== NAV =====
-function goTab(id){
+var NAV_GROUPS=[
+  {id:'dash',tabs:['dash']},
+  {id:'ventas',tabs:['clientes','presupuestos','catalogo']},
+  {id:'ordenes',tabs:['ordenes']},
+  {id:'costos',tabs:['costos']},
+  {id:'conta',tabs:['conta']},
+  {id:'fondos',tabs:['fondos']},
+  {id:'inventario',tabs:['inventario']},
+  {id:'log',tabs:['log']}
+];
+var TAB_LABELS={
+  dash:'Inicio',clientes:'Clientes',presupuestos:'Presupuestos',catalogo:'Catálogo',
+  ordenes:'Órdenes',costos:'Cotizador',conta:'Contabilidad',fondos:'Fondos',
+  inventario:'Inventario',log:'Log'
+};
+var TAB_HASH={dash:'inicio',costos:'cotizador'};
+var HASH_TO_TAB={
+  inicio:'dash',dash:'dash',ventas:'ventas',
+  clientes:'clientes',presupuestos:'presupuestos',catalogo:'catalogo',
+  ordenes:'ordenes',cotizador:'costos',costos:'costos',
+  conta:'conta',contabilidad:'conta',fondos:'fondos',
+  inventario:'inventario',log:'log'
+};
+var CONTA_SUBS=['cifras','reparto','gastos','movs'];
+var currentTab='dash';
+var currentContaSub='cifras';
+var lastTabInGroup={};
+var _navHashLock=false;
+
+function normNavKey(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function isAuthHash(h){
+  h=h||location.hash||'';
+  return /access_token=|refresh_token=|type=recovery|type=signup|type=magiclink|type=invite|error_description=/.test(h);
+}
+function groupOfTab(tab){
+  for(var i=0;i<NAV_GROUPS.length;i++){
+    if(NAV_GROUPS[i].tabs.indexOf(tab)>=0)return NAV_GROUPS[i];
+  }
+  return null;
+}
+function groupVisibleTabs(g){
+  return (g&&g.tabs||[]).filter(function(t){return authCan(t)});
+}
+function parseTabHash(){
+  if(isAuthHash())return null;
+  var raw=(location.hash||'').replace(/^#\/?/,'').split('?')[0];
+  if(!raw||/[=&]/.test(raw))return null;
+  var parts=raw.split('/').filter(Boolean);
+  var key=normNavKey(parts[0]);
+  var mapped=HASH_TO_TAB[key];
+  if(!mapped)return null;
+  var sub=normNavKey(parts[1]||'');
+  if(mapped==='ventas')return {tab:'ventas',sub:''};
+  if(mapped==='conta'&&CONTA_SUBS.indexOf(sub)>=0)return {tab:'conta',sub:sub};
+  return {tab:mapped,sub:''};
+}
+function tabHashFor(id,sub){
+  var h=TAB_HASH[id]||id;
+  if(id==='conta'&&sub&&sub!=='cifras')h+='/'+sub;
+  return '#'+h;
+}
+function writeTabHash(id,sub){
+  if(isAuthHash())return;
+  var next=tabHashFor(id,sub);
+  if((location.hash||'')===next)return;
+  _navHashLock=true;
+  try{
+    if(history.replaceState)history.replaceState(null,'',location.pathname+location.search+next);
+    else location.hash=next.replace(/^#/,'');
+  }catch(e){}
+  setTimeout(function(){_navHashLock=false},0);
+}
+function renderSubnav(tab){
+  var el=document.getElementById('subnav');
+  if(!el)return;
+  var g=groupOfTab(tab);
+  var vis=groupVisibleTabs(g);
+  if(vis.length<2){
+    el.classList.remove('on');
+    el.innerHTML='';
+    return;
+  }
+  el.classList.add('on');
+  el.innerHTML=vis.map(function(t){
+    return '<button class="stab'+(t===tab?' on':'')+'" type="button" role="tab" aria-selected="'+(t===tab?'true':'false')+'" onclick="goTab(\''+t+'\')">'+TAB_LABELS[t]+'</button>';
+  }).join('');
+}
+function applyContaSub(sub){
+  if(CONTA_SUBS.indexOf(sub)<0)sub='cifras';
+  currentContaSub=sub;
+  CONTA_SUBS.forEach(function(x){
+    var pan=document.getElementById('conta-panel-'+x);
+    var btn=document.getElementById('csub-'+x);
+    if(pan)pan.classList.toggle('on',x===sub);
+    if(btn)btn.classList.toggle('on',x===sub);
+  });
+  var per=document.getElementById('conta-period-wrap');
+  var rango=document.getElementById('conta-rango');
+  var showPeriod=sub==='cifras'||sub==='movs';
+  if(per)per.style.display=showPeriod?'flex':'none';
+  if(rango&&!showPeriod)rango.style.display='none';
+  else if(rango&&showPeriod&&periodoConta==='custom')rango.style.display='flex';
+}
+function setContaSub(sub){
+  if(!requireTab('conta'))return;
+  applyContaSub(sub);
+  writeTabHash('conta',currentContaSub);
+  if(sub==='reparto'||sub==='gastos'||sub==='cifras'||sub==='movs')renderConta();
+}
+function goGroup(gid){
+  var g=null;
+  for(var i=0;i<NAV_GROUPS.length;i++){if(NAV_GROUPS[i].id===gid)g=NAV_GROUPS[i]}
+  if(!g)return;
+  var vis=groupVisibleTabs(g);
+  if(!vis.length)return;
+  var pref=lastTabInGroup[gid];
+  goTab(vis.indexOf(pref)>=0?pref:vis[0]);
+}
+function openAfterLogin(){
+  var p=parseTabHash();
+  if(p&&p.tab==='ventas'){
+    goGroup('ventas');
+    return;
+  }
+  if(p&&p.tab&&authCan(p.tab)){
+    goTab(p.tab,{fromHash:true,contaSub:p.tab==='conta'?(p.sub||'cifras'):''});
+    return;
+  }
+  goTab(authFirstTab());
+}
+function goTab(id,opts){
+  opts=opts||{};
+  id=HASH_TO_TAB[normNavKey(id)]||id;
+  if(id==='ventas'){goGroup('ventas');return}
   if(!AUTH){authShowLogin();return}
   if(!authCan(id)){id=authFirstTab();if(!authCan(id))return}
+  currentTab=id;
+  var g=groupOfTab(id);
+  if(g)lastTabInGroup[g.id]=id;
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('on')});
-  document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('on')});
+  document.querySelectorAll('.nb').forEach(function(b){
+    b.classList.remove('on');
+    b.setAttribute('aria-selected','false');
+  });
   var s=document.getElementById('s-'+id); if(s)s.classList.add('on');
-  var b=document.getElementById('nb-'+id); if(b)b.classList.add('on');
-  window.scrollTo(0,0);
+  var nbId=g?g.id:id;
+  var b=document.getElementById('nb-'+nbId);
+  if(b){
+    b.classList.add('on');
+    b.setAttribute('aria-selected','true');
+    try{b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'})}catch(e){}
+  }
+  renderSubnav(id);
+  if(id==='conta'){
+    var sub=opts.contaSub;
+    if(!sub)sub=opts.fromHash?'cifras':(currentContaSub||'cifras');
+    applyContaSub(sub);
+  }
+  if(!opts.fromHash)writeTabHash(id,id==='conta'?currentContaSub:'');
+  if(!opts.keepScroll)window.scrollTo(0,0);
   if(id==='dash'||id==='clientes'||id==='presupuestos'||id==='ordenes')repararFichasComerciales();
   if(id==='dash')renderDash();
   if(id==='clientes')renderClientes();
@@ -2268,6 +2454,14 @@ function goTab(id){
   if(id==='inventario')renderInventario();
   if(id==='log')renderLog();
 }
+window.addEventListener('hashchange',function(){
+  if(_navHashLock||!AUTH||isAuthHash())return;
+  var p=parseTabHash();
+  if(!p)return;
+  if(p.tab==='ventas'){goGroup('ventas');return}
+  if(!authCan(p.tab))return;
+  goTab(p.tab,{fromHash:true,contaSub:p.tab==='conta'?(p.sub||'cifras'):''});
+});
 
 // ===== DASHBOARD =====
 function renderDash(){
@@ -6885,7 +7079,7 @@ function cloudSesion(p){
   authTouch();
   authApplyUI();
   cloudPull();
-  goTab(authFirstTab());
+  openAfterLogin();
 }
 function cloudLogout(){
   var fin=function(){
@@ -7101,10 +7295,23 @@ function cloudDesactivarUsuario(id){
     });
   });
 }
+function demoLocalNav(){
+  var host=location.hostname;
+  if(host!=='127.0.0.1'&&host!=='localhost')return false;
+  var q;
+  try{q=new URLSearchParams(location.search)}catch(e){return false}
+  if(q.get('demo')!=='1')return false;
+  var rol=q.get('rol')||'admin';
+  if(!ROLES[rol])rol='admin';
+  AUTH={id:'demo',nombre:'Demo',usuario:'demo',email:'demo@local',rol:rol,t:Date.now()};
+  authApplyUI();
+  openAfterLogin();
+  return true;
+}
 (function cloudInit(){
   if(!CLOUD_ON){
     syncEstado('off','Sin nube');
-    authShowLogin();
+    if(!demoLocalNav())authShowLogin();
     return;
   }
   syncEstado('pend','Nube…');
