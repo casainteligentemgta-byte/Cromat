@@ -93,10 +93,30 @@ begin
     )
     when 'ventas' then k in ('crm_clientes','crm_presupuestos','crm_ordenes','crm_catalogo')
     when 'operadora' then k in ('crm_ordenes','crm_inventario','crm_costos','imp_vals')
-    when 'conta' then k in ('crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config')
+    when 'conta' then k in (
+      'crm_movimientos','crm_fondos_config','crm_fondos_audit','crm_conta_config','crm_ordenes'
+    )
     when 'diseno' then k in ('crm_presupuestos','crm_costos','crm_catalogo','imp_vals')
     else false
   end;
+  end;
+$$;
+
+create or replace function public.cromat_can_read_key(k text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if public.cromat_can_key(k) then
+    return true;
+  end if;
+  if public.cromat_rol() = 'conta' then
+    return k in ('crm_ordenes','crm_presupuestos','crm_costos');
+  end if;
+  return false;
 end;
 $$;
 
@@ -223,7 +243,7 @@ create policy cromat_invites_admin_all on public.cromat_invites
 drop policy if exists cromat_data_select on public.cromat_data;
 create policy cromat_data_select on public.cromat_data
   for select to authenticated
-  using (org_id = public.cromat_org_id() and public.cromat_can_key(key));
+  using (org_id = public.cromat_org_id() and public.cromat_can_read_key(key));
 
 drop policy if exists cromat_data_write on public.cromat_data;
 create policy cromat_data_write on public.cromat_data
@@ -246,9 +266,14 @@ grant select on public.cromat_orgs to authenticated;
 grant select, update on public.cromat_profiles to authenticated;
 grant select, insert, update, delete on public.cromat_invites to authenticated;
 grant select, insert, update, delete on public.cromat_data to authenticated;
+revoke all on function public.cromat_rol() from public, anon;
+revoke all on function public.cromat_org_id() from public, anon;
+revoke all on function public.cromat_can_key(text) from public, anon;
+revoke all on function public.cromat_can_read_key(text) from public, anon;
 grant execute on function public.cromat_rol() to authenticated;
 grant execute on function public.cromat_org_id() to authenticated;
 grant execute on function public.cromat_can_key(text) to authenticated;
+grant execute on function public.cromat_can_read_key(text) to authenticated;
 
 create or replace function public.cromat_equipo()
 returns table (
@@ -259,11 +284,16 @@ returns table (
   rol text,
   activo boolean
 )
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
+begin
+  if public.cromat_rol() is distinct from 'admin' then
+    return;
+  end if;
+  return query
   select
     p.user_id,
     p.nombre,
@@ -274,7 +304,8 @@ as $$
   from public.cromat_profiles p
   left join auth.users u on u.id = p.user_id
   where p.org_id = public.cromat_org_id()
-  order by p.nombre
+  order by p.nombre;
+end;
 $$;
 
 grant execute on function public.cromat_equipo() to authenticated;
@@ -318,6 +349,7 @@ create or replace function public.cromat_owner_email()
 returns text
 language sql
 immutable
+set search_path = public
 as $$
   select 'casainteligentemgta@gmail.com'::text
 $$;
@@ -472,8 +504,27 @@ set search_path = auth, public
 as $$
 declare
   em text := lower(trim(coalesce(p_email, '')));
+  ok boolean := false;
 begin
   if em = '' or position('@' in em) = 0 then
+    return;
+  end if;
+  if em = public.cromat_owner_email() then
+    ok := true;
+  end if;
+  if not ok then
+    select true into ok
+    from public.cromat_profiles p
+    where lower(trim(coalesce(p.email, ''))) = em
+    limit 1;
+  end if;
+  if not ok then
+    select true into ok
+    from public.cromat_invites i
+    where lower(trim(coalesce(i.email, ''))) = em
+    limit 1;
+  end if;
+  if not ok then
     return;
   end if;
   update auth.users
@@ -482,7 +533,16 @@ begin
 end;
 $$;
 
+revoke all on function public.cromat_unlock_login(text) from public;
 grant execute on function public.cromat_unlock_login(text) to anon, authenticated;
+revoke all on function public.cromat_protect_owner() from public, anon, authenticated;
+revoke all on function public.cromat_auto_confirm_auth_user() from public, anon, authenticated;
+revoke all on function public.cromat_bootstrap(text) from public, anon;
+revoke all on function public.cromat_redeem_invite(text, text) from public, anon;
+revoke all on function public.cromat_save_data(text, jsonb) from public, anon;
+revoke all on function public.cromat_ensure_owner() from public, anon;
+revoke all on function public.cromat_owner_email() from public, anon;
+revoke all on function public.cromat_equipo() from public, anon;
 
 -- Elis Cuba: si ya autenticó y no tiene perfil, entra al equipo sin código.
 create or replace function public.cromat_auto_join_team(p_nombre text)
@@ -531,6 +591,7 @@ begin
 end;
 $$;
 
+revoke all on function public.cromat_auto_join_team(text) from public, anon;
 grant execute on function public.cromat_auto_join_team(text) to authenticated;
 
 -- Si la cuenta de Elis ya existe, déjala en el equipo ahora.

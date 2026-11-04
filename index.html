@@ -4,8 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co; font-src 'self'">
-<title>CromatGestion</title>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="googlebot" content="noindex, nofollow, noarchive">
+<meta name="description" content="Sistema interno de gestión de Cromat. Acceso solo para el equipo.">
+<meta name="theme-color" content="#0A0A0A">
+<meta name="application-name" content="Cromat">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cromat">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'">
+<title>Cromat</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -89,7 +100,8 @@ html:has(body.in){background:var(--s0)}
 .btn-sm{padding:5px 10px;font-size:11px}
 .btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 /* FORMS */
-.fi{width:100%;padding:8px 10px;border:0.5px solid var(--bd);border-radius:var(--r);background:var(--s2);color:var(--tp);font-size:14px;outline:none}
+.fi{width:100%;padding:8px 10px;border:0.5px solid var(--bd);border-radius:var(--r);background:var(--s2);color:var(--tp);font-size:16px;outline:none}
+@media(min-width:720px){.fi{font-size:14px}}
 .fi:focus{border-color:var(--coral)}
 .fl{font-size:12px;color:var(--ts);margin-bottom:4px;display:block}
 .fg{margin-bottom:10px}
@@ -187,7 +199,7 @@ html:has(body.in){background:var(--s0)}
 .field-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:0.5px solid var(--bd)}
 .field-row:last-of-type{border-bottom:none}
 .field-label{font-size:12px;color:var(--ts);flex:1;padding-right:8px}
-.field-input{width:90px;text-align:right;font-size:13px;font-weight:600;background:transparent;border:none;color:var(--coral);outline:none}
+.field-input{width:90px;text-align:right;font-size:16px;font-weight:600;background:transparent;border:none;color:var(--coral);outline:none}
 .result-box{background:var(--s1);border-radius:var(--r);padding:12px;margin-top:10px}
 .result-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--bd)}
 .result-row:last-child{border-bottom:none}
@@ -235,6 +247,9 @@ body:not(.in) .main,
 body:not(.in) .bnav,
 body:not(.in) .subnav,
 body:not(.in) .modal-bg{display:none!important}
+body:not(.in) .topbar,
+body:not(.in) .main,
+body:not(.in) .bnav{visibility:hidden;pointer-events:none}
 #login-screen{display:flex;position:fixed;inset:0;background:var(--negro);z-index:2000;align-items:flex-start;justify-content:center;padding:48px 16px 24px;padding-bottom:max(24px,env(safe-area-inset-bottom,24px));overflow-y:auto;-webkit-overflow-scrolling:touch}
 @media(min-height:640px){#login-screen{align-items:center;padding-top:24px}}
 body.in #login-screen{display:none}
@@ -257,7 +272,7 @@ body.in #login-screen{display:none}
   <div class="login-wrap">
     <div class="login-brand">
       <div class="logo login-logo"><span class="c1">CRO</span><span class="c2">MAT</span></div>
-      <div class="tagline" style="display:inline-block;margin-top:8px">GESTION EMPRESARIAL</div>
+      <div class="tagline" style="display:inline-block;margin-top:8px">GESTIÓN EMPRESARIAL</div>
     </div>
     <div class="login-card">
       <div id="login-titulo">Iniciar sesión</div>
@@ -312,13 +327,13 @@ body.in #login-screen{display:none}
     <div class="kpi green"><div class="kpi-v" id="k-cobrar">$0.00</div><div class="kpi-l">Por cobrar</div></div>
   </div>
   <div class="st">Presupuestos recientes</div>
-  <div id="dash-recent"><div class="empty">Sin presupuestos aun</div></div>
+  <div id="dash-recent"><div class="empty">Sin presupuestos aún</div></div>
   <div id="dash-equipo-wrap" style="display:none">
     <div class="st" style="margin-top:14px">Equipo</div>
     <div id="dash-equipo"><div class="empty">Sin usuarios</div></div>
   </div>
   <div class="st" style="margin-top:14px">Stock bajo</div>
-  <div id="dash-stock"><div class="empty">Todo el stock esta bien</div></div>
+  <div id="dash-stock"><div class="empty">Todo el stock está bien</div></div>
   <div id="dash-sync-err" style="display:none;font-size:11px;color:var(--dt);margin:16px 0 0;line-height:1.4"></div>
 </div>
 
@@ -366,7 +381,7 @@ body.in #login-screen{display:none}
       <option value="">Todos</option>
       <option value="pendiente">Pendiente</option>
       <option value="arte">Arte</option>
-      <option value="impresion">Impresion</option>
+      <option value="impresion">Impresión</option>
       <option value="calandra">Calandra</option>
       <option value="costura">Costura</option>
       <option value="calidad">Control calidad</option>
@@ -525,11 +540,11 @@ body.in #login-screen{display:none}
   </div>
   <div id="vista-calc-live">
     <div class="ctabs" id="calc-tabs-inner">
-      <button class="ctab on" onclick="showCalc('imp',this)">Impresion</button>
+      <button class="ctab on" onclick="showCalc('imp',this)">Impresión</button>
       <button class="ctab" onclick="showCalc('textil',this)">Textil</button>
       <button class="ctab" onclick="showCalc('dtf',this)">DTF</button>
       <button class="ctab" onclick="showCalc('3d',this)">3D</button>
-      <button class="ctab" onclick="showCalc('diseno',this)">Diseno</button>
+      <button class="ctab" onclick="showCalc('diseno',this)">Diseño</button>
       <button class="ctab" onclick="showCalc('seguridad',this)">Seguridad</button>
     </div>
     <!-- IMPRESION -->
@@ -571,7 +586,7 @@ body.in #login-screen{display:none}
         </button>
         <button class="pass-btn" id="pass-6"  onclick="setPass(6)"  style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--s2);cursor:pointer;text-align:center">
           <div style="font-size:13px;font-weight:700;color:var(--tp)">6 pass</div>
-          <div style="font-size:9px;color:var(--tm)">Estandar · 5–10 ml/m²</div>
+          <div style="font-size:9px;color:var(--tm)">Estándar · 5–10 ml/m²</div>
           <div style="font-size:9px;color:var(--tm)">~16 min/m²</div>
         </button>
         <button class="pass-btn" id="pass-8"  onclick="setPass(8)"  style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--bd);background:var(--s2);cursor:pointer;text-align:center">
@@ -724,7 +739,7 @@ body.in #login-screen{display:none}
 
   <div class="btn-row" style="margin-bottom:14px">
     <button class="btn btn-teal btn-sm" type="button" onclick="enviarCostosPdf()">Enviar PDF</button>
-    <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Impresion')">Guardar este analisis</button>
+    <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Impresion')">Guardar este análisis</button>
   </div>
 </div>
 
@@ -768,7 +783,7 @@ body.in #login-screen{display:none}
         <div id="tr-sem"></div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Textil')">Guardar este analisis</button>
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Textil')">Guardar este análisis</button>
       </div>
     </div>
     <!-- DTF -->
@@ -796,7 +811,7 @@ body.in #login-screen{display:none}
         <div class="total-row"><span class="total-label">Total pedido (<span id="dr-3">10</span> pzs)</span><span class="total-val" id="dr-tot">-</span></div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('DTF')">Guardar este analisis</button>
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('DTF')">Guardar este análisis</button>
       </div>
     </div>
     <!-- 3D -->
@@ -819,13 +834,13 @@ body.in #login-screen{display:none}
         <div class="total-row"><span class="total-label">Precio sugerido</span><span class="total-val" id="pr-p">-</span></div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('3D')">Guardar este analisis</button>
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('3D')">Guardar este análisis</button>
       </div>
     </div>
     <!-- DISENO -->
     <div id="cp-diseno" class="cpanel">
       <div class="card">
-        <div class="st">Calculadora Diseno Grafico</div>
+        <div class="st">Calculadora diseño gráfico</div>
         <div class="field-row"><span class="field-label">Tarifa/hora ($)</span><input class="field-input" type="number" id="ds-h" value="15" min="1" oninput="cDs()"></div>
         <div class="field-row"><span class="field-label">Horas estimadas</span><input class="field-input" type="number" id="ds-hrs" value="4" min="0.5" step="0.5" oninput="cDs()"></div>
         <div class="field-row"><span class="field-label">Markup (%)</span><input class="field-input" type="number" id="ds-mg" value="20" min="0" oninput="cDs()"></div>
@@ -844,7 +859,7 @@ body.in #login-screen{display:none}
         <div class="total-row"><span class="total-label">Precio final</span><span class="total-val" id="dsr-p">-</span></div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Diseno')">Guardar este analisis</button>
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Diseno')">Guardar este análisis</button>
       </div>
     </div>
     <!-- SEGURIDAD -->
@@ -876,12 +891,12 @@ body.in #login-screen{display:none}
         </div>
         <div class="field-row"><span class="field-label">Cantidad</span><input class="field-input" type="number" id="sg-cant" value="1" min="1" step="1" oninput="cSeg()"></div>
         <div class="field-row"><span class="field-label">Costo del producto ($)</span><input class="field-input" type="number" id="sg-costo" value="0" min="0" step="0.01" oninput="cSeg()"></div>
-        <div class="field-row"><span class="field-label">Envio ($)</span><input class="field-input" type="number" id="sg-envio" value="0" min="0" step="0.01" oninput="cSeg()"></div>
+        <div class="field-row"><span class="field-label">Envío ($)</span><input class="field-input" type="number" id="sg-envio" value="0" min="0" step="0.01" oninput="cSeg()"></div>
         <div class="field-row"><span class="field-label">Ganancia ($)</span><input class="field-input" type="number" id="sg-gan" value="0" min="0" step="0.01" oninput="cSeg()"></div>
       </div>
       <div class="result-box">
         <div class="result-row"><span class="result-label">Costo producto</span><span class="result-val" id="sgr-prod">-</span></div>
-        <div class="result-row"><span class="result-label">Envio</span><span class="result-val" id="sgr-envio">-</span></div>
+        <div class="result-row"><span class="result-label">Envío</span><span class="result-val" id="sgr-envio">-</span></div>
         <div class="result-row"><span class="result-label">Costo directo</span><span class="result-val teal" id="sgr-costo">-</span></div>
         <div class="result-row"><span class="result-label">Ganancia</span><span class="result-val coral" id="sgr-gan">-</span></div>
         <div class="total-row"><span class="total-label">Precio venta<span id="sgr-cant-lbl"></span></span><span class="total-val" id="sgr-precio">-</span></div>
@@ -889,20 +904,20 @@ body.in #login-screen{display:none}
         <div id="sgr-sem"></div>
       </div>
       <div style="text-align:right;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Seguridad')">Guardar este analisis</button>
+        <button class="btn btn-ghost btn-sm" onclick="guardarAnalisis('Seguridad')">Guardar este análisis</button>
       </div>
     </div>
   </div>
   <div id="vista-calc-saved" style="display:none">
     <div class="search-row">
-      <input class="fi" type="text" id="cst-buscar" placeholder="Buscar analisis..." oninput="renderCostos()">
+      <input class="fi" type="text" id="cst-buscar" placeholder="Buscar análisis..." oninput="renderCostos()">
       <select class="fi" id="cst-filtro" style="max-width:120px" onchange="renderCostos()">
         <option value="">Todos</option>
-        <option value="Impresion">Impresion</option>
+        <option value="Impresion">Impresión</option>
         <option value="Textil">Textil</option>
         <option value="DTF">DTF</option>
         <option value="3D">3D</option>
-        <option value="Diseno">Diseno</option>
+        <option value="Diseno">Diseño</option>
         <option value="Seguridad">Seguridad</option>
       </select>
     </div>
@@ -1183,7 +1198,7 @@ body.in #login-screen{display:none}
           <option value="Sublimacion Textil">Sublimacion Textil</option>
           <option value="DTF">DTF</option>
           <option value="Confeccion">Confeccion</option>
-          <option value="Diseno">Diseno Grafico</option>
+          <option value="Diseno">Diseño gráfico</option>
           <option value="Otro">Otro</option>
         </select>
       </div>
@@ -1244,7 +1259,7 @@ body.in #login-screen{display:none}
       <select class="fi" id="op-estado">
         <option value="pendiente">Pendiente</option>
         <option value="arte">Arte</option>
-        <option value="impresion">Impresion</option>
+        <option value="impresion">Impresión</option>
         <option value="calandra">Calandra</option>
         <option value="costura">Costura</option>
         <option value="calidad">Control calidad</option>
@@ -1254,7 +1269,7 @@ body.in #login-screen{display:none}
       </select>
     </div>
     <div class="fg"><label class="fl">Observaciones</label><textarea class="fi" id="op-obs" rows="2" placeholder="Notas internas..."></textarea></div>
-    <button class="btn btn-primary" style="width:100%" onclick="guardarOrden()">Crear Orden de Produccion</button>
+    <button class="btn btn-primary" style="width:100%" onclick="guardarOrden()">Crear orden de producción</button>
   </div>
 </div>
 
@@ -1312,11 +1327,11 @@ body.in #login-screen{display:none}
 <!-- MODAL GUARDAR / EDITAR ANALISIS -->
 <div class="modal-bg" id="modal-guardar-calc">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title" id="gc-title">Guardar analisis</span><button class="close-btn" onclick="closeModal('modal-guardar-calc')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="gc-title">Guardar análisis</span><button class="close-btn" onclick="closeModal('modal-guardar-calc')">&#x2715;</button></div>
     <input type="hidden" id="gc-id">
     <input type="hidden" id="gc-tipo">
     <div class="fg"><label class="fl">Nombre del analisis</label><input class="fi" type="text" id="gc-nombre" placeholder="Ej: Toalla grande 50x100..."></div>
-    <div class="fg"><label class="fl">Material / descripcion</label><input class="fi" type="text" id="gc-material" placeholder="Ej: Polyester 200g..."></div>
+    <div class="fg"><label class="fl">Material / descripción</label><input class="fi" type="text" id="gc-material" placeholder="Ej: Polyester 200g..."></div>
     <div id="gc-preview-items" style="font-size:11px;color:var(--tm);margin-bottom:10px"></div>
     <div id="gc-gastos-wrap" style="display:none;margin-bottom:12px">
       <div class="st">Gastado en cada cosa</div>
@@ -1340,7 +1355,7 @@ body.in #login-screen{display:none}
 <!-- MODAL VER ANALISIS -->
 <div class="modal-bg" id="modal-ver-costo">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title" id="vc-titulo">Analisis</span><button class="close-btn" onclick="closeModal('modal-ver-costo')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title" id="vc-titulo">Análisis</span><button class="close-btn" onclick="closeModal('modal-ver-costo')">&#x2715;</button></div>
     <div id="vc-body"></div>
   </div>
 </div>
@@ -1382,7 +1397,7 @@ body.in #login-screen{display:none}
 <!-- MODAL AUDITORIA FONDOS -->
 <div class="modal-bg" id="modal-fondos-audit">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Auditoria fondos</span><button class="close-btn" onclick="closeModal('modal-fondos-audit')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title">Auditoría de fondos</span><button class="close-btn" onclick="closeModal('modal-fondos-audit')">&#x2715;</button></div>
     <div id="fondos-auditoria"></div>
   </div>
 </div>
@@ -1398,7 +1413,7 @@ body.in #login-screen{display:none}
 <!-- MODAL VER OP -->
 <div class="modal-bg" id="modal-ver-op">
   <div class="modal">
-    <div class="modal-header"><span class="modal-title">Orden de Produccion</span><button class="close-btn" onclick="closeModal('modal-ver-op')">&#x2715;</button></div>
+    <div class="modal-header"><span class="modal-title">Orden de producción</span><button class="close-btn" onclick="closeModal('modal-ver-op')">&#x2715;</button></div>
     <div id="op-ver-content"></div>
   </div>
 </div>
@@ -1412,13 +1427,13 @@ body.in #login-screen{display:none}
       <div class="st" style="margin-top:14px">Nuevo usuario</div>
       <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="nu-nombre" placeholder="Ej: Maria Lopez"></div>
       <div class="fg" id="nu-usuario-wrap"><label class="fl" id="nu-usuario-lbl">Usuario</label><input class="fi" type="text" id="nu-usuario" placeholder="Ej: maria" autocomplete="off"></div>
-      <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Minimo 8 caracteres" autocomplete="new-password"></div>
+      <div class="fg" id="nu-clave-wrap"><label class="fl">Clave</label><input class="fi" type="password" id="nu-clave" placeholder="Mínimo 8 caracteres" autocomplete="new-password"></div>
       <div class="fg"><label class="fl">Rol</label>
         <select class="fi" id="nu-rol">
           <option value="ventas">Ventas</option>
-          <option value="operadora">Produccion</option>
+          <option value="operadora">Producción</option>
           <option value="conta">Contabilidad</option>
-          <option value="diseno">Diseno</option>
+          <option value="diseno">Diseño</option>
           <option value="admin">Dueño / Admin</option>
         </select>
       </div>
@@ -1430,9 +1445,9 @@ body.in #login-screen{display:none}
       <div class="fg"><label class="fl">Rol</label>
         <select class="fi" id="nu-rol-cloud">
           <option value="ventas">Ventas</option>
-          <option value="operadora">Produccion</option>
+          <option value="operadora">Producción</option>
           <option value="conta">Contabilidad</option>
-          <option value="diseno">Diseno</option>
+          <option value="diseno">Diseño</option>
           <option value="admin">Dueño / Admin</option>
         </select>
       </div>
@@ -1468,7 +1483,7 @@ body.in #login-screen{display:none}
 // Datos de passes XP600 1.6m
 var PASS_MODES = {
   4:  {ml: 4.5,  tImp: 3.3,  label:'4 pass — Draft'},
-  6:  {ml: 7.0,  tImp: 5.0,  label:'6 pass — Estandar'},
+  6:  {ml: 7.0,  tImp: 5.0,  label:'6 pass — Estándar'},
   8:  {ml: 12.0, tImp: 6.6,  label:'8 pass — Alta calidad'},
   12: {ml: 17.5, tImp: 10.0, label:'12 pass — Foto/Premium'}
 };
@@ -1490,11 +1505,24 @@ function setPass(n){
 
 // ===== UTILS =====
 var LS={
-  g:function(k){try{return JSON.parse(localStorage.getItem(k))||null}catch(e){return null}},
-  s:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  g:function(k){
+    try{
+      if(typeof AUTH!=='undefined'&&AUTH&&typeof CLOUD_DATA_KEYS!=='undefined'&&CLOUD_DATA_KEYS.indexOf(k)>=0&&typeof cloudCanReadKey==='function'&&!cloudCanReadKey(k))return null;
+      return JSON.parse(localStorage.getItem(k))||null;
+    }catch(e){return null}
+  },
+  s:function(k,v){
+    try{
+      if(typeof AUTH!=='undefined'&&AUTH&&typeof CLOUD_DATA_KEYS!=='undefined'&&CLOUD_DATA_KEYS.indexOf(k)>=0&&typeof cloudCanKey==='function'&&!cloudCanKey(k))return;
+      localStorage.setItem(k,JSON.stringify(v));
+    }catch(e){}
+  },
 };
-function usd(n){return '$'+(+n||0).toFixed(2)}
-function money2(n){return Math.round((parseFloat(n)||0)*100)/100}
+function finiteNum(n,def){n=parseFloat(n);return isFinite(n)?n:def}
+function clampPct(n,d){n=finiteNum(n,d);return Math.max(0,Math.min(100,n))}
+function safeDiv(a,b,fallback){if(!isFinite(a)||!isFinite(b)||b===0)return fallback==null?0:fallback;return a/b}
+function usd(n){n=+n;if(!isFinite(n))n=0;return '$'+n.toFixed(2)}
+function money2(n){return Math.round(finiteNum(n,0)*100)/100}
 function fch(d){if(!d)return'';var p=String(d).split('-');return p[2]+'/'+p[1]+'/'+p[0]}
 function fechaISO(d){
   d=d||new Date();
@@ -1685,7 +1713,7 @@ function presDocModelo(p){
   var tel=c?[c.tel,c.tel2].filter(Boolean).join(' / '):'';
   var emisor=[
     {k:'Empresa',v:'CROMAT'},
-    {k:'Actividad',v:'Impresion, sublimacion y textil'}
+    {k:'Actividad',v:'Impresión, sublimación y textil'}
   ];
   var cliente=[
     {k:'Nombre',v:(c&&c.nombre)||p.clienteNombre||'Sin cliente'},
@@ -1792,10 +1820,10 @@ function auditLog(accion,detalle){
 }
 var OP_ESTADOS_ORDEN=['pendiente','arte','impresion','calandra','costura','calidad','listo','pagado','entregado'];
 function opEstadoLabel(k){
-  return {pendiente:'Pendiente',arte:'Arte',impresion:'Impresion',calandra:'Calandra',costura:'Costura',calidad:'Control calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'}[k]||k;
+  return {pendiente:'Pendiente',arte:'Arte',impresion:'Impresión',calandra:'Calandra',costura:'Costura',calidad:'Control calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'}[k]||k;
 }
-function opMontoDe(o){return Math.max(0,parseFloat(o&&o.monto)||0)}
-function opAnticipoDe(o){return Math.max(0,parseFloat(o&&o.anticipo)||0)}
+function opMontoDe(o){return Math.max(0,finiteNum(o&&o.monto,0))}
+function opAnticipoDe(o){return Math.max(0,finiteNum(o&&o.anticipo,0))}
 function opSaldoPagoDe(o){
   if(!o||!o.saldoPago)return 0;
   return Math.max(0,parseFloat(o.saldoPago.monto)||0);
@@ -1956,9 +1984,9 @@ var OWNER_EMAIL='casainteligentemgta@gmail.com';
 var ROLES={
   admin:{l:'Dueño / Admin',tabs:['dash','clientes','presupuestos','ordenes','conta','fondos','costos','catalogo','inventario'],users:true,backup:true},
   ventas:{l:'Ventas',tabs:['dash','clientes','presupuestos','ordenes','catalogo']},
-  operadora:{l:'Produccion',tabs:['dash','ordenes','inventario','costos']},
+  operadora:{l:'Producción',tabs:['dash','ordenes','inventario','costos']},
   conta:{l:'Contabilidad',tabs:['dash','conta','fondos']},
-  diseno:{l:'Diseno',tabs:['dash','presupuestos','costos','catalogo']}
+  diseno:{l:'Diseño',tabs:['dash','presupuestos','costos','catalogo']}
 };
 function authUsers(){return LS.g('crm_usuarios')||[]}
 function authSaveUsers(lista){LS.s('crm_usuarios',lista)}
@@ -2483,11 +2511,11 @@ function renderDash(){
   }
   var rec=presup.slice().sort(function(a,b){return b.fecha>a.fecha?1:-1}).slice(0,3);
   var rEl=document.getElementById('dash-recent');
-  if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aun</div>'}
+  if(!rec.length){rEl.innerHTML='<div class="empty">Sin presupuestos aún</div>'}
   else{rEl.innerHTML=rec.map(function(p){return'<div class="list-item" onclick="verPresupuesto(\''+p.id+'\')"><div class="li-top"><span class="li-name">'+escHtml(p.clienteNombre)+'</span><span>'+usd(presTotalDe(p))+'</span></div><div class="li-sub">'+fch(p.fecha)+'</div></div>'}).join('')}
   var bajo=inv.filter(function(i){var min=parseFloat(i.min)||0;return min>0&&(parseFloat(i.stock)||0)<=min});
   var sEl=document.getElementById('dash-stock');
-  if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock esta bien</div>'}
+  if(!bajo.length){sEl.innerHTML='<div class="empty">Todo el stock está bien</div>'}
   else{sEl.innerHTML=bajo.map(function(i){return'<div class="list-item"><div class="li-top"><span class="li-name">'+escHtml(i.nombre)+'</span><span class="tag tag-red">BAJO</span></div><div class="li-sub">Stock: '+escHtml(i.stock)+' '+escHtml(i.unidad)+' (min: '+escHtml(i.min)+')</div></div>'}).join('')}
   renderEquipo();
 }
@@ -2498,7 +2526,7 @@ function renderClientes(){
   var q=(document.getElementById('buscar-cliente').value||'').toLowerCase();
   if(q)clientes=clientes.filter(function(c){return(c.nombre||'').toLowerCase().includes(q)||(c.tel||'').includes(q)||(c.empresa||'').toLowerCase().includes(q)});
   var el=document.getElementById('lista-clientes');
-  if(!clientes.length){el.innerHTML='<div class="empty">Sin clientes aun</div>';return}
+  if(!clientes.length){el.innerHTML='<div class="empty">Sin clientes aún. Toca + Nuevo cliente para el primero.</div>';return}
   var fuentes={instagram:'IG',referido:'Referido',whatsapp:'WA',facebook:'FB',tiktok:'TikTok',local:'Local',otro:'Otro'};
   el.innerHTML=clientes.map(function(c){
     var esJur=c.tipo==='Juridica';
@@ -2531,6 +2559,7 @@ function renderClientes(){
   }).join('');
 }
 function abrirCliente(id){
+  if(!requireTab('clientes')&&!(_presClienteNuevo&&(authCan('presupuestos')||authCan('clientes'))))return;
   var c=id?(LS.g('crm_clientes')||[]).find(function(x){return x.id===id}):null;
   document.getElementById('modal-cliente-title').textContent=c?'Editar cliente':'Nuevo cliente';
   document.getElementById('c-id').value=c?c.id:'';
@@ -2683,10 +2712,10 @@ function renderPresupuestos(){
   if(q)lista=lista.filter(function(p){return(p.clienteNombre||'').toLowerCase().includes(q)});
   lista.sort(function(a,b){return b.fecha>a.fecha?1:-1});
   var el=document.getElementById('lista-presupuestos');
-  if(!lista.length){el.innerHTML='<div class="empty">Sin presupuestos aun</div>';return}
+  if(!lista.length){el.innerHTML='<div class="empty">Sin presupuestos aún. Crea el primero desde Ventas.</div>';return}
   el.innerHTML=lista.map(function(p){
     var eColor={'pendiente':'tag-gray','enviado':'tag-teal','aprobado':'tag-green','rechazado':'tag-red','produccion':'tag-orange'};
-    var eLbl={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En produccion'};
+    var eLbl={'pendiente':'No enviado','enviado':'Enviado','aprobado':'Aprobado','rechazado':'Rechazado','produccion':'En producción'};
     var est=p.estado||'pendiente';
     var tieneOP=!!opDePresupuesto(p);
     var ap=p.anticipoPago;
@@ -3022,7 +3051,7 @@ function htmlPresupuestoFormal(p){
   html+='<div class="pres-firma">'+(d.elaborado?'Elaborado por '+escHtml(d.elaborado)+'<br>':'')+'CROMAT</div>';
   html+='<div class="pres-firma">Aceptacion del cliente<br>Nombre y firma</div>';
   html+='</div>';
-  html+='<div class="pres-foot">CROMAT · Impresion, sublimacion y textil<br>Este documento es una cotizacion y no constituye factura.</div>';
+  html+='<div class="pres-foot">CROMAT · Impresión, sublimación y textil<br>Este documento es una cotización y no constituye factura.</div>';
   html+='</div></div>';
   return html;
 }
@@ -3259,7 +3288,7 @@ function renderOrdenes(){
   if(estFil)lista=lista.filter(function(o){return o.estado===estFil});
   if(vistaOP==='kanban'){
     var cols=['pendiente','arte','impresion','calandra','costura','calidad','listo','pagado','entregado'];
-    var colLabels={pendiente:'Pendiente',arte:'Arte',impresion:'Impresion',calandra:'Calandra',costura:'Costura',calidad:'Calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'};
+    var colLabels={pendiente:'Pendiente',arte:'Arte',impresion:'Impresión',calandra:'Calandra',costura:'Costura',calidad:'Calidad',listo:'Listo',pagado:'Pagado',entregado:'Entregado'};
     var colColors={pendiente:'var(--ts)',arte:'#7B2FBE',impresion:'var(--coral)',calandra:'#E65100',costura:'var(--teal)',calidad:'var(--at)',listo:'var(--gt)',pagado:'#1B5E20',entregado:'var(--bd)'};
     document.getElementById('kanban-board').innerHTML=cols.map(function(c){
       var items=lista.filter(function(o){return o.estado===c});
@@ -3267,7 +3296,7 @@ function renderOrdenes(){
     }).join('');
   } else {
     var el=document.getElementById('lista-ordenes');
-    if(!lista.length){el.innerHTML='<div class="empty">Sin ordenes</div>';return}
+    if(!lista.length){el.innerHTML='<div class="empty">Sin órdenes aún. Se crean desde un presupuesto aprobado.</div>';return}
     var colores={pendiente:'tag-gray',arte:'tag-purple',impresion:'tag-orange',calandra:'tag-orange',costura:'tag-teal',calidad:'tag-teal',listo:'tag-green',pagado:'tag-green',entregado:'tag-gray'};
     el.innerHTML=lista.map(function(o){
       var itemsSub=o.opItems&&o.opItems.length?o.opItems.map(function(it){var tot=it.tallasDetalle?opTotalItem(it):(it.qty||1);return escHtml(it.nombre||'Item')+' x'+tot}).join(' &bull; '):escHtml(o.resumen||o.servicio||'');
@@ -4045,9 +4074,10 @@ function getGastosFijos(){
   var cfg=getContaCfg();
   if(Array.isArray(cfg.fijos)){
     return cfg.fijos.map(function(f){
-      return {id:f.id||uid(),nombre:f.nombre||'Gasto fijo',monto:+f.monto||0,cat:f.cat||'operativos'};
+      return {id:f.id||uid(),nombre:f.nombre||'Gasto fijo',monto:finiteNum(f.monto,0),cat:f.cat||'operativos'};
     });
   }
+  if(AUTH&&typeof cloudCanReadKey==='function'&&!cloudCanReadKey('imp_vals'))return [];
   var v=LS.g('imp_vals')||{};
   var gf=v.gf!=null?+v.gf:250;
   var sal=v.sal!=null?+v.sal:200;
@@ -4365,6 +4395,7 @@ function renderGastosFijos(){
   }).join('');
 }
 function editarMontoFijo(id,val){
+  if(!requireTab('conta'))return;
   var lista=getGastosFijos();
   var i=lista.findIndex(function(f){return f.id===id});
   if(i<0)return;
@@ -4376,11 +4407,13 @@ function editarMontoFijo(id,val){
   _skipFijosUi=false;
 }
 function quitarGastoFijo(id){
+  if(!requireTab('conta'))return;
   saveGastosFijos(getGastosFijos().filter(function(f){return f.id!==id}));
   renderDash();
   renderConta();
 }
 function agregarGastoFijo(){
+  if(!requireTab('conta'))return;
   var nom=(document.getElementById('fijo-nombre').value||'').trim();
   var monto=parseFloat(document.getElementById('fijo-monto').value)||0;
   if(!nom){alert('Escribe el nombre del gasto fijo.');return}
@@ -4617,7 +4650,7 @@ function guardarMovimiento(){
   if(!requireTab('conta'))return;
   var desc=(document.getElementById('mov-desc').value||'').trim();
   var monto=parseFloat(document.getElementById('mov-monto').value)||0;
-  if(!desc){alert('Escribe una descripcion.');return}
+  if(!desc){alert('Escribe una descripción.');return}
   if(monto<=0){alert('El monto debe ser mayor a 0.');return}
   var lista=LS.g('crm_movimientos')||[];
   var id=document.getElementById('mov-id').value;
@@ -4755,36 +4788,38 @@ function eliminarMov(id){
 
 // ===== FONDOS =====
 var FONDOS_DEFAULT=[
-  {id:'f1',nombre:'Impuesto / Retencion',pct:10,color:'#FF6B35',acumulado:0},
-  {id:'f2',nombre:'Fondo Fallas/Danos',pct:8,color:'#EF4444',acumulado:0},
-  {id:'f3',nombre:'Mantenimiento Equipos',pct:5,color:'#F59E0B',acumulado:0},
-  {id:'f4',nombre:'Reinversion Negocio',pct:10,color:'#028090',acumulado:0},
-  {id:'f5',nombre:'Caja Emergencia',pct:5,color:'#7B2FBE',acumulado:0}
+  {id:'f1',nombre:'Impuesto / Retención',pct:10,color:'#FF6B35',acumulado:0},
+  {id:'f2',nombre:'Fondo fallas / daños',pct:8,color:'#EF4444',acumulado:0},
+  {id:'f3',nombre:'Mantenimiento de equipos',pct:5,color:'#F59E0B',acumulado:0},
+  {id:'f4',nombre:'Reinversión del negocio',pct:10,color:'#028090',acumulado:0},
+  {id:'f5',nombre:'Caja de emergencia',pct:5,color:'#7B2FBE',acumulado:0}
 ];
 function getFondos(){return LS.g('crm_fondos_config')||JSON.parse(JSON.stringify(FONDOS_DEFAULT))}
 function alimentarFondos(ingreso,op){
+  ingreso=finiteNum(ingreso,0);
+  if(!(ingreso>0))return '';
+  if(AUTH&&typeof cloudCanKey==='function'&&!cloudCanKey('crm_fondos_config'))return '';
   var fondos=getFondos();
   var audit=LS.g('crm_fondos_audit')||[];
-  // Obtener desglose de costos del presupuesto vinculado si existe
-  var costoPct=0,gananciaPct=100;
+  var cfg=getContaCfg();
+  var costoPct=0;
   if(op&&op.presupuestoId){
     var pres=(LS.g('crm_presupuestos')||[]).find(function(x){return x.id===op.presupuestoId});
-    if(pres&&pres.subtotal&&pres.total){
-      // costoPct = porcentaje de costo de produccion sobre el ingreso
-      // Usar costoProd calculado en el presupuesto si existe
-      if(pres.costoProd&&pres.subtotal){
-        costoPct=Math.round(pres.costoProd/pres.subtotal*100);
-        gananciaPct=100-costoPct;
-      }
+    if(pres&&finiteNum(pres.costoProd,0)>0&&finiteNum(pres.subtotal,0)>0){
+      costoPct=clampPct(pres.costoProd/pres.subtotal*100,0);
     }
   }
-  var entry={id:uid(),fecha:hoy(),ingreso:ingreso,costoPct:costoPct,gananciaPct:gananciaPct,opId:op?op.id:'',cliente:op?op.clienteNombre:'',detalle:[]};
+  var costo=ingreso*costoPct/100;
+  var impuesto=ingreso*cfg.impPct/100;
+  var base=Math.max(0,ingreso-costo-impuesto);
+  var gananciaPct=ingreso>0?base/ingreso*100:0;
+  var entry={id:uid(),fecha:hoy(),ingreso:ingreso,costoPct:costoPct,impPct:cfg.impPct,gananciaPct:gananciaPct,opId:op?op.id:'',cliente:op?op.clienteNombre:'',detalle:[]};
   fondos.forEach(function(f){
-    // Los fondos se alimentan de la ganancia neta, no del ingreso bruto
-    var base=gananciaPct>0?ingreso*gananciaPct/100:ingreso;
-    var aporte=base*f.pct/100;
-    f.acumulado=(parseFloat(f.acumulado)||0)+aporte;
-    entry.detalle.push({nombre:f.nombre,pct:f.pct,aporte:aporte});
+    var pct=clampPct(f.pct,0);
+    f.pct=pct;
+    var aporte=base*pct/100;
+    f.acumulado=Math.max(0,finiteNum(f.acumulado,0)+aporte);
+    entry.detalle.push({nombre:f.nombre,pct:pct,aporte:aporte});
   });
   audit.unshift(entry);
   LS.s('crm_fondos_config',fondos);
@@ -4810,7 +4845,7 @@ function renderFondos(){
   var total=fondos.reduce(function(a,f){return a+(parseFloat(f.acumulado)||0)},0);
   document.getElementById('fondos-total').textContent=usd(total);
   var totalPct=fondos.reduce(function(a,f){return a+(parseFloat(f.pct)||0)},0);
-  document.getElementById('fondos-subtitle').textContent=totalPct+'% de la ganancia neta se distribuye automaticamente a fondos';
+  document.getElementById('fondos-subtitle').textContent=totalPct+'% de la ganancia neta se distribuye automáticamente a fondos';
   // Calcular totales financieros desde auditoría
   var audit=LS.g('crm_fondos_audit')||[];
   var ingTotal=audit.reduce(function(s,e){return s+(parseFloat(e.ingreso)||0)},0);
@@ -4853,7 +4888,7 @@ function renderFondosConfig(){
   }).join('');
 }
 var fondosCfgTemp=null;
-function fondosCfgEdit(i,k,v){if(!fondosCfgTemp)fondosCfgTemp=getFondos();fondosCfgTemp[i][k]=v}
+function fondosCfgEdit(i,k,v){if(!fondosCfgTemp)fondosCfgTemp=getFondos();if(k==='pct')v=clampPct(v,0);fondosCfgTemp[i][k]=v}
 function fondosCfgDel(i){if(!requireTab('fondos'))return;if(!fondosCfgTemp)fondosCfgTemp=getFondos();fondosCfgTemp.splice(i,1);renderFondosConfig()}
 function agregarFondoConfig(){if(!requireTab('fondos'))return;if(!fondosCfgTemp)fondosCfgTemp=getFondos();fondosCfgTemp.push({id:uid(),nombre:'Nuevo fondo',pct:5,color:'#028090',acumulado:0});renderFondosConfig()}
 function guardarFondosConfig(){if(!requireTab('fondos'))return;if(fondosCfgTemp){LS.s('crm_fondos_config',fondosCfgTemp);fondosCfgTemp=null}closeModal('modal-fondo-config');renderFondos()}
@@ -5221,13 +5256,12 @@ function enviarPresupuestoPdf(id){
 function numEl(id,def){
   var el=document.getElementById(id);
   if(!el)return def;
-  var n=parseFloat(el.value);
-  return isNaN(n)?def:n;
+  return finiteNum(el.value,def);
 }
 function calcImpresion(passN){
   var pass=(passN&&PASS_MODES[passN])?PASS_MODES[passN]:null;
-  var largo=numEl('i-largo',1);
-  var ancho=numEl('i-ancho',1.60);
+  var largo=Math.max(0,numEl('i-largo',1));
+  var ancho=Math.max(0,numEl('i-ancho',1.60));
   var area=largo*ancho;
   var tkC=numEl('i-tk-c',22),tkM=numEl('i-tk-m',22),tkY=numEl('i-tk-y',22),tkK=numEl('i-tk-k',22);
   var tkProm=(tkC+tkM+tkY+tkK)/4;
@@ -5235,20 +5269,20 @@ function calcImpresion(passN){
   var purga=numEl('i-purga',0);
   var tinta_m2=tkProm/1000*mlm2*(1+purga/100);
   var rp=numEl('i-rollo',60),rl=numEl('i-rlargo',100);
-  var papel_m2=rp/(rl*ancho);
+  var papel_m2=safeDiv(rp,rl*ancho,0);
   var kwImp=numEl('i-kwhc',2.5),kwCal=numEl('i-kw-cal',8),kwh=numEl('i-kwhi',0.04);
   var tImp=pass?pass.tImp:numEl('i-t-imp',3.3);
   var tCal=numEl('i-t-cal',3);
   var luz_m2=(kwImp*tImp/60+kwCal*tCal/60)*kwh;
   var vimp=numEl('i-vimp',12000),metrosVida=numEl('i-metros-vida',8000);
-  var dep_ml=vimp/metrosVida;
-  var dep_m2=ancho>0?dep_ml/ancho:0;
+  var dep_ml=safeDiv(vimp,metrosVida,0);
+  var dep_m2=safeDiv(dep_ml,ancho,0);
   var sal=numEl('i-sal-sem',200),gf=numEl('i-gf',250),otros=numEl('i-otros',0),m2mes=numEl('i-m2mes',400);
-  var mano_m2=sal/m2mes,prorr_m2=gf/m2mes;
+  var mano_m2=safeDiv(sal,m2mes,0),prorr_m2=safeDiv(gf,m2mes,0);
   var costo_m2=tinta_m2+papel_m2+luz_m2+dep_m2+mano_m2+prorr_m2+otros;
-  var mgPct=numEl('i-mg',89),ceoPct=numEl('i-pct-ceo',15),operPct=numEl('i-pct-oper',5);
+  var mgPct=Math.max(0,numEl('i-mg',89)),ceoPct=clampPct(numEl('i-pct-ceo',15),15),operPct=clampPct(numEl('i-pct-oper',5),5);
   var negPct=Math.max(0,100-ceoPct-operPct);
-  var impPct=numEl('i-imp',10);
+  var impPct=clampPct(numEl('i-imp',10),10);
   var gan_m2=costo_m2*mgPct/100;
   var precio_m2=costo_m2+gan_m2;
   var imp_m2=gan_m2*impPct/100;
@@ -5530,7 +5564,7 @@ function iMgFromPct(){ cImp(); }
 function iMgFromUsd(){
   if(window._impResult && window._impResult.costo_m2>0){
     var _mgUsdEl=document.getElementById('i-mg-usd');
-    var usdVal=_mgUsdEl?parseFloat(_mgUsdEl.value)||0:0;
+    var usdVal=_mgUsdEl?finiteNum(_mgUsdEl.value,0):0;
     var pct=usdVal/window._impResult.costo_m2*100;
     document.getElementById('i-mg').value=pct.toFixed(1);
   }
@@ -5538,19 +5572,19 @@ function iMgFromUsd(){
 }
 
 function _cTxTotals(){
-  var tpm=parseFloat(document.getElementById('tx-tela-pm').value)||0;
-  var tm=parseFloat(document.getElementById('tx-tela-m').value)||1;
+  var tpm=Math.max(0,finiteNum(document.getElementById('tx-tela-pm')&&document.getElementById('tx-tela-pm').value,0));
+  var tm=Math.max(0,finiteNum(document.getElementById('tx-tela-m')&&document.getElementById('tx-tela-m').value,1));
   var tela=tpm*tm;
   document.getElementById('tx-tela-sub').textContent=usd(tela);
-  var prUnit=parseFloat(document.getElementById('tx-pr').value)||0;
+  var prUnit=Math.max(0,finiteNum(document.getElementById('tx-pr')&&document.getElementById('tx-pr').value,0));
   var sel=document.getElementById('tx-imp-select');
   var lineal=txImpEsLineal(sel&&sel.value);
   txActualizarImpUi(lineal);
   var pr=lineal?prUnit*tm:prUnit;
   var impSub=document.getElementById('tx-imp-sub');
   if(impSub)impSub.textContent=usd(pr);
-  var co=parseFloat(document.getElementById('tx-co').value)||0;
-  var gan=parseFloat(document.getElementById('tx-gan').value)||0;
+  var co=Math.max(0,finiteNum(document.getElementById('tx-co')&&document.getElementById('tx-co').value,0));
+  var gan=finiteNum(document.getElementById('tx-gan')&&document.getElementById('tx-gan').value,0);
   var costo=tela+pr+co;
   var precio=costo+gan;
   document.getElementById('tr-costo').textContent=usd(costo);
@@ -5599,18 +5633,18 @@ function cTx(){
 }
 // DTF
 function cDTF(){
-  var ancho=parseFloat(document.getElementById('d-ancho').value)||20;
-  var alto=parseFloat(document.getElementById('d-alto').value)||20;
+  var ancho=Math.max(0,finiteNum(document.getElementById('d-ancho')&&document.getElementById('d-ancho').value,20));
+  var alto=Math.max(0,finiteNum(document.getElementById('d-alto')&&document.getElementById('d-alto').value,20));
   var area=ancho*alto/10000;
-  var tinta=(parseFloat(document.getElementById('d-tinta').value)||8)*area;
-  var film=(parseFloat(document.getElementById('d-film').value)||3)*area;
-  var polvoKg=parseFloat(document.getElementById('d-polvo-kg').value)||12;
-  var polvoG=parseFloat(document.getElementById('d-polvo-m2').value)||50;
+  var tinta=Math.max(0,finiteNum(document.getElementById('d-tinta')&&document.getElementById('d-tinta').value,8))*area;
+  var film=Math.max(0,finiteNum(document.getElementById('d-film')&&document.getElementById('d-film').value,3))*area;
+  var polvoKg=Math.max(0,finiteNum(document.getElementById('d-polvo-kg')&&document.getElementById('d-polvo-kg').value,12));
+  var polvoG=Math.max(0,finiteNum(document.getElementById('d-polvo-m2')&&document.getElementById('d-polvo-m2').value,50));
   var polvo=polvoKg/1000*polvoG*area;
-  var mano=parseFloat(document.getElementById('d-mano').value)||1;
-  var luz=parseFloat(document.getElementById('d-luz').value)||0.3;
-  var cant=parseFloat(document.getElementById('d-cant').value)||10;
-  var mg=parseFloat(document.getElementById('d-mg').value)||50;
+  var mano=Math.max(0,finiteNum(document.getElementById('d-mano')&&document.getElementById('d-mano').value,1));
+  var luz=Math.max(0,finiteNum(document.getElementById('d-luz')&&document.getElementById('d-luz').value,0.3));
+  var cant=Math.max(0,finiteNum(document.getElementById('d-cant')&&document.getElementById('d-cant').value,10));
+  var mg=Math.max(0,finiteNum(document.getElementById('d-mg')&&document.getElementById('d-mg').value,50));
   var cUnit=tinta+film+polvo+mano+luz;
   var gan=cUnit*mg/100;
   var precio=cUnit+gan;
@@ -5645,13 +5679,13 @@ function cDTF(){
 }
 // 3D
 function c3D(){
-  var peso=parseFloat(document.getElementById('p-peso').value)||25;
-  var matg=parseFloat(document.getElementById('p-matg').value)||0.018;
-  var hrs=parseFloat(document.getElementById('p-hrs').value)||4;
-  var luz=parseFloat(document.getElementById('p-luz').value)||0.05;
-  var acab=parseFloat(document.getElementById('p-acab').value)||1.5;
-  var fallo=parseFloat(document.getElementById('p-fallo').value)||15;
-  var mg=parseFloat(document.getElementById('p-mg').value)||45;
+  var peso=Math.max(0,finiteNum(document.getElementById('p-peso')&&document.getElementById('p-peso').value,25));
+  var matg=Math.max(0,finiteNum(document.getElementById('p-matg')&&document.getElementById('p-matg').value,0.018));
+  var hrs=Math.max(0,finiteNum(document.getElementById('p-hrs')&&document.getElementById('p-hrs').value,4));
+  var luz=Math.max(0,finiteNum(document.getElementById('p-luz')&&document.getElementById('p-luz').value,0.05));
+  var acab=Math.max(0,finiteNum(document.getElementById('p-acab')&&document.getElementById('p-acab').value,1.5));
+  var fallo=Math.max(0,finiteNum(document.getElementById('p-fallo')&&document.getElementById('p-fallo').value,15));
+  var mg=Math.max(0,finiteNum(document.getElementById('p-mg')&&document.getElementById('p-mg').value,45));
   var cMat=peso*matg;
   var cLuz=hrs*luz;
   var sub=cMat+cLuz+acab;
@@ -5730,11 +5764,11 @@ function sgOnProd(){
   cSeg();
 }
 function cSeg(){
-  var cant=parseFloat(document.getElementById('sg-cant')&&document.getElementById('sg-cant').value);
+  var cant=finiteNum(document.getElementById('sg-cant')&&document.getElementById('sg-cant').value,1);
   if(!(cant>0))cant=1;
-  var costoU=parseFloat(document.getElementById('sg-costo')&&document.getElementById('sg-costo').value)||0;
-  var envio=parseFloat(document.getElementById('sg-envio')&&document.getElementById('sg-envio').value)||0;
-  var gan=parseFloat(document.getElementById('sg-gan')&&document.getElementById('sg-gan').value)||0;
+  var costoU=Math.max(0,finiteNum(document.getElementById('sg-costo')&&document.getElementById('sg-costo').value,0));
+  var envio=Math.max(0,finiteNum(document.getElementById('sg-envio')&&document.getElementById('sg-envio').value,0));
+  var gan=finiteNum(document.getElementById('sg-gan')&&document.getElementById('sg-gan').value,0);
   var costoProd=costoU*cant;
   var costo=costoProd+envio;
   var precio=costo+gan;
@@ -5773,14 +5807,13 @@ function cSeg(){
 }
 // DISENO
 function cDs(){
-  var h=parseFloat(document.getElementById('ds-h').value)||15;
-  var hrs=parseFloat(document.getElementById('ds-hrs').value)||4;
-  var mg=parseFloat(document.getElementById('ds-mg').value)||20;
-  var ceoPct=parseFloat(document.getElementById('ds-pct-ceo').value)||15;
-  var operPct=parseFloat(document.getElementById('ds-pct-oper').value)||5;
+  var h=Math.max(0,finiteNum(document.getElementById('ds-h')&&document.getElementById('ds-h').value,15));
+  var hrs=Math.max(0,finiteNum(document.getElementById('ds-hrs')&&document.getElementById('ds-hrs').value,4));
+  var mg=Math.max(0,finiteNum(document.getElementById('ds-mg')&&document.getElementById('ds-mg').value,20));
+  var ceoPct=clampPct(document.getElementById('ds-pct-ceo')&&document.getElementById('ds-pct-ceo').value,15);
+  var operPct=clampPct(document.getElementById('ds-pct-oper')&&document.getElementById('ds-pct-oper').value,5);
   var impEl=document.getElementById('ds-imp');
-  var impPct=impEl?parseFloat(impEl.value):CONTA_CFG_DEFAULT.impPct;
-  if(isNaN(impPct))impPct=CONTA_CFG_DEFAULT.impPct;
+  var impPct=clampPct(impEl&&impEl.value,CONTA_CFG_DEFAULT.impPct);
   var base=h*hrs;
   var final=base*(1+mg/100);
   var gan=final-base;
@@ -5908,7 +5941,7 @@ function guardarAnalisis(tipo){
   if(!res||!(+res.precio>0)){alert('Calcula primero');return}
   document.getElementById('gc-id').value='';
   document.getElementById('gc-tipo').value=tipo;
-  document.getElementById('gc-title').textContent='Guardar analisis';
+  document.getElementById('gc-title').textContent='Guardar análisis';
   document.getElementById('gc-btn').textContent='Guardar';
   document.getElementById('gc-nombre').value=nombreAutoAnalisis(tipo,res);
   document.getElementById('gc-material').value='';
@@ -5925,7 +5958,7 @@ function abrirCosto(id){
   if(!c)return;
   document.getElementById('gc-id').value=c.id;
   document.getElementById('gc-tipo').value=c.tipo||'';
-  document.getElementById('gc-title').textContent='Editar analisis';
+  document.getElementById('gc-title').textContent='Editar análisis';
   document.getElementById('gc-btn').textContent='Guardar cambios';
   document.getElementById('gc-nombre').value=c.nombre||'';
   document.getElementById('gc-material').value=c.material||'';
@@ -6047,7 +6080,7 @@ function renderCostos(){
       +'<button class="btn btn-primary btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="guardarAnalisis(\'Impresion\')">Guardar en la lista y en la nube</button></div>';
   }
   if(!lista.length){
-    el.innerHTML=actual+'<div class="empty">Aún no hay análisis en esta lista. En Calculadoras toca <strong>Guardar este analisis</strong>; queda aquí y en la nube.</div>';
+    el.innerHTML=actual+'<div class="empty">Aún no hay análisis en esta lista. En Calculadoras toca <strong>Guardar este análisis</strong>; queda aquí y en la nube.</div>';
     return;
   }
   el.innerHTML=actual+lista.map(function(c){
@@ -6148,9 +6181,9 @@ function verCosto(id){
     html+='<div class="card" style="margin-bottom:10px"><div class="result-row"><span class="result-label" style="color:var(--gt);font-weight:600">Ganancia</span><span class="result-val" style="color:var(--gt)">'+usd(d.ganancia)+' · '+gp0.toFixed(1)+'%</span></div></div>';
   }
   if(!d.gastos&&!d.reparto){
-    html+='<div class="empty" style="padding:20px">Este analisis se guardo sin desglose. Calculalo de nuevo y guardalo para ver gastos y porcentajes.</div>';
+    html+='<div class="empty" style="padding:20px">Este análisis se guardó sin desglose. Calcúlalo de nuevo y guárdalo para ver gastos y porcentajes.</div>';
   }
-  html+='<button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="editarCostoDesdeVista(\''+c.id+'\')">Editar analisis</button>';
+  html+='<button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="editarCostoDesdeVista(\''+c.id+'\')">Editar análisis</button>';
   document.getElementById('vc-body').innerHTML=html;
   openModal('modal-ver-costo');
 }
@@ -6160,7 +6193,7 @@ function editarCostoDesdeVista(id){
 }
 function eliminarCosto(id){
   if(!requireTab('costos'))return;
-  if(!confirmarBorrar('Eliminar este analisis?'))return;
+  if(!confirmarBorrar('¿Eliminar este análisis?'))return;
   LS.s('crm_costos',(LS.g('crm_costos')||[]).filter(function(x){return x.id!==id}));
   renderCostos();
   fillTxImpSelect();
@@ -6173,7 +6206,7 @@ function renderCatalogo(){
   if(q)lista=lista.filter(function(p){return(p.nombre||'').toLowerCase().includes(q)});
   lista=lista.filter(function(p){return p.activo});
   var el=document.getElementById('lista-catalogo');
-  if(!lista.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">Sin productos en catalogo</div>';return}
+  if(!lista.length){el.innerHTML='<div class="empty" style="grid-column:1/-1">Sin productos en el catálogo. Se llenan al guardar un análisis.</div>';return}
   el.innerHTML=lista.map(function(p){
     var img=safeImgSrc(p.foto)?imgTag(p.foto,'width:100%;height:90px;object-fit:cover'):'<div class="cat-img-placeholder">&#128240;</div>';
     return'<div class="cat-card" onclick="abrirProdDet(\''+p.id+'\')">'+img+'<div class="cat-info"><div class="cat-name">'+escHtml(p.nombre)+'</div><div class="cat-price">'+usd(p.precio)+'</div></div></div>'
@@ -6547,7 +6580,7 @@ var CLOUD_DATA_KEYS=['crm_clientes','crm_presupuestos','crm_ordenes','crm_costos
 var CLOUD_KEY_ROLES={
   crm_clientes:['admin','ventas'],
   crm_presupuestos:['admin','ventas','diseno'],
-  crm_ordenes:['admin','ventas','operadora'],
+  crm_ordenes:['admin','ventas','operadora','conta'],
   crm_costos:['admin','operadora','diseno'],
   crm_catalogo:['admin','ventas','diseno'],
   crm_inventario:['admin','operadora'],
@@ -6556,6 +6589,11 @@ var CLOUD_KEY_ROLES={
   crm_fondos_audit:['admin','conta'],
   crm_conta_config:['admin','conta'],
   imp_vals:['admin','operadora','diseno']
+};
+var CLOUD_KEY_READ_ROLES={
+  crm_presupuestos:['admin','ventas','diseno','conta'],
+  crm_costos:['admin','operadora','diseno','conta'],
+  crm_ordenes:['admin','ventas','operadora','conta']
 };
 function leerCfgNube(){
   if(SB_URL.indexOf('https://')===0&&SB_KEY&&SB_KEY.indexOf('__')!==0)return{url:SB_URL,key:SB_KEY};
@@ -6576,6 +6614,13 @@ function cloudCanKey(k){
   var roles=CLOUD_KEY_ROLES[k];
   return !!(roles&&roles.indexOf(AUTH.rol)>=0);
 }
+function cloudCanReadKey(k){
+  if(!AUTH)return false;
+  if(k==='crm_audit')return esMaster();
+  var extra=CLOUD_KEY_READ_ROLES[k];
+  if(extra&&extra.indexOf(AUTH.rol)>=0)return true;
+  return cloudCanKey(k);
+}
 
 function _sbPend(){try{return JSON.parse(localStorage.getItem('cromat_pending'))||{}}catch(e){return{}}}
 function _sbSetPend(o){try{localStorage.setItem('cromat_pending',JSON.stringify(o))}catch(e){}}
@@ -6585,7 +6630,7 @@ function cloudErr(e){
   var t=m+' '+code;
   if(/need_invite_code/i.test(m))return 'Tu correo ya está. Pega el código de invitaciones pendientes (engranaje → Usuarios) y pulsa Unirme.';
   if(/invite_required/i.test(m))return 'Esta empresa ya existe. Pide el código de invitación (engranaje → Usuarios → pendientes) y pulsa Me invitaron.';
-  if(/invalid_invite/i.test(m))return 'Codigo invalido o ya usado. Pídele a Luis el código de Usuarios → invitaciones pendientes.';
+  if(/invalid_invite/i.test(m))return 'Código inválido o ya usado. Pídele a Luis el código de Usuarios → invitaciones pendientes.';
   if(/Invalid login|invalid_credentials|invalid login credentials/i.test(t))return 'Correo o clave incorrectos.';
   if(/not confirmed|email_not_confirmed/i.test(t))return 'Esa cuenta existe pero no está confirmada. Pídele al administrador que la active en Supabase y vuelve a entrar.';
   if(/over_email|email rate limit|rate.limit|too many requests|429|exced|intentos|after \d+ seconds/i.test(t))return 'Supabase limitó los correos por un rato. Espera unos minutos e inténtalo de nuevo. Si ya tienes cuenta, entra con el mismo correo y clave.';
@@ -6784,7 +6829,7 @@ function cloudPull(){
     localStorage.setItem('cromat_owner',CLOUD_ORG);
     if(AUTH){
       CLOUD_DATA_KEYS.forEach(function(k){
-        if(!cloudCanKey(k))localStorage.removeItem(k);
+        if(!cloudCanReadKey(k))localStorage.removeItem(k);
       });
     }
     localStorage.removeItem('crm_usuarios');
@@ -6792,21 +6837,21 @@ function cloudPull(){
     var pend=_sbPend(),cambio=false,enNube={};
     rows.forEach(function(row){
       enNube[row.key]=1;
-      if(!cloudCanKey(row.key))return;
+      if(!cloudCanReadKey(row.key))return;
       var ap=cloudApplyRow(row.key,row.value,pend);
       if(ap.cambio)cambio=true;
-      if(ap.subir)pend[row.key]=1;
+      if(ap.subir&&cloudCanKey(row.key))pend[row.key]=1;
     });
     CLOUD_DATA_KEYS.forEach(function(k){
       if(!cloudCanKey(k))return;
       if(!enNube[k]&&localStorage.getItem(k)!==null)pend[k]=1;
     });
     CLOUD_LIST_KEYS.forEach(function(k){
-      if(!stash[k]||!cloudCanKey(k))return;
+      if(!stash[k]||!cloudCanReadKey(k))return;
       var merged=cloudMergeLists(stash[k],LS.g(k));
       var nuevo=JSON.stringify(merged);
       if(localStorage.getItem(k)!==nuevo){localStorage.setItem(k,nuevo);cambio=true}
-      if(merged.length)pend[k]=1;
+      if(merged.length&&cloudCanKey(k))pend[k]=1;
     });
     var rec=repararFichasComerciales();
     if(rec&&(rec.clientes||rec.presupuestos))cambio=true;
@@ -7012,7 +7057,7 @@ function cloudEntrar(nombre,code){
       return r;
     }).then(function(r){
       if(r.error)throw r.error;
-      if(r.data&&r.data.activo===false&&!esDueñoEmail(SB_USER&&SB_USER.email)&&!esDueñoPerfil(r.data))throw {message:'Tu usuario esta inactivo.'};
+      if(r.data&&r.data.activo===false&&!esDueñoEmail(SB_USER&&SB_USER.email)&&!esDueñoPerfil(r.data))throw {message:'Tu usuario está inactivo.'};
       if(r.data)return cloudSesion(r.data);
       var redimir=function(){
         return sb.rpc('cromat_redeem_invite',{p_code:code||'',p_nombre:nombre||''}).then(function(x){

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 var fs = require('fs');
 var path = require('path');
-var file = path.join(__dirname, '..', 'index.html');
+var root = path.join(__dirname, '..');
+var file = path.join(root, 'index.html');
 var url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 var key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 var html = fs.readFileSync(file, 'utf8');

@@ -51,3 +51,12 @@ El enlace es `https://tu-dominio/?invite=CODIGO`. El código también se puede p
 Correo: **eliscubamoran@gmail.com**. Rol: Ventas.
 
 La cuenta de Authentication ya está. Para dejarla en el equipo, en supabase.com → SQL Editor pega y corre `crear-elis.sql` (o vuelve a pegar este `schema.sql`). Luego entra en [cromat-sandy.vercel.app](https://cromat-sandy.vercel.app) con **Ya tengo cuenta**. La clave no se guarda en este repo.
+
+## Pendiente del dueño (producción)
+
+Estos pasos **no** los corre el código solo. Hay que hacerlos a mano:
+
+1. **Supabase → SQL Editor**: pega y corre `migrations/20261104120000_auditoria_seguridad.sql`. No borra cuentas ni datos. Cierra el EXECUTE público de las funciones y ajusta permisos de Contabilidad.
+2. **Supabase → Authentication → Providers → Email**: activa **Leaked password protection**.
+3. **Vercel → Settings → Environment Variables**: copia `SUPABASE_URL` y `SUPABASE_ANON_KEY` también a **Preview** (hoy solo están en Production). Sin eso, los deploys de PR no pueden iniciar sesión.
+4. No pegues `service_role` en Vercel ni en Cromat.
